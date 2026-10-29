@@ -36,6 +36,8 @@
         };
       });
 
+      apps = forAll (pkgs: import ./nix/apps.nix { inherit pkgs; });
+
       checks = forAll (pkgs: import ./nix/checks.nix { inherit pkgs; });
     };
 }

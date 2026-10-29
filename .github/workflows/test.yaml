@@ -54,6 +54,13 @@ jobs:
         with:
           persist-credentials: false
       - uses: flakeyard/action-setup-nix@2c58fef33760785dfe660be025fcadd88f1269b1 # v0.1.0
+      # First, while Nix still knows which derivations it builds itself.
+      - name: Check reproducibility
+        shell: bash
+        run: nix run --no-update-lock-file .#check-reproducible
+      - name: Check the size
+        shell: bash
+        run: nix run --no-update-lock-file .#check-size -- size-budget
       - name: Check the flake
         shell: bash
         run: nix flake check --no-update-lock-file --print-build-logs
