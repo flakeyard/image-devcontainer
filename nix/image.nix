@@ -31,6 +31,17 @@ let
     PS1='\u@devcontainer:\w\$ '
   '';
 
+  env = [
+    "LANG=C.UTF-8"
+    "PATH=${users.home}/.nix-profile/bin:/bin:/usr/bin"
+    "TZDIR=${pkgs.tzdata}/share/zoneinfo"
+    "SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt"
+    "NIX_SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt"
+    "NIX_REMOTE=daemon"
+    "NIX_LD=${pkgs.stdenv.cc.bintools.dynamicLinker}"
+    "NIX_LD_LIBRARY_PATH=${foreign.libraryPath}"
+  ];
+
   metadata = builtins.toJSON [
     {
       remoteUser = users.user;
@@ -52,6 +63,13 @@ dockerTools.streamLayeredImage {
     # Refers to every path in `contents`: its closure is the image's store,
     # which the SBOM describes.
     closureRoot = pkgs.writeText "image-closure-root" (lib.concatMapStringsSep "\n" toString contents);
+    # What the smoke tests expect of the image.
+    expected = pkgs.linkFarm "image-expected" {
+      "nix.conf" = pkgs.writeText "nix.conf" parts.nixConf;
+      "env" = pkgs.writeText "env" (lib.concatLines env);
+      "metadata" = pkgs.writeText "metadata" metadata;
+      "nix-version" = pkgs.writeText "nix-version" parts.nix.version;
+    };
   };
 
   extraCommands = ''
@@ -90,16 +108,7 @@ dockerTools.streamLayeredImage {
       "infinity"
     ];
     WorkingDir = users.home;
-    Env = [
-      "LANG=C.UTF-8"
-      "PATH=${users.home}/.nix-profile/bin:/bin:/usr/bin"
-      "TZDIR=${pkgs.tzdata}/share/zoneinfo"
-      "SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt"
-      "NIX_SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt"
-      "NIX_REMOTE=daemon"
-      "NIX_LD=${pkgs.stdenv.cc.bintools.dynamicLinker}"
-      "NIX_LD_LIBRARY_PATH=${foreign.libraryPath}"
-    ];
+    Env = env;
     # The same for every commit; version and commit are annotations of the
     # manifest list (FY-0027).
     Labels = {

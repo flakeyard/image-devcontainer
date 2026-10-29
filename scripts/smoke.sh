@@ -22,4 +22,6 @@ trap 'sudo rm -rf -- "$WORK"' EXIT
 source "$tests/lib.sh"
 # shellcheck disable=SC1091
 source "$tests/core.sh"
+# shellcheck disable=SC1091
+source "$tests/nix.sh"
 summary
