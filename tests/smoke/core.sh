@@ -111,9 +111,10 @@ expect_line "dev"
 expect_line "/home/dev"
 
 test_case "dev can reopen stdout and stderr"
-run -- sh -c 'echo to-stdout >/dev/stdout; echo to-stderr >/dev/stderr'
+run -- sh -c 'echo to-stdout >/dev/stdout; echo to-stderr >/dev/stderr; stat -c %U /dev/null'
 expect_line "to-stdout"
 expect_line "to-stderr"
+expect_line "root"
 
 # --- capabilities ----------------------------------------------------------------
 

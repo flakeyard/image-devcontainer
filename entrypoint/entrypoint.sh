@@ -109,10 +109,13 @@ set_identity() {
 # nix-direnv does. Files and terminals are left alone: they may belong to the
 # host.
 give_streams() {
-  local fd
+  local fd stream
   for fd in 0 1 2; do
-    if [[ -p /proc/self/fd/$fd || -S /proc/self/fd/$fd ]]; then
-      chown "$1:$2" "/proc/self/fd/$fd" 2>/dev/null || true
+    # The entrypoint's own descriptors: /proc/self would be those of chown,
+    # whose stderr goes to /dev/null.
+    stream=/proc/$$/fd/$fd
+    if [[ -p $stream || -S $stream ]]; then
+      chown "$1:$2" "$stream" 2>/dev/null || true
     fi
   done
 }
