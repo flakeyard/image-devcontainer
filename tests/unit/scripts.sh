@@ -156,10 +156,10 @@ run "release-rebuild: a release missing from the registry fails" fail rebuild
 finish
 
 release_setup
-export CRANE_DENIED=1
-run "release-rebuild: other registry errors fail" fail rebuild
+export CRANE_MANIFEST_DENIED=1
+run "release-rebuild: registry errors fail" fail rebuild
 expect message "DENIED"
-unset CRANE_DENIED
+unset CRANE_MANIFEST_DENIED
 finish
 
 release_setup

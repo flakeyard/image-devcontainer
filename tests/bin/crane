@@ -2,7 +2,7 @@
 # Stub of crane for the unit tests of scripts/: a registry in $REGISTRY
 # (manifests/<digest>, tags/<tag>); calls that change it go to $CALLS.
 # $CRANE_DENIED makes reading a tag or the tag list fail without
-# MANIFEST_UNKNOWN or NAME_UNKNOWN. Manifests are stored and printed as exact
+# MANIFEST_UNKNOWN or NAME_UNKNOWN, $CRANE_MANIFEST_DENIED reading a manifest. Manifests are stored and printed as exact
 # bytes, as a registry does.
 set -euo pipefail
 unknown() {
@@ -26,6 +26,10 @@ case $1 in
     fi
     ;;
   manifest)
+    [[ -z ${CRANE_MANIFEST_DENIED-} ]] || {
+      echo "Error: DENIED: requested access to the resource is denied" >&2
+      exit 1
+    }
     if [[ $2 == *@* ]]; then
       digest=${2#*@}
     else
