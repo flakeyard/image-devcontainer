@@ -12,7 +12,8 @@ let
   # In `contents` they are garbage collection roots of the image's store.
   roots = pkgs.linkFarm "image-roots" (
     map (path: {
-      name = baseNameOf path;
+      # The name only; `path` keeps the dependency.
+      name = builtins.unsafeDiscardStringContext (baseNameOf path);
       inherit path;
     }) (lib.unique ([ parts.entrypoint ] ++ foreign.paths))
   );
