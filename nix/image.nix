@@ -105,7 +105,8 @@ dockerTools.streamLayeredImage {
     Labels = {
       "devcontainer.metadata" = metadata;
       "org.opencontainers.image.source" = "https://github.com/flakeyard/image-devcontainer";
-      "org.opencontainers.image.description" = "Dev container image with multi-user Nix, direnv and nix-direnv";
+      "org.opencontainers.image.description" =
+        "Dev container image with multi-user Nix, direnv and nix-direnv";
       "org.opencontainers.image.licenses" = "MIT";
     };
   };
