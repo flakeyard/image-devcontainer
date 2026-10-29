@@ -38,7 +38,10 @@ expect_text "expected decimal uid and gid up to 4294967294"
 docker restart "$id" >/dev/null
 poll 20 ready "$id" || fail "the daemon did not answer after a restart"
 # The command of the container, sleep, runs as dev after the restart too.
-output=$(docker exec "$id" sh -c 'awk "/^Uid:/ { print \$2 }" "/proc/$(pgrep -o -x sleep)/status"' 2>&1) || true
+output=$(docker exec "$id" sh -c 'for p in /proc/[0-9]*; do
+  case "$(tr "\0" " " <"$p/cmdline" 2>/dev/null)" in
+    */sleep\ infinity\ ) awk "/^Uid:/ { print \$2 }" "$p/status" ;;
+  esac; done' 2>&1) || true
 expect_line "1000"
 docker rm -f "$id" >/dev/null
 
