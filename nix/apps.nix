@@ -65,7 +65,21 @@ in
         )
       );
     in
-    app' "export NON_REDISTRIBUTABLE=${nonRedistributable}\n" "check-licenses"
+    app'
+      ''
+        export NON_REDISTRIBUTABLE=${nonRedistributable}
+        export KNOWN_LICENSES=${
+          pkgs.writeText "known-licenses.json" (
+            builtins.toJSON (
+              import ./licenses.nix {
+                inherit pkgs;
+                parts = import ./parts.nix { inherit pkgs; };
+              }
+            )
+          )
+        }
+      ''
+      "check-licenses"
       "Generate the SBOM and check the licenses of the image"
       (
         with pkgs;

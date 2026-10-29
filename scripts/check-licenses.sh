@@ -5,14 +5,28 @@
 # CycloneDX JSON file) and checks it (FY-0027): every component has a
 # license, and none of them forbids redistribution. Inputs (environment):
 # NON_REDISTRIBUTABLE, a file with the identifiers of such licenses, one per
-# line, generated from the license list of nixpkgs.
+# line, generated from the license list of nixpkgs; KNOWN_LICENSES, a JSON
+# object of component names and SPDX identifiers for components sbomnix cannot
+# match, with which the SBOM is completed.
 set -euo pipefail
+shopt -s inherit_errexit
 
 output=$1
 flake=${2:-.}
 system=$(nix eval --raw --impure --expr builtins.currentSystem)
 
-sbomnix "$flake#packages.$system.image.closureRoot" --cdx "$output" >&2
+raw=$(mktemp)
+trap 'rm -f -- "$raw"' EXIT
+sbomnix "$flake#packages.$system.image.closureRoot" --cdx "$raw" >&2
+
+# Complete components without a license from KNOWN_LICENSES, by name without
+# a trailing version.
+jq --slurpfile known "$KNOWN_LICENSES" '
+  .components |= map(
+    if (.licenses // []) | length > 0 then .
+    else (.name | sub("-[0-9][0-9.]*$"; "")) as $name
+      | if $known[0][$name] then .licenses = [$known[0][$name][] | {license: {id: .}}] else . end
+    end)' "$raw" >"$output"
 
 components=$(jq '.components | length' "$output")
 unlicensed=$(jq -r '.components[] | select((.licenses // []) | length == 0) | .name' "$output" | sort -u)
