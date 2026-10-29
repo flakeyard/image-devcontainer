@@ -25,7 +25,10 @@ setup() {
   MOUNT="" OWNER="1000 1000"
   is_mount() { [[ -n $MOUNT ]]; }
   owner_of() { echo "$OWNER"; }
-  change_owner() { tr '\0' '\n' >"$work/chowned"; }
+  change_owner() {
+    echo "owner $1" >>"$work/chowned"
+    tr '\0' '\n' >>"$work/chowned"
+  }
   unset DEV_UID DEV_GID
 }
 
@@ -101,7 +104,7 @@ for value in 08 0100 01001; do
   finish
 done
 
-for value in abc -1 1e3 " 1001" "1001 " 12345678901; do
+for value in abc -1 1e3 " 1001" "1001 " 12345678901 4294967295 4294967296 9999999999; do
   setup
   export DEV_UID=$value
   identity "rejects DEV_UID='$value'" "1000 1000"
@@ -161,6 +164,9 @@ current="changes passwd, group and the files under home"
 sed -i "s/^dev:x:1000:1000:/dev:x:$(id -u):$(id -g):/" "$work/etc/passwd"
 sed -i "s/^dev:x:1000:/dev:x:$(id -g):/" "$work/etc/group"
 if set_identity 1002 1003 2>"$work/stderr"; then
+  [[ $(grep -A1 -x 'owner 1002' "$work/chowned" | tail -n +2) == *"$work/home"* ]] ||
+    report "files not given to uid 1002: $(paste -sd' ' "$work/chowned")"
+  grep -qx 'owner :1003' "$work/chowned" || report "group not changed apart: $(paste -sd' ' "$work/chowned")"
   grep -qx "$work/home/.config/file" "$work/chowned" ||
     report "files given away: $(paste -sd' ' "$work/chowned")"
   [[ $(field "$work/etc/passwd" dev 3):$(field "$work/etc/passwd" dev 4) == 1002:1003 ]] ||
@@ -191,12 +197,42 @@ message "cannot change 'dev' to 1002:1002"
 finish
 
 setup
-current="reports a failing chown"
+current="a failing chown leaves passwd alone, and the next start completes"
 change_owner() { return 1; }
 if set_identity 1002 1002 2>"$work/stderr"; then
   report "succeeded"
 fi
 message "cannot give the files of 'dev'"
+[[ -z $current || $(field "$work/etc/passwd" dev 3) == 1000 ]] || report "passwd changed: $(grep '^dev:' "$work/etc/passwd")"
+change_owner() { cat >/dev/null; }
+set_identity 1002 1002 2>"$work/stderr" || report "the next start failed: $(cat "$work/stderr")"
+[[ -z $current || $(field "$work/etc/passwd" dev 3) == 1002 ]] || report "passwd: $(grep '^dev:' "$work/etc/passwd")"
+finish
+
+for identity in "0 1000" "1000 0" "4294967296 1000" "x 1000" "1000 1000"; do
+  setup
+  read -r uid gid <<<"$identity"
+  current="runnable $identity"
+  if runnable "$uid" "$gid"; then result=yes; else result=no; fi
+  expected=no
+  [[ $identity == "1000 1000" ]] && expected=yes
+  [[ $result == "$expected" ]] || report "runnable $identity is $result"
+  finish
+done
+
+# --- supervise ----------------------------------------------------------------
+
+setup
+current="gives up after five quick exits of the daemon"
+mkdir "$work/bin"
+printf '#!%s\necho started >>"%s/starts"; exit 1\n' "$(command -v bash)" "$work" >"$work/bin/nix-daemon"
+chmod +x "$work/bin/nix-daemon"
+daemon_path=$work/bin daemon_log=$work/daemon.log
+sleep() { :; }
+supervise 2>"$work/stderr"
+unset -f sleep
+[[ $(wc -l <"$work/starts") == 5 ]] || report "started $(wc -l <"$work/starts") times"
+message "nix-daemon exited 5 times in a row, giving up"
 finish
 
 echo "passed: $passed, failed: $failed"

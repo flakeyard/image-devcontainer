@@ -2,8 +2,9 @@
 # Entrypoint of the image (FY-0005): adapts `dev` to the owner of the project,
 # runs the Nix daemon supervised, and runs the command as `dev` under tini.
 #
-# Reads DEV_UID and DEV_GID and nothing else from the environment. The paths
-# below are fixed; the unit tests change them after sourcing this file.
+# Of the environment, it reads DEV_UID and DEV_GID; the Nix daemon gets a
+# fixed environment of its own. The paths below are fixed; the unit tests
+# change them after sourcing this file.
 
 user=dev
 home=/home/dev
@@ -12,6 +13,10 @@ group_file=/etc/group
 socket=/nix/var/nix/daemon-socket/socket
 daemon_log=/var/log/nix-daemon.log
 daemon_wait=100 # tenths of a second
+# PATH of the command run as dev, and of the daemon run as root. The daemon
+# must not see dev's profile: dev controls it.
+dev_path=$home/.nix-profile/bin:/bin:/usr/bin
+daemon_path=$PATH
 
 log() { printf 'entrypoint: %s\n' "$*" >&2; }
 
@@ -24,12 +29,16 @@ owner_name() { awk -F: -v id="$2" '$3 == id { print $1; exit }' "$1"; }
 # Seams for the tests.
 is_mount() { mountpoint -q -- "$1"; }
 owner_of() { stat -c '%u %g' -- "$1"; }
-# change_owner UID:GID: gives the NUL-separated paths on stdin to UID:GID.
+# change_owner OWNER: gives the NUL-separated paths on stdin to OWNER, a uid
+# or :gid.
 change_owner() { xargs -0 -r chown -h -- "$1"; }
 
-# decimal VALUE: prints VALUE as a decimal number, or fails if it is not one.
+# decimal VALUE: prints VALUE as a decimal number, or fails if it is not one
+# or does not fit a uid: 4294967295 means "unchanged" to setresuid, and larger
+# values wrap around to 0.
 decimal() {
   [[ $1 =~ ^[0-9]{1,10}$ ]] || return 1
+  (($((10#$1)) <= 4294967294)) || return 1
   printf '%d\n' "$((10#$1))"
 }
 
@@ -54,7 +63,7 @@ wanted_identity() {
   fi
   gid=${gid:-$uid}
   if ! uid=$(decimal "$uid") || ! gid=$(decimal "$gid"); then
-    log "ignoring '${DEV_UID-}:${DEV_GID-}': expected decimal uid and gid"
+    log "ignoring '${DEV_UID-}:${DEV_GID-}': expected decimal uid and gid up to 4294967294"
     echo "$old_uid $old_gid"
     return
   fi
@@ -79,28 +88,37 @@ wanted_identity() {
 
 # set_identity UID GID: gives `dev` this uid and gid, and its files on the
 # home directory's own file system; mount points and mounted files below it
-# belong to the host and are left alone.
+# belong to the host and are left alone. The files change first and passwd and
+# group last, so that a start that fails in between is completed by the next.
 set_identity() {
   local uid=$1 gid=$2 old_uid old_gid home_dev
   old_uid=$(field "$passwd_file" "$user" 3)
   old_gid=$(field "$passwd_file" "$user" 4)
   [[ $uid != "$old_uid" || $gid != "$old_gid" ]] || return 0
+  home_dev=$(stat -c %d -- "$home")
+  # Owner and group apart: a file of root in the group of dev stays root's.
+  if ! own_files "-user" "$old_uid" "$uid" "$home_dev" ||
+    ! own_files "-group" "$old_gid" ":$gid" "$home_dev"; then
+    log "cannot give the files of '$user' under $home to $uid:$gid"
+    return 1
+  fi
   if ! sed -i -e "s/^$user:\([^:]*\):[0-9]*:[0-9]*:/$user:\1:$uid:$gid:/" "$passwd_file" ||
     ! sed -i -e "s/^$user:\([^:]*\):[0-9]*:/$user:\1:$gid:/" "$group_file" ||
     [[ $(field "$passwd_file" "$user" 3) != "$uid" || $(field "$group_file" "$user" 3) != "$gid" ]]; then
     log "cannot change '$user' to $uid:$gid in $passwd_file and $group_file"
     return 1
   fi
-  home_dev=$(stat -c %d -- "$home")
-  find "$home" -xdev \( -user "$old_uid" -o -group "$old_gid" \) -printf '%D\0%p\0' |
-    while IFS= read -r -d '' dev && IFS= read -r -d '' path; do
-      if [[ $dev == "$home_dev" ]]; then printf '%s\0' "$path"; fi
-    done |
-    change_owner "$uid:$gid" || {
-    log "cannot give the files of '$user' under $home to $uid:$gid"
-    return 1
-  }
   log "user '$user' is now $uid:$gid"
+}
+
+# own_files TEST OLD NEW DEVICE: gives the files under home that match
+# `find TEST OLD` and are on DEVICE to NEW.
+own_files() {
+  find "$home" -xdev "$1" "$2" -printf '%D\0%p\0' |
+    while IFS= read -r -d '' dev && IFS= read -r -d '' path; do
+      if [[ $dev == "$4" ]]; then printf '%s\0' "$path"; fi
+    done |
+    change_owner "$3"
 }
 
 # give_streams UID GID: gives the pipes and sockets on stdin, stdout and stderr,
@@ -109,14 +127,15 @@ set_identity() {
 # nix-direnv does. Files and terminals are left alone: they may belong to the
 # host.
 give_streams() {
-  local fd stream
+  local fd target
   for fd in 0 1 2; do
-    # The entrypoint's own descriptors: /proc/self would be those of chown,
-    # whose stderr goes to /dev/null.
-    stream=/proc/$$/fd/$fd
-    if [[ -p $stream || -S $stream ]]; then
-      chown "$1:$2" "$stream" 2>/dev/null || true
-    fi
+    # The entrypoint's own descriptors: /proc/self would be those of readlink
+    # and chown. Only anonymous pipes and sockets: a named FIFO may be a file
+    # of the host.
+    target=$(readlink "/proc/$$/fd/$fd" 2>/dev/null) || continue
+    case $target in
+      pipe:* | socket:*) chown "$1:$2" "/proc/$$/fd/$fd" 2>/dev/null || true ;;
+    esac
   done
 }
 
@@ -126,7 +145,11 @@ supervise() {
   local failures=0 started
   while ((failures < 5)); do
     started=$SECONDS
-    NIX_REMOTE="" HOME=/root nix-daemon >>"$daemon_log" 2>&1 || true
+    # Settings such as NIX_CONFIG in the container's environment must not
+    # reach the daemon, which is root and trusts root (FY-0005).
+    env -i PATH="$daemon_path" HOME=/root \
+      NIX_SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
+      nix-daemon >>"$daemon_log" 2>&1 || true
     if ((SECONDS - started >= 60)); then failures=0; fi
     failures=$((failures + 1))
     log "nix-daemon exited, restarting (see $daemon_log)"
@@ -142,6 +165,10 @@ start_daemon() {
     return 0
   fi
   rm -f -- "$socket"
+  if ! : >>"$daemon_log" 2>/dev/null; then
+    log "cannot write $daemon_log; the Nix daemon logs to the container log"
+    daemon_log=/proc/$$/fd/2
+  fi
   supervise &
   local i
   for ((i = 0; i < daemon_wait; i++)); do
@@ -151,6 +178,11 @@ start_daemon() {
     sleep 0.1
   done
   log "the Nix daemon did not answer within $((daemon_wait / 10)) s (see $daemon_log)"
+}
+
+# runnable UID GID: the identity the command may run as: decimal, not root.
+runnable() {
+  decimal "$1" >/dev/null && decimal "$2" >/dev/null && (($1 != 0 && $2 != 0))
 }
 
 main() {
@@ -164,12 +196,21 @@ main() {
   # shellcheck disable=SC2086 # two words: uid and gid
   set_identity $identity || exit 1
   start_daemon
-  export HOME=$home USER=$user LOGNAME=$user
   local uid gid
   uid=$(field "$passwd_file" "$user" 3)
   gid=$(field "$passwd_file" "$user" 4)
+  # Never root: whatever passwd says, the command must run as dev.
+  if ! runnable "$uid" "$gid"; then
+    log "refusing to run the command as '$user' with uid $uid and gid $gid"
+    exit 1
+  fi
   give_streams "$uid" "$gid"
-  exec tini -s -g -- setpriv --reuid="$uid" --regid="$gid" --init-groups -- "$@"
+  # Resolved while PATH is still root's; then dev's PATH for the command.
+  local tini setpriv
+  tini=$(command -v tini)
+  setpriv=$(command -v setpriv)
+  export HOME=$home USER=$user LOGNAME=$user PATH=$dev_path
+  exec "$tini" -s -g -- "$setpriv" --reuid="$uid" --regid="$gid" --init-groups -- "$@"
 }
 
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then

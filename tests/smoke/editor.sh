@@ -51,6 +51,7 @@ cp -R "$tests/../fixture/project" "$WORK/project-shell"
 sudo chown -R 1004:1004 "$WORK/project-shell"
 run -v "$WORK/project-shell:/home/dev/project" -w /home/dev/project -- \
   bash -c 'nix print-dev-env --print-build-logs >/dev/null && echo print-dev-env-ok; direnv allow . && direnv exec . sh -c "echo \"variable: \$FIXTURE_VARIABLE\""'
+expect_line "print-dev-env-ok"
 expect_line "variable: from the project shell"
 expect_text "ignoring untrusted flake configuration setting 'extra-substituters'"
 

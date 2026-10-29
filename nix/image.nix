@@ -25,6 +25,14 @@ let
   ];
 
   bashrc = ''
+    # The profile of dev, for dev only: dev controls it, so root never
+    # searches it (FY-0005).
+    if [ "$(id -u)" != 0 ]; then
+      case ":$PATH:" in
+        *":$HOME/.nix-profile/bin:"*) ;;
+        *) PATH=$HOME/.nix-profile/bin:$PATH ;;
+      esac
+    fi
     # Interactive shells enter project shells through direnv.
     [ -n "$PS1" ] || return
     eval "$(direnv hook bash)"
@@ -33,7 +41,8 @@ let
 
   env = [
     "LANG=C.UTF-8"
-    "PATH=${users.home}/.nix-profile/bin:/bin:/usr/bin"
+    # Root's PATH; the entrypoint and /etc/bashrc add dev's profile for dev.
+    "PATH=/bin:/usr/bin"
     "TZDIR=${pkgs.tzdata}/share/zoneinfo"
     "SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt"
     "NIX_SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt"

@@ -26,4 +26,6 @@ source "$tests/core.sh"
 source "$tests/nix.sh"
 # shellcheck disable=SC1091
 source "$tests/editor.sh"
+# shellcheck disable=SC1091
+source "$tests/hardening.sh"
 summary

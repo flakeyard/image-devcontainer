@@ -54,9 +54,19 @@ it.
   3. runs the command as `dev` under `tini`, which reaps orphaned processes and
      forwards signals.
 
-  `DEV_UID` and `DEV_GID` must be decimal, not 0, and not belong to another
-  user; the entrypoint reads no other variable. Started without root, it warns
-  that the Nix daemon is not running and runs the command.
+  `DEV_UID` sets the uid of `dev` and, unless `DEV_GID` is also set, its gid;
+  `DEV_GID` alone is ignored. Without `DEV_UID`, the owner of a mounted working
+  directory sets both. Both must be decimal numbers from 1 to 4294967294, and
+  the uid must not belong to another user; a gid of another group keeps the
+  current gid. The command never runs as root, whatever these variables say.
+  Started without root, the entrypoint warns that the Nix daemon is not running
+  and runs the command.
+
+- **Environment.** Root's `PATH` is `/bin:/usr/bin`; `dev` gets
+  `~/.nix-profile/bin` in front of it, from the entrypoint and from
+  `/etc/bashrc`, because root must never run programs `dev` controls. The Nix
+  daemon runs with a fixed environment, so variables such as `NIX_CONFIG` set
+  for the container reach only the commands, never the daemon.
 
 - **Capabilities.** The entrypoint needs `CHOWN`, `DAC_OVERRIDE`, `SETUID` and
   `SETGID`, which Docker and Podman grant by default.

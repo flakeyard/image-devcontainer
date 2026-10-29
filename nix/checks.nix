@@ -22,7 +22,7 @@ in
     touch $out
   '';
 
-  # Every build user is in the build group, and only dev has a login shell.
+  # Every build user is in the build group; only root and dev have a shell.
   users = pkgs.runCommand "users" { inherit (parts.users) passwd group; } ''
     for name in ${toString parts.users.buildUsers}; do
       grep -q "^${parts.users.buildGroup}:.*[:,]$name\(,\|$\)" <<<"$group"
