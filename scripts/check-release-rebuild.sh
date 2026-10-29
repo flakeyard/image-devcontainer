@@ -8,12 +8,14 @@ set -euo pipefail
 shopt -s inherit_errexit
 
 repository=$1 arch=$2
+work=$(mktemp -d)
+trap 'rm -rf -- "$work"' EXIT
 # Before the first push, the registry does not know the repository.
-if ! tags=$(crane ls "$repository" 2>"${TMPDIR:-/tmp}/check-release-rebuild.err"); then
-  if grep -q NAME_UNKNOWN "${TMPDIR:-/tmp}/check-release-rebuild.err"; then
+if ! tags=$(crane ls "$repository" 2>"$work/errors"); then
+  if grep -q NAME_UNKNOWN "$work/errors"; then
     tags=""
   else
-    cat "${TMPDIR:-/tmp}/check-release-rebuild.err" >&2
+    cat "$work/errors" >&2
     exit 1
   fi
 fi
@@ -25,12 +27,9 @@ fi
 published=$(crane manifest "$repository:$newest" |
   jq -r --arg arch "$arch" '.manifests[] | select(.platform.architecture == $arch) | .digest')
 
-work=$(mktemp -d)
-trap 'rm -rf -- "$work"' EXIT
 git worktree add --detach "$work/source" "$newest" >/dev/null
-stream=$(nix build --no-link --no-update-lock-file --print-out-paths "$work/source#image")
-"$stream" >"$work/image.tar"
-rebuilt=$(crane digest --tarball "$work/image.tar")
+# The tools of the release, not of HEAD: another crane may compress differently.
+rebuilt=$(nix run --no-update-lock-file "$work/source#platform-digest" -- "$work/image.tar" "$work/source")
 git worktree remove --force "$work/source"
 
 if [[ $rebuilt != "$published" ]]; then

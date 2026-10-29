@@ -4,10 +4,15 @@
 #   nix build --print-out-paths  prints $STREAM
 #   nix build --rebuild D        records "rebuild D"
 #   nix eval ...                 prints $SYSTEM
+#   nix run FLAKE#APP -- ...     prints $TARBALL_DIGEST (platform-digest)
 set -euo pipefail
 case $1 in
   eval)
     printf '%s' "$SYSTEM"
+    ;;
+  run)
+    echo "run $*" >>"$CALLS"
+    echo "$TARBALL_DIGEST"
     ;;
   build)
     if [[ " $* " == *" --dry-run "* ]]; then

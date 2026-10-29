@@ -116,6 +116,15 @@ in
       regclient
     ]
   );
+  verify-published = app "verify-published" "Check the published image of a release" (
+    with pkgs;
+    [
+      coreutils
+      crane
+      gh
+      jq
+    ]
+  );
   sync-major = app "sync-major" "Point vX at the newest release of major X" (
     with pkgs;
     [

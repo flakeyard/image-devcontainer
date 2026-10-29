@@ -17,10 +17,10 @@ setup() {
   : >"$CALLS"
   printf '#!%s\necho archive\n' "$(command -v bash)" >"$STREAM"
   chmod +x "$STREAM"
-  unset CRANE_DENIED
+  unset CRANE_DENIED ATTESTED
   # The platform manifests of a release, pushed by digest.
   for digest in "$amd64" "$arm64"; do
-    echo '{"mediaType":"application/vnd.docker.distribution.manifest.v2+json"}' >"$REGISTRY/manifests/$digest"
+    printf '%s' '{"mediaType":"application/vnd.docker.distribution.manifest.v2+json"}' >"$REGISTRY/manifests/$digest"
   done
 }
 
@@ -122,6 +122,31 @@ expect calls ""
 finish
 
 setup
+run "publish-index: descriptor sizes are the bytes of the manifests" ok publish
+if [[ -n $current ]]; then
+  size=$(wc -c <"$REGISTRY/manifests/$amd64")
+  jq -e --argjson s "$size" '.manifests[0].size == $s' "$REGISTRY/manifests/$(cat "$work/out")" >/dev/null ||
+    report "size is not $size"
+fi
+finish
+
+setup
+printf '%s' '{"mediaType":"application/vnd.oci.image.index.v1+json"}' >"$REGISTRY/manifests/$arm64"
+run "publish-index: a platform must be an image manifest" fail publish
+expect message "is not an image manifest"
+expect calls ""
+finish
+
+setup
+run "publish-index: first run" ok publish
+digest=$(cat "$work/out")
+rm "$REGISTRY/tags/v1.2.3" && echo "$digest" >"$REGISTRY/tags/v1.2.3"
+: >"$CALLS"
+run "publish-index: a tag already at the digest is left alone" ok publish
+expect calls "put $digest"
+finish
+
+setup
 run "publish-index: rejects a malformed version" fail \
   "$SCRIPTS/publish-index.sh" "$repo" 1.2 abc "$amd64" "$arm64"
 expect calls ""
@@ -145,6 +170,44 @@ finish
 setup
 run "sync-major: fails without a release of the major" fail "$SCRIPTS/sync-major.sh" "$repo" 3
 expect message "no release of major version 3"
+finish
+
+# --- verify-published -----------------------------------------------------------
+
+# published: a release 1.2.3 as publish-index leaves it; prints its digest.
+published() {
+  "$SCRIPTS/publish-index.sh" "$repo" 1.2.3 abc123 "$amd64" "$arm64" 2>/dev/null
+}
+verify() {
+  "$SCRIPTS/verify-published.sh" flakeyard/image-devcontainer "$repo" "$index" 1.2.3 abc123 amd64 "$1"
+}
+
+setup
+index=$(published)
+export ATTESTED=1
+run "verify-published: a complete release" ok verify "$amd64"
+expect message "Verified $repo:v1.2.3@$index on amd64"
+[[ -z $current ]] || grep -qF -- "--source-digest abc123" "$CALLS" || report "calls: $(cat "$CALLS")"
+finish
+
+setup
+index=$(published)
+export ATTESTED=1
+run "verify-published: another tested digest" fail verify "$arm64"
+expect message "was tested"
+finish
+
+setup
+index=$(published)
+echo "sha256:$(printf 'd%.0s' {1..64})" >"$REGISTRY/tags/v1.2.3"
+export ATTESTED=1
+run "verify-published: the release tag points elsewhere" fail verify "$amd64"
+expect message "not at $index"
+finish
+
+setup
+index=$(published)
+run "verify-published: missing attestations" fail verify "$amd64"
 finish
 
 echo "passed: $passed, failed: $failed"

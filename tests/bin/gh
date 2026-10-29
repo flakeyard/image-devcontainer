@@ -1,17 +1,35 @@
 #!/usr/bin/env bash
-# Stub of gh for the unit tests of .github/scripts: release notes in $NOTES,
-# attestations that verify when $ATTESTED is set; changes go to $CALLS.
+# Stub of gh for the unit tests of .github/scripts:
+#   release view/edit   notes in $NOTES (edit reads --notes-file -)
+#   attestation verify  succeeds when $ATTESTED is set
+#   api .../attestations/D  payloads of the predicate types in $ATTESTATIONS
+#                       (space-separated); HTTP 404 when unset; $GH_API_ERROR
+#                       makes it fail otherwise
+# Changes and checks go to $CALLS.
 set -euo pipefail
 case "$1 $2" in
   "release view") cat "$NOTES" ;;
   "release edit")
-    while (($#)) && [[ $1 != --notes ]]; do shift; done
-    printf '%s' "$2" >"$NOTES"
+    cat >"$NOTES"
     echo "edit" >>"$CALLS"
     ;;
   "attestation verify")
     echo "verify $*" >>"$CALLS"
     [[ -n ${ATTESTED-} ]]
+    ;;
+  api\ *)
+    if [[ -n ${GH_API_ERROR-} ]]; then
+      echo "gh: Server Error (HTTP 502)" >&2
+      exit 1
+    fi
+    if [[ -z ${ATTESTATIONS+set} ]]; then
+      echo "gh: Not Found (HTTP 404)" >&2
+      exit 1
+    fi
+    for type in $ATTESTATIONS; do
+      printf '{"predicateType":"%s"}' "$type" | base64 -w0
+      echo
+    done
     ;;
   *)
     echo "stub gh: unsupported: $*" >&2

@@ -156,5 +156,17 @@ run "release-rebuild: nothing to do before the first push" ok rebuild
 expect message "No release"
 finish
 
+release_setup
+export CRANE_DENIED=1
+run "release-rebuild: other registry errors fail" fail rebuild
+expect message "DENIED"
+unset CRANE_DENIED
+finish
+
+release_setup
+run "release-rebuild: uses the tools of the release" ok rebuild
+[[ -z $current ]] || grep -q '/source#platform-digest -- ' "$CALLS" || report "calls: $(cat "$CALLS")"
+finish
+
 echo "passed: $passed, failed: $failed"
 ((failed == 0))
