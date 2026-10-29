@@ -1,0 +1,88 @@
+# CI of this repository on both architectures. Weekly, because runner image
+# updates can break the image's tests without a change here.
+name: test
+
+on:
+  pull_request:
+  push:
+    branches: [main, "release/v*"]
+  schedule:
+    - cron: "41 4 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pending:
+    name: Report pending
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      statuses: write # commit status of a dispatched run
+    steps:
+      - shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          STATE: pending
+          CONTEXT: required
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        # The script is not checked out yet; this is its one call.
+        run: >-
+          gh api --silent -X POST "repos/$REPO/statuses/$SHA"
+          -f state="$STATE" -f context="$CONTEXT" -f target_url="$RUN_URL"
+          -f description="GitHub Actions run"
+
+  check:
+    name: Check on ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: flakeyard/action-setup-nix@2c58fef33760785dfe660be025fcadd88f1269b1 # v0.1.0
+      - name: Check the flake
+        shell: bash
+        run: nix flake check --no-update-lock-file --print-build-logs
+
+  required:
+    name: required
+    needs: [pending, check]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      statuses: write # commit status of a dispatched run
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: result
+        shell: bash
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: .github/scripts/required.sh
+      - if: always() && github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          STATE: ${{ steps.result.outcome == 'success' && 'success' || 'failure' }}
+          CONTEXT: required
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: .github/scripts/commit-status.sh
