@@ -67,18 +67,21 @@ in
           coreutils
           gawk
           gnugrep
+          jq
           shellcheck
         ];
         scripts = ../scripts;
         stubs = ../tests/bin;
         tests = ../tests/unit/scripts.sh;
+        publish = ../tests/unit/publish.sh;
       }
       ''
-        shellcheck "$scripts"/*.sh "$stubs"/* "$tests"
+        shellcheck "$scripts"/*.sh "$stubs"/* "$tests" "$publish"
         # The sandbox has no /usr/bin/env.
         cp -r "$scripts" scripts && cp -r "$stubs" stubs && chmod -R u+w scripts stubs
         patchShebangs scripts stubs
         SCRIPTS=$PWD/scripts STUBS=$PWD/stubs bash "$tests"
+        SCRIPTS=$PWD/scripts STUBS=$PWD/stubs bash "$publish"
         touch $out
       '';
 
