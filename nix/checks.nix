@@ -58,6 +58,9 @@ in
         touch $out
       '';
 
+  # The image builds.
+  image = import ./image.nix { inherit pkgs parts; };
+
   formatting =
     pkgs.runCommand "formatting"
       {

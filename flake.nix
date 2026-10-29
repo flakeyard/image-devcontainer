@@ -28,6 +28,14 @@
     {
       formatter = forAll (pkgs: pkgs.nixfmt);
 
+      packages = forAll (pkgs: {
+        # The image as a script that streams a docker archive to stdout.
+        image = import ./nix/image.nix {
+          inherit pkgs;
+          parts = import ./nix/parts.nix { inherit pkgs; };
+        };
+      });
+
       checks = forAll (pkgs: import ./nix/checks.nix { inherit pkgs; });
     };
 }
