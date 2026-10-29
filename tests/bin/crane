@@ -24,7 +24,12 @@ case $1 in
     fi
     ;;
   manifest)
-    digest=${2#*@}
+    if [[ $2 == *@* ]]; then
+      digest=${2#*@}
+    else
+      [[ -f $REGISTRY/tags/${2##*:} ]] || unknown "${2##*:}"
+      digest=$(cat "$REGISTRY/tags/${2##*:}")
+    fi
     [[ -f $REGISTRY/manifests/$digest ]] || unknown "$digest"
     cat "$REGISTRY/manifests/$digest"
     ;;

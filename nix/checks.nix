@@ -66,6 +66,7 @@ in
           bash
           coreutils
           gawk
+          git
           gnugrep
           jq
           shellcheck

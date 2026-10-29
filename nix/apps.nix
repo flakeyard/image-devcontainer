@@ -123,6 +123,24 @@ in
       gnugrep
     ]
   );
+  # Weekly maintenance, not required (FY-0026, FY-0027).
+  check-eol = app "check-eol" "Warn before the nixpkgs branch reaches its end of life" (
+    with pkgs;
+    [
+      coreutils
+      gnugrep
+    ]
+  );
+  check-release-rebuild = app "check-release-rebuild" "Rebuild the newest release and compare" (
+    with pkgs;
+    [
+      coreutils
+      crane
+      git
+      gnugrep
+      jq
+    ]
+  );
   check-size = app "check-size" "Compare the image size with its budget" (
     with pkgs;
     [
