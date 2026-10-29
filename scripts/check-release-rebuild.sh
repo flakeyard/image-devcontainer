@@ -8,7 +8,15 @@ set -euo pipefail
 shopt -s inherit_errexit
 
 repository=$1 arch=$2
-tags=$(crane ls "$repository")
+# Before the first push, the registry does not know the repository.
+if ! tags=$(crane ls "$repository" 2>"${TMPDIR:-/tmp}/check-release-rebuild.err"); then
+  if grep -q NAME_UNKNOWN "${TMPDIR:-/tmp}/check-release-rebuild.err"; then
+    tags=""
+  else
+    cat "${TMPDIR:-/tmp}/check-release-rebuild.err" >&2
+    exit 1
+  fi
+fi
 newest=$(grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' <<<"$tags" | sort -V | tail -n 1 || true)
 if [[ -z $newest ]]; then
   echo "::notice::No release in $repository yet; nothing to rebuild."

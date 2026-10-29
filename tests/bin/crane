@@ -42,6 +42,10 @@ case $1 in
     echo "${2#*@}" >"$REGISTRY/tags/$3"
     ;;
   ls)
+    [[ -d $REGISTRY/tags ]] || {
+      echo "Error: NAME_UNKNOWN: repository name not known to registry" >&2
+      exit 1
+    }
     ls "$REGISTRY/tags"
     ;;
   *)

@@ -150,5 +150,11 @@ run "release-rebuild: nothing to do before the first release" ok rebuild
 expect message "No release"
 finish
 
+release_setup
+rm -r "$REGISTRY/tags"
+run "release-rebuild: nothing to do before the first push" ok rebuild
+expect message "No release"
+finish
+
 echo "passed: $passed, failed: $failed"
 ((failed == 0))
