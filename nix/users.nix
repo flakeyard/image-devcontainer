@@ -8,6 +8,10 @@ let
   buildGroup = "nixbld";
   buildGid = 30000;
   buildUsers = map (n: "nixbld${toString n}") (lib.range 1 32);
+  buildUserLines = lib.concatImapStrings (
+    n: name:
+    "${name}:x:${toString (buildGid + n)}:${toString buildGid}:Nix build user:/var/empty:/bin/false\n"
+  ) buildUsers;
 in
 {
   inherit
@@ -22,9 +26,7 @@ in
   passwd = ''
     root:x:0:0:root:/root:/bin/bash
     ${user}:x:${toString uid}:${toString uid}:${user}:${home}:/bin/bash
-    ${lib.concatImapStrings (
-      n: name: "${name}:x:${toString (buildGid + n)}:${toString buildGid}:Nix build user:/var/empty:/bin/false\n"
-    ) buildUsers}nobody:x:65534:65534:nobody:/var/empty:/bin/false
+    ${buildUserLines}nobody:x:65534:65534:nobody:/var/empty:/bin/false
   '';
 
   group = ''

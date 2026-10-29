@@ -43,7 +43,7 @@ in
         status=0
         for file in $(find ${nixFiles} -name '*.nix'); do
           if ! nixfmt --check "$file" 2>/dev/null; then
-            diff -u "$file" <(nixfmt <"$file") || true
+            diff -u "$file" <(nixfmt - <"$file") || true
             status=1
           fi
         done
