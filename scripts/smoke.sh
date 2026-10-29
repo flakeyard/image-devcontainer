@@ -6,7 +6,7 @@
 # runners.
 set -euo pipefail
 
-tests=$1
+tests=$(cd -- "$1" && pwd)
 flake=${2:-.}
 
 stream=$(nix build --no-link --no-update-lock-file --print-out-paths "$flake#image")
