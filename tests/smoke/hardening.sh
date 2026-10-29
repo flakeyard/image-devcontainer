@@ -38,7 +38,7 @@ expect_text "expected decimal uid and gid up to 4294967294"
 docker restart "$id" >/dev/null
 poll 20 ready "$id" || fail "the daemon did not answer after a restart"
 # The command of the container, sleep, runs as dev after the restart too.
-output=$(docker exec "$id" sh -c 'stat -c %u "/proc/$(pgrep -o -x sleep)"' 2>&1) || true
+output=$(docker exec "$id" sh -c 'awk "/^Uid:/ { print \$2 }" "/proc/$(pgrep -o -x sleep)/status"' 2>&1) || true
 expect_line "1000"
 docker rm -f "$id" >/dev/null
 
@@ -49,7 +49,7 @@ expect_line "root:nixbld 1775"
 expect_no_text "wrote"
 
 test_case "builds work with only the documented capabilities"
-run --cap-drop ALL --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add SETUID --cap-add SETGID \
+run --cap-drop ALL --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER --cap-add SETUID --cap-add SETGID \
   -v "$tests/../fixture:/fixture:ro" -- sh -c 'cat "$(nix-build --no-out-link /fixture/uid.nix)"'
 grep -qxE '300[0-9][0-9]' <<<"$output" || fail "the build failed with these capabilities"
 

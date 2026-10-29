@@ -68,8 +68,10 @@ it.
   daemon runs with a fixed environment, so variables such as `NIX_CONFIG` set
   for the container reach only the commands, never the daemon.
 
-- **Capabilities.** The entrypoint needs `CHOWN`, `DAC_OVERRIDE`, `SETUID` and
-  `SETGID`, which Docker and Podman grant by default.
+- **Capabilities.** The entrypoint and the Nix daemon need `CHOWN`,
+  `DAC_OVERRIDE`, `FOWNER`, `SETUID` and `SETGID`, which Docker and Podman grant
+  by default; without `FOWNER`, builds fail to set the permissions of their
+  outputs.
 - **Nix.** Nix 2.35 in multi-user mode: the store belongs to root and is written
   only by the daemon; builds run as build users. Only root is a trusted user, so
   `dev` cannot add substituters, and `accept-flake-config` is off. The only
