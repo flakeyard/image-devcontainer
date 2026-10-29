@@ -2,12 +2,14 @@
 # Usage: check-licenses OUTPUT [FLAKE]
 #
 # Generates the SBOM of the image of this system with sbomnix into OUTPUT (a
-# CycloneDX JSON file) and checks it (FY-0027): every component has a
-# license, and none of them forbids redistribution. Inputs (environment):
-# NON_REDISTRIBUTABLE, a file with the identifiers of such licenses, one per
-# line, generated from the license list of nixpkgs; KNOWN_LICENSES, a JSON
-# object of component names and SPDX identifiers for components sbomnix cannot
-# match, with which the SBOM is completed.
+# CycloneDX JSON file), completes it and checks it (FY-0027):
+#   - every store path of the image is an output of a component;
+#   - every component has licenses, each with an SPDX id or a name;
+#   - no license forbids redistribution.
+# Inputs (environment): CLOSURE, the store paths of the image, one per line;
+# NON_REDISTRIBUTABLE, identifiers of licenses that forbid redistribution,
+# one per line, from nixpkgs; KNOWN_LICENSES, a JSON object of component names
+# and SPDX identifiers for components sbomnix cannot match.
 set -euo pipefail
 shopt -s inherit_errexit
 
@@ -28,20 +30,25 @@ jq --slurpfile known "$KNOWN_LICENSES" '
       | if $known[0][$name] then .licenses = [$known[0][$name][] | {license: {id: .}}] else . end
     end)' "$raw" >"$output"
 
-components=$(jq '.components | length' "$output")
-unlicensed=$(jq -r '.components[] | select((.licenses // []) | length == 0) | .name' "$output" | sort -u)
-forbidden=$(jq -r '.components[] | .name as $n | .licenses[]?.license | (.id // .name) | "\(.) \($n)"' "$output" |
-  awk 'NR == FNR { bad[$0] = 1; next } bad[$1] { print }' "$NON_REDISTRIBUTABLE" - | sort -u)
+report=$(jq -r --rawfile closure "$CLOSURE" --rawfile deny "$NON_REDISTRIBUTABLE" '
+  ($closure | split("\n") | map(select(. != ""))) as $paths
+  | ($deny | split("\n") | map(select(. != ""))) as $denied
+  | [.components[]?.properties[]? | select(.name == "nix:output_path") | .value] as $outputs
+  | ($paths - $outputs | map("missing \(.)")) +
+    [.components[]? | .name as $n
+      | if (.licenses // []) | length == 0 then "unlicensed \($n)"
+        else .licenses[]
+          | if .license.id? // .license.name? then
+              (.license.id // .license.name) as $l
+              | if ($denied | index($l)) then "forbidden \($l) \($n)" else empty end
+            else "malformed \(tojson) \($n)" end
+        end]
+  | .[]' "$output")
 
-echo "The SBOM of $system has $components components."
-status=0
-if [[ -n $unlicensed ]]; then
-  echo "error: components without a license: $(paste -sd' ' <<<"$unlicensed")" >&2
-  status=1
+count=$(jq '.components | length' "$output")
+echo "The SBOM of $system has $count components for $(grep -c . "$CLOSURE") store paths."
+if [[ -n $report ]]; then
+  echo "error: the SBOM does not pass:" >&2
+  printf '  %s\n' "$report" >&2
+  exit 1
 fi
-if [[ -n $forbidden ]]; then
-  echo "error: licenses that forbid redistribution (license component):" >&2
-  printf '  %s\n' "$forbidden" >&2
-  status=1
-fi
-exit "$status"

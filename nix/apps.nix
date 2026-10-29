@@ -56,10 +56,10 @@ in
         lib.concatLines (
           lib.concatMap (
             license:
+            # sbomnix names a license by its SPDX id or short name.
             lib.filter (id: id != null) [
               (license.spdxId or null)
               (license.shortName or null)
-              (license.fullName or null)
             ]
           ) (lib.filter (license: !(license.redistributable or true)) (lib.attrValues lib.licenses))
         )
@@ -68,6 +68,7 @@ in
     app'
       ''
         export NON_REDISTRIBUTABLE=${nonRedistributable}
+        export CLOSURE=${image.expected}/closure
         export KNOWN_LICENSES=${
           pkgs.writeText "known-licenses.json" (
             builtins.toJSON (
