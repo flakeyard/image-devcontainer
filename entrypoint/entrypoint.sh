@@ -103,6 +103,20 @@ set_identity() {
   log "user '$user' is now $uid:$gid"
 }
 
+# give_streams UID GID: gives the pipes and sockets on stdin, stdout and stderr
+# to the user, so that it can reopen them as /dev/stdout and /dev/stderr after
+# dropping root, as nix-direnv does. Files and terminals are left alone: they
+# may belong to the host.
+give_streams() {
+  local fd target
+  for fd in 0 1 2; do
+    target=$(readlink "/proc/self/fd/$fd" 2>/dev/null) || continue
+    case $target in
+      pipe:* | socket:*) chown "$1:$2" "/proc/self/fd/$fd" 2>/dev/null || true ;;
+    esac
+  done
+}
+
 # supervise: runs the Nix daemon and restarts it when it exits; gives up after
 # five exits in a row within a minute of their start.
 supervise() {
@@ -148,8 +162,11 @@ main() {
   set_identity $identity || exit 1
   start_daemon
   export HOME=$home USER=$user LOGNAME=$user
-  exec tini -s -g -- setpriv --reuid="$(field "$passwd_file" "$user" 3)" \
-    --regid="$(field "$passwd_file" "$user" 4)" --init-groups -- "$@"
+  local uid gid
+  uid=$(field "$passwd_file" "$user" 3)
+  gid=$(field "$passwd_file" "$user" 4)
+  give_streams "$uid" "$gid"
+  exec tini -s -g -- setpriv --reuid="$uid" --regid="$gid" --init-groups -- "$@"
 }
 
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then

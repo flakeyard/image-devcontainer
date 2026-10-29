@@ -49,7 +49,7 @@ test_case "direnv enters a project shell with use flake"
 cp -R "$tests/../fixture/project" "$WORK/project-shell"
 sudo chown -R 1004:1004 "$WORK/project-shell"
 run -v "$WORK/project-shell:/home/dev/project" -w /home/dev/project -- \
-  bash -c 'direnv allow . && direnv exec . sh -c "echo \"variable: \$FIXTURE_VARIABLE\""'
+  bash -c 'nix print-dev-env --print-build-logs >/dev/null && echo print-dev-env-ok; direnv allow . && direnv exec . sh -c "echo \"variable: \$FIXTURE_VARIABLE\""'
 expect_line "variable: from the project shell"
 expect_text "ignoring untrusted flake configuration setting 'extra-substituters'"
 
@@ -80,7 +80,8 @@ expect_line "written"
 test_case "the Dev Containers tools start the image with rootless Podman"
 mkdir -p "$HOME/.config/containers"
 printf '[containers]\nuserns = "keep-id:uid=1000,gid=1000"\n' >"$HOME/.config/containers/containers.conf"
-docker save "$IMAGE" | podman load >/dev/null
+docker save "$IMAGE" | podman load
+podman images
 devcontainer_up podman "localhost/$IMAGE"
 expect_line "dev"
 expect_line "nix-ok"

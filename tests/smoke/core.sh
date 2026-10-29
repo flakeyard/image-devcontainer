@@ -110,6 +110,11 @@ run -e passwd_file=/tmp/passwd -e home=/tmp -e user=root -- sh -c 'id -un; echo 
 expect_line "dev"
 expect_line "/home/dev"
 
+test_case "dev can reopen stdout and stderr"
+run -- sh -c 'echo to-stdout >/dev/stdout; echo to-stderr >/dev/stderr'
+expect_line "to-stdout"
+expect_line "to-stderr"
+
 # --- capabilities ----------------------------------------------------------------
 
 test_case "works with only CHOWN, DAC_OVERRIDE, SETUID and SETGID"
