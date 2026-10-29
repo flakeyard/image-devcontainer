@@ -37,11 +37,16 @@ expect_line "1000"
 expect_text "expected decimal uid and gid up to 4294967294"
 docker restart "$id" >/dev/null
 poll 20 ready "$id" || fail "the daemon did not answer after a restart"
-# The command of the container, sleep, runs as dev after the restart too.
-output=$(docker exec "$id" sh -c 'for p in /proc/[0-9]*; do
-  case "$(tr "\0" " " <"$p/cmdline" 2>/dev/null)" in
-    */sleep\ infinity\ ) awk "/^Uid:/ { print \$2 }" "$p/status" ;;
-  esac; done' 2>&1) || true
+# The command of the container, sleep, runs as dev after the restart too. Its
+# first word is sleep itself; the entrypoint and tini only end with it.
+command_uid() {
+  output=$(docker exec "$id" sh -c 'for p in /proc/[0-9]*; do
+    set -- $(tr "\0" " " <"$p/cmdline" 2>/dev/null)
+    [ "${1##*/}" = sleep ] && [ "${2-}" = infinity ] && awk "/^Uid:/ { print \$2 }" "$p/status"
+  done' 2>&1) || true
+  [[ -n $output ]]
+}
+poll 20 command_uid || fail "the command did not start after the restart"
 expect_line "1000"
 docker rm -f "$id" >/dev/null
 
