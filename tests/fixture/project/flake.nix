@@ -12,6 +12,9 @@
         derivation {
           name = "fixture-shell";
           inherit system;
+          # nix print-dev-env writes the environment to the outputs it reads
+          # from this variable.
+          outputs = [ "out" ];
           # nix develop and nix-direnv need a bash builder.
           builder = "/bin/bash";
           args = [

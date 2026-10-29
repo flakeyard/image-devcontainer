@@ -103,17 +103,17 @@ set_identity() {
   log "user '$user' is now $uid:$gid"
 }
 
-# give_streams UID GID: gives the pipes and sockets on stdin, stdout and stderr
-# to the user, so that it can reopen them as /dev/stdout and /dev/stderr after
-# dropping root, as nix-direnv does. Files and terminals are left alone: they
-# may belong to the host.
+# give_streams UID GID: gives the pipes and sockets on stdin, stdout and stderr,
+# such as the FIFOs of the container engine, to the user, so that it can
+# reopen them as /dev/stdout and /dev/stderr after dropping root, as
+# nix-direnv does. Files and terminals are left alone: they may belong to the
+# host.
 give_streams() {
-  local fd target
+  local fd
   for fd in 0 1 2; do
-    target=$(readlink "/proc/self/fd/$fd" 2>/dev/null) || continue
-    case $target in
-      pipe:* | socket:*) chown "$1:$2" "/proc/self/fd/$fd" 2>/dev/null || true ;;
-    esac
+    if [[ -p /proc/self/fd/$fd || -S /proc/self/fd/$fd ]]; then
+      chown "$1:$2" "/proc/self/fd/$fd" 2>/dev/null || true
+    fi
   done
 }
 

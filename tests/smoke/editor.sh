@@ -9,21 +9,22 @@
 # Libraries every glibc system has; glibc itself serves them.
 glibc_libraries='^(libc|libm|libdl|libpthread|librt|libutil|libresolv|ld-linux[^.]*)\.so'
 # ELF files the image does not serve, with the reason: Microsoft
-# authentication needs X11 and a library shipped elsewhere.
-not_served='msal-node-runtime\.node$'
+# authentication needs X11, which a headless container does not have.
+not_served='(msal-node-runtime\.node|libmsalruntime\.so[.0-9]*)$'
 
 test_case "nix-ld serves exactly the libraries the editor server needs"
-needed=$(find "$EDITOR_SERVER" -type f \( -name node -o -name '*.node' -o -name '*.so*' \) |
+needs=$(find "$EDITOR_SERVER" -type f \( -name node -o -name '*.node' -o -name '*.so*' \) |
   grep -vE "$not_served" | while read -r elf; do
-  readelf -d "$elf" 2>/dev/null | sed -n 's/.*(NEEDED).*\[\(.*\)\]/\1/p'
-done | grep -vE "$glibc_libraries" | sort -u)
+  readelf -d "$elf" 2>/dev/null | sed -n "s|.*(NEEDED).*\\[\\(.*\\)\\]|\\1 ${elf##*/}|p"
+done | grep -vE "$glibc_libraries")
+needed=$(cut -d' ' -f1 <<<"$needs" | sort -u)
 mapfile -t directories <"$EXPECTED/foreign-libraries"
 for library in $needed; do
   found=false
   for directory in "${directories[@]}"; do
     [[ -e $directory/$library ]] && found=true
   done
-  $found || fail "$library is needed but not served"
+  $found || fail "$library is needed but not served, by: $(awk -v l="$library" '$1 == l { print $2 }' <<<"$needs" | sort -u | paste -sd' ')"
 done
 for directory in "${directories[@]}"; do
   used=false
@@ -81,8 +82,7 @@ test_case "the Dev Containers tools start the image with rootless Podman"
 mkdir -p "$HOME/.config/containers"
 printf '[containers]\nuserns = "keep-id:uid=1000,gid=1000"\n' >"$HOME/.config/containers/containers.conf"
 docker save "$IMAGE" | podman load
-podman images
-devcontainer_up podman "localhost/$IMAGE"
+devcontainer_up podman "docker.io/library/$IMAGE"
 expect_line "dev"
 expect_line "nix-ok"
 expect_line "written"
