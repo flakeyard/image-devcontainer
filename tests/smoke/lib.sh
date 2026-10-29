@@ -36,7 +36,9 @@ run() {
     shift
   done
   shift
-  output=$(timeout 120 docker run --rm "${args[@]}" "$IMAGE" "$@" 2>&1)
+  # The exit status is not checked: tests check the output, and some expect
+  # the container to fail.
+  output=$(timeout 120 docker run --rm "${args[@]}" "$IMAGE" "$@" 2>&1) || true
 }
 
 # expect_line LINE: output has the line.

@@ -23,7 +23,7 @@ expect_line "function"
 test_case "docker exec without a user is root"
 id=$(start)
 poll 20 ready "$id" || fail "the daemon did not answer"
-output=$(docker exec "$id" sh -c 'id -u' 2>&1)
+output=$(docker exec "$id" sh -c 'id -u' 2>&1) || true
 expect_line "0"
 docker rm -f "$id" >/dev/null
 
@@ -59,7 +59,7 @@ for round in 1 2 3; do
   sleep 1
   poll 20 ready "$id" || fail "the daemon did not come back after kill $round"
 done
-output=$(docker logs "$id" 2>&1)
+output=$(docker logs "$id" 2>&1) || true
 expect_text "nix-daemon exited, restarting"
 docker rm -f "$id" >/dev/null
 
