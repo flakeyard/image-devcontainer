@@ -9,7 +9,8 @@ The image is in development; it is not published yet.
 
 `nix flake check` runs every check of the repository: the tools of the image
 build and allow redistribution, the image uses one Nix version, users and Nix
-settings are consistent, and Nix files are formatted (`nix fmt`).
+settings are consistent, the entrypoint passes its unit tests
+(`tests/unit/entrypoint.sh`), and Nix files are formatted (`nix fmt`).
 
 ## Bootstrap
 

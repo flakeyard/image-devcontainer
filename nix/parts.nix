@@ -13,6 +13,7 @@ let
 in
 {
   inherit nix nix-direnv users;
+  entrypoint = import ./entrypoint.nix { inherit pkgs nix; };
   tools = import ./tools.nix { inherit pkgs nix nix-direnv; };
   nixConf = import ./nix-conf.nix { inherit users; };
 }
