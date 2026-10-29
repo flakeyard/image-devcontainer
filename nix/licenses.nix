@@ -7,7 +7,11 @@ let
   inherit (pkgs) lib;
   ids =
     package:
-    map (license: license.spdxId or license.shortName) (lib.toList package.meta.license);
+    map (license: license.spdxId or license.shortName) (
+      lib.toList (package.meta.license or (throw "${package.name} has no meta.license"))
+    );
+  # The Nix package is a wrapper without a license; its libraries have one.
+  nixLibrary = parts.nix.passthru.libs.nix-util or pkgs.nixVersions.nixComponents_2_35.nix-util;
   # Libraries of the Nix package, built separately.
   nixComponents = [
     "nix-cmd"
@@ -20,7 +24,7 @@ let
     "nix-util"
   ];
 in
-lib.genAttrs nixComponents (_: ids parts.nix)
+lib.genAttrs nixComponents (_: ids nixLibrary)
 // {
   # Our own derivations: the entrypoint and the links that keep paths alive.
   entrypoint = [ lib.licenses.mit.spdxId ];
