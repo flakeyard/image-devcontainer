@@ -1,7 +1,8 @@
-# shellcheck shell=bash disable=SC2016 # commands run in the container
+# shellcheck shell=bash disable=SC2016,SC2154 # commands run in the container; tests is set by smoke.sh
 # Smoke tests of the store, Nix and the image configuration (FY-0005).
 # Sourced by scripts/smoke.sh after tests/smoke/lib.sh. Inputs (environment):
-# IMAGE; EXPECTED, a directory with nix.conf, env, metadata and nix-version.
+# IMAGE; EXPECTED, a directory with nix.conf, env, metadata and nix-version;
+# tests, the directory of the smoke tests.
 
 # --- the store and trust ---------------------------------------------------------
 
@@ -12,14 +13,9 @@ expect_line "checked"
 expect_no_text "written"
 
 test_case "builds run as build users"
-run -- nix build --impure --no-link --print-out-paths --expr 'derivation {
-  name = "uid"; system = builtins.currentSystem; builder = "/bin/sh";
-  args = [ "-c" "while read -r key value rest; do if [ \"$key\" = Uid: ]; then echo $value >$out; fi; done </proc/self/status" ];
-}'
-path=$(grep -m1 '^/nix/store/' <<<"$output" || true)
-[[ -n $path ]] || fail "no output path"
-run -- cat "$path"
-grep -qE '^300[0-9][0-9]$' <<<"$output" || fail "built as uid '$output'"
+# Build and read the result in the same container.
+run -v "$tests/../fixture:/fixture:ro" -- sh -c 'cat "$(nix-build --no-out-link /fixture/uid.nix)"'
+grep -qxE '300[0-9][0-9]' <<<"$output" || fail "not built as a build user"
 
 test_case "dev cannot add substituters"
 run -- nix store info --option extra-substituters https://untrusted.invalid
