@@ -1,0 +1,94 @@
+# Weekly maintenance checks, not required (FY-0026, FY-0027): the end of life
+# of the nixpkgs branch and a rebuild of the newest release. They depend on
+# the date and on the registry, so they never block pull requests.
+name: maintenance
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  pending:
+    name: Report pending
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      statuses: write # commit status of a dispatched run
+    steps:
+      - shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          STATE: pending
+          CONTEXT: maintenance
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        # The script is not checked out yet; this is its one call.
+        run: >-
+          gh api --silent -X POST "repos/$REPO/statuses/$SHA"
+          -f state="$STATE" -f context="$CONTEXT" -f target_url="$RUN_URL"
+          -f description="GitHub Actions run"
+
+  maintenance:
+    name: Maintenance on ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - uses: flakeyard/action-setup-nix@2c58fef33760785dfe660be025fcadd88f1269b1 # v0.1.0
+      - name: End of life of the nixpkgs branch
+        shell: bash
+        run: nix run --no-update-lock-file .#check-eol -- nixpkgs-eol
+      - name: Rebuild the newest release
+        shell: bash
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}
+          ARCH: ${{ matrix.arch }}
+        run: nix run --no-update-lock-file .#check-release-rebuild -- "$IMAGE" "$ARCH"
+
+  result:
+    name: maintenance
+    needs: [pending, maintenance]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      statuses: write # commit status of a dispatched run
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: result
+        shell: bash
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: .github/scripts/required.sh
+      - if: always() && github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          STATE: ${{ steps.result.outcome == 'success' && 'success' || 'failure' }}
+          CONTEXT: maintenance
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: .github/scripts/commit-status.sh

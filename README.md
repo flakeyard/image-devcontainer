@@ -159,7 +159,10 @@ the image after `action-setup-nix` has released it.
   licenses.
 
 CI runs all of them on both architectures; the release workflow publishes the
-image ([FY-0027][fy-0027]).
+image ([FY-0027][fy-0027]). The weekly workflow `maintenance.yaml`, which is
+not a required check, warns before the nixpkgs branch in `nixpkgs-eol` reaches
+its end of life and rebuilds the newest release to compare its digests with
+the registry.
 
 ## Bootstrap
 
