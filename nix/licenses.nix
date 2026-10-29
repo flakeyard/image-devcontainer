@@ -32,8 +32,10 @@ lib.genAttrs nixComponents (_: ids nixLibrary)
   # Links to bash and env made by dockerTools.
   bin-sh = ids pkgs.bashInteractive;
   usr-bin-env = ids pkgs.coreutils;
-  # Outputs of glibc, gcc and icu under other names.
+  # Outputs of glibc and gcc under other names.
   getent-glibc = ids pkgs.glibc;
   xgcc = ids pkgs.stdenv.cc.cc;
-  icu4c = ids pkgs.icu;
+  # icu has no meta.license in nixpkgs; ICU 74 and later use the Unicode
+  # License v3 (its LICENSE file).
+  icu4c = [ (lib.licenses.unicode-30 or { spdxId = "Unicode-3.0"; }).spdxId ];
 }
