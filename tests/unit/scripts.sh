@@ -145,15 +145,14 @@ expect message "the registry has sha256:aaaa"
 finish
 
 release_setup
-rm "$REGISTRY/tags/v1.0.0"
+git -C "$work/repo" tag -d v1.0.0 >/dev/null
 run "release-rebuild: nothing to do before the first release" ok rebuild
 expect message "No release"
 finish
 
 release_setup
 rm -r "$REGISTRY/tags"
-run "release-rebuild: nothing to do before the first push" ok rebuild
-expect message "No release"
+run "release-rebuild: a release missing from the registry fails" fail rebuild
 finish
 
 release_setup
