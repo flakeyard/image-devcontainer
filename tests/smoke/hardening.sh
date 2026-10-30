@@ -41,10 +41,11 @@ poll 20 ready "$id" || fail "the daemon did not answer after a restart"
 # first word is sleep itself; the entrypoint and tini only end with it.
 command_uid() {
   output=$(docker exec "$id" sh -c 'for p in /proc/[0-9]*; do
-    set -- $(tr "\0" " " <"$p/cmdline" 2>/dev/null)
-    [ "${1##*/}" = sleep ] && [ "${2-}" = infinity ] && awk "/^Uid:/ { print \$2 }" "$p/status"
-  done' 2>&1) || true
-  [[ -n $output ]]
+    set -- $(cat "$p/cmdline" 2>/dev/null | tr "\0" " ")
+    [ "${1##*/}" = sleep ] && [ "${2-}" = infinity ] && awk "/^Uid:/ { print \$2 }" "$p/status" 2>/dev/null
+  done' 2>/dev/null) || true
+  # Processes may end while the loop reads /proc: wait for the uid itself.
+  [[ $output =~ ^[0-9]+$ ]]
 }
 poll 20 command_uid || fail "the command did not start after the restart"
 expect_line "1000"
