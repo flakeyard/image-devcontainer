@@ -4,7 +4,8 @@
 set -uo pipefail
 export LC_ALL=C
 
-failed=0 passed=0 current=""
+# shellcheck source-path=SCRIPTDIR source=lib.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/lib.sh"
 
 setup() {
   work=$(mktemp -d)
@@ -23,37 +24,6 @@ STREAM
   /nix/store/bbbb-stream.drv
 these 300 paths will be fetched (100.00 MiB download, 400.00 MiB unpacked):
   /nix/store/cccc-glibc"
-}
-
-run() {
-  local name=$1 expected=$2 status=0
-  shift 2
-  "$@" >"$work/out" 2>&1 || status=$?
-  current=$name
-  if [[ $expected == ok && $status != 0 ]] || [[ $expected == fail && $status == 0 ]]; then
-    report "expected $expected, exit $status: $(cat "$work/out")"
-  fi
-}
-
-report() {
-  [[ -n $current ]] || return 0
-  echo "FAIL $current: $1"
-  failed=$((failed + 1))
-  current=""
-}
-
-expect() {
-  [[ -n $current ]] || return 0
-  case $1 in
-    message) grep -qF -- "$2" "$work/out" || report "no message '$2' in: $(cat "$work/out")" ;;
-    calls) [[ $(paste -sd';' "$CALLS") == "$2" ]] || report "calls '$(paste -sd';' "$CALLS")', expected '$2'" ;;
-  esac
-}
-
-finish() {
-  if [[ -n $current ]]; then passed=$((passed + 1)); fi
-  current=""
-  rm -rf -- "$work"
 }
 
 # --- check-reproducible --------------------------------------------------------
@@ -238,8 +208,7 @@ finish
 
 release_setup
 run "release-rebuild: uses the tools of the release" ok rebuild
-[[ -z $current ]] || grep -q '/source#platform-digest -- ' "$CALLS" || report "calls: $(cat "$CALLS")"
+expect called "/source#platform-digest -- "
 finish
 
-echo "passed: $passed, failed: $failed"
-((failed == 0))
+summary

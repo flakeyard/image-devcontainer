@@ -9,7 +9,8 @@
 set -uo pipefail
 export LC_ALL=C
 
-failed=0 passed=0 current=""
+# shellcheck source-path=SCRIPTDIR source=lib.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/lib.sh"
 
 # setup: a fresh copy of the image's users and a home directory.
 setup() {
@@ -32,32 +33,30 @@ setup() {
   unset DEV_UID DEV_GID
 }
 
-report() {
-  [[ -n $current ]] || return 0
-  echo "FAIL $current: $1"
-  failed=$((failed + 1))
-  current=""
-}
+# on_finish: makes the files of a test removable again.
+on_finish() { chmod -R u+rwx "$work" 2>/dev/null; }
+
+# in_project COMMAND...: runs COMMAND in the working directory of the test.
+in_project() { (cd "$work/project" && "$@"); }
 
 # identity NAME EXPECTED: runs wanted_identity in the working directory of the
 # test; EXPECTED is "uid gid".
 identity() {
-  current=$1
-  local out
-  out=$(cd "$work/project" && wanted_identity 2>"$work/stderr")
-  [[ $out == "$2" ]] || report "identity '$out', expected '$2'; $(cat "$work/stderr")"
+  local name=$1 expected=$2
+  run "$name" any in_project wanted_identity
+  expect output "$expected"
 }
 
-message() {
-  [[ -n $current ]] || return 0
-  grep -qF -- "$1" "$work/stderr" || report "no message '$1' in: $(cat "$work/stderr")"
-}
-
-finish() {
-  if [[ -n $current ]]; then passed=$((passed + 1)); fi
-  current=""
-  chmod -R u+rwx "$work" 2>/dev/null
-  rm -rf -- "$work"
+# identity_in_locked_project: wanted_identity in a working directory without
+# permissions. Root enters it as it is; another user cannot, so it enters
+# first and takes the permissions away from inside.
+identity_in_locked_project() {
+  if (cd "$work/project" 2>/dev/null); then
+    in_project wanted_identity
+  else
+    chmod 700 "$work/project"
+    (cd "$work/project" && chmod 0 . && wanted_identity)
+  fi
 }
 
 # --- wanted_identity ----------------------------------------------------------
@@ -108,7 +107,7 @@ for value in abc -1 1e3 " 1001" "1001 " 12345678901 4294967295 4294967296 999999
   setup
   export DEV_UID=$value
   identity "rejects DEV_UID='$value'" "1000 1000"
-  message "expected decimal uid and gid"
+  expect message "expected decimal uid and gid"
   finish
 done
 
@@ -120,67 +119,61 @@ finish
 setup
 MOUNT=1 OWNER="1002 0"
 identity "a mount owned by group root is not adopted" "1000 1000"
-message "ignoring uid or gid 0"
+expect message "ignoring uid or gid 0"
 finish
 
 setup
 MOUNT=1 OWNER="30001 30000"
 identity "a mount owned by a build user is not adopted" "1000 1000"
-message "ignoring uid 30001: it belongs to 'nixbld1'"
+expect message "ignoring uid 30001: it belongs to 'nixbld1'"
 finish
 
 setup
 export DEV_UID=0
 identity "rejects uid 0" "1000 1000"
-message "ignoring uid or gid 0"
+expect message "ignoring uid or gid 0"
 finish
 
 setup
 export DEV_UID=1001 DEV_GID=0
 identity "rejects gid 0" "1000 1000"
-message "ignoring uid or gid 0"
+expect message "ignoring uid or gid 0"
 finish
 
 setup
 export DEV_UID=30001
 identity "rejects the uid of a build user" "1000 1000"
-message "ignoring uid 30001: it belongs to 'nixbld1'"
+expect message "ignoring uid 30001: it belongs to 'nixbld1'"
 finish
 
 setup
 export DEV_UID=65534
 identity "rejects the uid of nobody" "1000 1000"
-message "it belongs to 'nobody'"
+expect message "it belongs to 'nobody'"
 finish
 
 setup
 export DEV_UID=1001 DEV_GID=30000
 identity "keeps the gid when it belongs to another group" "1001 1000"
-message "keeping gid 1000: gid 30000 belongs to group 'nixbld'"
+expect message "keeping gid 1000: gid 30000 belongs to group 'nixbld'"
 finish
 
 setup
 chmod 0 "$work/project"
-current="reports an inaccessible working directory"
-out=$(cd "$work/project" 2>/dev/null && wanted_identity 2>"$work/stderr")
-# A directory without permissions cannot be entered: test from inside instead.
-if [[ -z $out ]]; then
-  chmod 700 "$work/project"
-  out=$(cd "$work/project" && chmod 0 . && wanted_identity 2>"$work/stderr")
-fi
-[[ $out == "1000 1000" ]] || report "identity '$out'"
-message "cannot inspect the working directory"
-message "DAC_OVERRIDE"
+run "reports an inaccessible working directory" any identity_in_locked_project
+expect output "1000 1000"
+expect message "cannot inspect the working directory"
+expect message "DAC_OVERRIDE"
 finish
 
 # --- set_identity -------------------------------------------------------------
 
 setup
-current="changes passwd, group and the files under home"
 # The files of the test belong to the user running it: make that user `dev`.
 sed -i "s/^dev:x:1000:1000:/dev:x:$(id -u):$(id -g):/" "$work/etc/passwd"
 sed -i "s/^dev:x:1000:/dev:x:$(id -g):/" "$work/etc/group"
-if set_identity 1002 1003 2>"$work/stderr"; then
+run "changes passwd, group and the files under home" ok set_identity 1002 1003
+if still_passing; then
   [[ $(grep -A1 -x 'owner 1002' "$work/chowned" | tail -n +2) == *"$work/home"* ]] ||
     report "files not given to uid 1002: $(paste -sd' ' "$work/chowned")"
   grep -qx 'owner :1003' "$work/chowned" || report "group not changed apart: $(paste -sd' ' "$work/chowned")"
@@ -189,78 +182,65 @@ if set_identity 1002 1003 2>"$work/stderr"; then
   [[ $(field "$work/etc/passwd" dev 3):$(field "$work/etc/passwd" dev 4) == 1002:1003 ]] ||
     report "passwd: $(grep '^dev:' "$work/etc/passwd")"
   [[ $(field "$work/etc/group" dev 3) == 1003 ]] || report "group: $(grep '^dev:' "$work/etc/group")"
-else
-  report "failed: $(cat "$work/stderr")"
 fi
-message "user 'dev' is now 1002:1003"
+expect message "user 'dev' is now 1002:1003"
 finish
 
 setup
-current="does nothing for the same identity"
-set_identity 1000 1000 2>"$work/stderr" || report "failed"
+run "does nothing for the same identity" ok set_identity 1000 1000
 [[ ! -e $work/chowned ]] || report "chown was called"
-[[ ! -s $work/stderr ]] || report "message: $(cat "$work/stderr")"
+expect empty "$work/err"
 finish
 
 setup
-current="reports an unwritable passwd file"
 chmod 444 "$work/etc/passwd"
 chmod 555 "$work/etc"
-if set_identity 1002 1002 2>"$work/stderr"; then
-  report "succeeded"
-fi
+run "reports an unwritable passwd file" fail set_identity 1002 1002
 chmod 755 "$work/etc"
-message "cannot change 'dev' to 1002:1002"
+expect message "cannot change 'dev' to 1002:1002"
 finish
 
 setup
-current="a failing chown leaves passwd alone, and the next start completes"
 change_owner() { return 1; }
-if set_identity 1002 1002 2>"$work/stderr"; then
-  report "succeeded"
-fi
-message "cannot give the files of 'dev'"
-[[ -z $current || $(field "$work/etc/passwd" dev 3) == 1000 ]] || report "passwd changed: $(grep '^dev:' "$work/etc/passwd")"
+run "a failing chown leaves passwd alone, and the next start completes" fail set_identity 1002 1002
+expect message "cannot give the files of 'dev'"
+[[ $(field "$work/etc/passwd" dev 3) == 1000 ]] || report "passwd changed: $(grep '^dev:' "$work/etc/passwd")"
 change_owner() { cat >/dev/null; }
-set_identity 1002 1002 2>"$work/stderr" || report "the next start failed: $(cat "$work/stderr")"
-[[ -z $current || $(field "$work/etc/passwd" dev 3) == 1002 ]] || report "passwd: $(grep '^dev:' "$work/etc/passwd")"
+set_identity 1002 1002 >"$work/out" 2>"$work/err"
+outcome ok $?
+[[ $(field "$work/etc/passwd" dev 3) == 1002 ]] || report "passwd: $(grep '^dev:' "$work/etc/passwd")"
 finish
 
 setup
-current="a mounted home keeps the owner of its files"
 MOUNT=1
-set_identity 1002 1003 2>"$work/stderr" || report "failed: $(cat "$work/stderr")"
+run "a mounted home keeps the owner of its files" ok set_identity 1002 1003
 [[ ! -e $work/chowned ]] || report "files changed owner: $(paste -sd' ' "$work/chowned")"
-[[ -z $current || $(field "$work/etc/passwd" dev 3):$(field "$work/etc/group" dev 3) == 1002:1003 ]] ||
+[[ $(field "$work/etc/passwd" dev 3):$(field "$work/etc/group" dev 3) == 1002:1003 ]] ||
   report "passwd or group not changed"
-message "$work/home is a mount point: its files keep their owner"
-message "user 'dev' is now 1002:1003"
+expect message "$work/home is a mount point: its files keep their owner"
+expect message "user 'dev' is now 1002:1003"
 finish
 
 setup
-current="a group left behind by a failed start is completed"
 # The state after a start that changed passwd but failed on group.
 sed -i 's/^dev:x:1000:1000:/dev:x:1002:1002:/' "$work/etc/passwd"
-set_identity 1002 1002 2>"$work/stderr" || report "failed: $(cat "$work/stderr")"
+run "a group left behind by a failed start is completed" ok set_identity 1002 1002
 [[ ! -e $work/chowned ]] || report "files changed owner again: $(paste -sd' ' "$work/chowned")"
-[[ -z $current || $(field "$work/etc/group" dev 3) == 1002 ]] || report "group: $(grep '^dev:' "$work/etc/group")"
-message "user 'dev' is now 1002:1002"
+[[ $(field "$work/etc/group" dev 3) == 1002 ]] || report "group: $(grep '^dev:' "$work/etc/group")"
+expect message "user 'dev' is now 1002:1002"
 finish
 
 setup
-current="a failing group change leaves passwd alone"
 chmod 444 "$work/etc/group"
 chmod 555 "$work/etc"
-if set_identity 1002 1002 2>"$work/stderr"; then
-  report "succeeded"
-fi
+run "a failing group change leaves passwd alone" fail set_identity 1002 1002
 chmod 755 "$work/etc"
-[[ -z $current || $(field "$work/etc/passwd" dev 3) == 1000 ]] || report "passwd changed: $(grep '^dev:' "$work/etc/passwd")"
-message "cannot change 'dev' to 1002:1002"
+[[ $(field "$work/etc/passwd" dev 3) == 1000 ]] || report "passwd changed: $(grep '^dev:' "$work/etc/passwd")"
+expect message "cannot change 'dev' to 1002:1002"
 finish
 
 setup
-current="keeps only the paths on the device of home"
+begin "keeps only the paths on the device of home"
 out=$(printf '%s\0' 2049 /home/a 66 /home/mounted 2049 $'/home/new\nline' | paths_on 2049 | tr '\0' '|')
 [[ $out == $'/home/a|/home/new\nline|' ]] || report "paths: $out"
 finish
@@ -268,7 +248,7 @@ finish
 for identity in "0 1000" "1000 0" "4294967296 1000" "x 1000" "1000 1000"; do
   setup
   read -r uid gid <<<"$identity"
-  current="runnable $identity"
+  begin "runnable $identity"
   if runnable "$uid" "$gid"; then result=yes; else result=no; fi
   expected=no
   [[ $identity == "1000 1000" ]] && expected=yes
@@ -279,7 +259,7 @@ done
 # --- supervise ----------------------------------------------------------------
 
 setup
-current="root's PATH is fixed"
+begin "root's PATH is fixed"
 [[ $daemon_path == /bin:/usr/bin ]] || report "PATH of root without the build's tools: $daemon_path"
 entrypoint_tools=/tools
 # shellcheck source-path=SCRIPTDIR source=../../entrypoint/entrypoint.sh
@@ -289,7 +269,7 @@ unset entrypoint_tools
 finish
 
 setup
-current="root's Nix processes get proxies but not the container's settings"
+begin "root's Nix processes get proxies but not the container's settings"
 daemon_path=$(dirname -- "$(command -v env)")
 out=$(NIX_CONFIG='trusted-users = dev' NIX_USER_CONF_FILES=/tmp/nix.conf XDG_CONFIG_HOME=/tmp \
   https_proxy=http://proxy:3128 NO_PROXY=localhost no_proxy="" as_root NIX_REMOTE=daemon env)
@@ -303,28 +283,25 @@ NIX_REMOTE=daemon"
 finish
 
 setup
-current="does not start the daemon when /nix is read-only"
 mkdir -p "$work/nix/daemon-socket"
 chmod 555 "$work/nix/daemon-socket" "$work/nix"
 socket=$work/nix/daemon-socket/socket
 supervise() { touch "$work/supervised"; }
-start_daemon 2>"$work/stderr" || report "failed"
+run "does not start the daemon when /nix is read-only" ok start_daemon
 [[ ! -e $work/supervised ]] || report "the daemon was started"
-message "/nix is not writable: the Nix daemon is not started"
+expect message "/nix is not writable: the Nix daemon is not started"
 finish
 
 setup
-current="gives up after five quick exits of the daemon"
 mkdir "$work/bin"
 printf '#!%s\necho started >>"%s/starts"; exit 1\n' "$(command -v bash)" "$work" >"$work/bin/nix-daemon"
 chmod +x "$work/bin/nix-daemon"
 daemon_path=$work/bin daemon_log=$work/daemon.log
 sleep() { :; }
-supervise 2>"$work/stderr"
+run "gives up after five quick exits of the daemon" any supervise
 unset -f sleep
 [[ $(wc -l <"$work/starts") == 5 ]] || report "started $(wc -l <"$work/starts") times"
-message "nix-daemon exited 5 times in a row, giving up"
+expect message "nix-daemon exited 5 times in a row, giving up"
 finish
 
-echo "passed: $passed, failed: $failed"
-((failed == 0))
+summary
