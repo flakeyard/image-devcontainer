@@ -12,32 +12,33 @@
         "aarch64-linux"
       ];
       # Unfree packages fail evaluation: the image must be redistributable
-      # (FY-0013, FY-0027).
-      forAll =
-        f:
-        lib.genAttrs systems (
-          system:
-          f (
-            import nixpkgs {
-              inherit system;
-              config.allowUnfree = false;
-            }
-          )
-        );
+      # (FY-0013, FY-0027). Instantiated once per system for every output.
+      perSystem = lib.genAttrs systems (
+        system:
+        let
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = false;
+          };
+          parts = import ./nix/parts.nix { inherit pkgs; };
+        in
+        {
+          inherit pkgs parts;
+          image = import ./nix/image.nix { inherit pkgs parts; };
+        }
+      );
+      forAll = f: lib.mapAttrs (_: f) perSystem;
     in
     {
-      formatter = forAll (pkgs: pkgs.nixfmt);
+      formatter = forAll (args: args.pkgs.nixfmt);
 
-      packages = forAll (pkgs: {
+      packages = forAll (args: {
         # The image as a script that streams a docker archive to stdout.
-        image = import ./nix/image.nix {
-          inherit pkgs;
-          parts = import ./nix/parts.nix { inherit pkgs; };
-        };
+        inherit (args) image;
       });
 
-      apps = forAll (pkgs: import ./nix/apps.nix { inherit pkgs; });
+      apps = forAll (import ./nix/apps.nix);
 
-      checks = forAll (pkgs: import ./nix/checks.nix { inherit pkgs; });
+      checks = forAll (import ./nix/checks.nix);
     };
 }
