@@ -3,16 +3,22 @@
 { pkgs }:
 let
   inherit (pkgs) lib;
-  app = name: description: runtimeInputs: {
+  image = import ./image.nix {
+    inherit pkgs;
+    parts = import ./parts.nix { inherit pkgs; };
+  };
+  # prologue: shell code run before the script, such as fixed paths.
+  app' = prologue: name: description: runtimeInputs: {
     type = "app";
     program = lib.getExe (
       pkgs.writeShellApplication {
         inherit name runtimeInputs;
-        text = builtins.readFile ../scripts/${name}.sh;
+        text = prologue + builtins.readFile ../scripts/${name}.sh;
       }
     );
     meta = { inherit description; };
   };
+  app = app' "";
 in
 {
   check-reproducible = app "check-reproducible" "Rebuild own derivations, compare two streams" (
@@ -22,15 +28,17 @@ in
       gawk
     ]
   );
-  smoke = app "smoke" "Run the smoke tests of the image with docker" (
-    with pkgs;
-    [
-      coreutils
-      gawk
-      gnugrep
-      gnused
-    ]
-  );
+  smoke =
+    app' "export EXPECTED=${image.expected}\n" "smoke" "Run the smoke tests of the image with docker"
+      (
+        with pkgs;
+        [
+          coreutils
+          gawk
+          gnugrep
+          gnused
+        ]
+      );
   check-size = app "check-size" "Compare the image size with its budget" (
     with pkgs;
     [

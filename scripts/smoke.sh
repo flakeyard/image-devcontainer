@@ -6,7 +6,7 @@
 # runners.
 set -euo pipefail
 
-tests=$1
+tests=$(cd -- "$1" && pwd)
 flake=${2:-.}
 
 stream=$(nix build --no-link --no-update-lock-file --print-out-paths "$flake#image")
@@ -22,4 +22,6 @@ trap 'sudo rm -rf -- "$WORK"' EXIT
 source "$tests/lib.sh"
 # shellcheck disable=SC1091
 source "$tests/core.sh"
+# shellcheck disable=SC1091
+source "$tests/nix.sh"
 summary
