@@ -1,4 +1,4 @@
-# shellcheck shell=bash disable=SC2016 # commands run in the container
+# shellcheck shell=bash disable=SC2016,SC2154 # commands run in the container; id and the settings come from lib.sh
 # Smoke tests of identity and start-up (FY-0005). Sourced by scripts/smoke.sh
 # after tests/smoke/lib.sh. Inputs (environment): IMAGE, WORK (a scratch
 # directory on the runner).
@@ -21,17 +21,15 @@ run -- bash -lic 'type -t _direnv_hook'
 expect_line "function"
 
 test_case "docker exec without a user is root"
-id=$(start)
-poll 20 ready "$id" || fail "the daemon did not answer"
-output=$(docker exec "$id" sh -c 'id -u' 2>&1) || true
+start_ready id
+output=$(docker exec "$id" sh -c 'id -u' 2>&1)
 expect_line "0"
-docker rm -f "$id" >/dev/null
+remove "$id"
 
 # --- init, signals, restarts ----------------------------------------------------
 
 test_case "tini is PID 1 and reaps orphans"
-id=$(start)
-poll 20 ready "$id" || fail "the daemon did not answer"
+start_ready id
 docker exec -u dev "$id" sh -c '(sleep 0.3 &) ; (sleep 0.3 &) ; (sleep 0.3 &)'
 zombies() {
   output=$(docker exec "$id" sh -c 'z=0; for s in /proc/[0-9]*/stat; do read -r _ _ state _ <"$s" 2>/dev/null && [ "$state" = Z ] && z=$((z+1)); done; echo $z; tr "\0" " " </proc/1/cmdline' 2>&1)
@@ -40,28 +38,32 @@ zombies() {
 sleep 1
 poll 10 zombies || fail "zombies left"
 expect_text "tini"
+remove "$id"
 
 test_case "stops within 5 seconds"
+start_ready id
 started=$SECONDS
 docker stop "$id" >/dev/null
 ((SECONDS - started <= 5)) || fail "docker stop took $((SECONDS - started)) s"
+remove "$id"
 
 test_case "starts again"
+start_ready id
+docker stop "$id" >/dev/null
 docker start "$id" >/dev/null
-poll 20 ready "$id" || fail "the daemon did not answer after a restart"
-docker rm -f "$id" >/dev/null
+poll "$daemon_timeout" ready "$id" || fail "the daemon did not answer after a restart"
+remove "$id"
 
 test_case "restarts the Nix daemon after it is killed"
-id=$(start)
-poll 20 ready "$id" || fail "the daemon did not answer"
+start_ready id
 for round in 1 2 3; do
   docker exec "$id" sh -c 'for p in /proc/[0-9]*; do [ "$(tr "\0" " " <"$p/cmdline" 2>/dev/null)" = "nix-daemon " ] && kill -9 "${p#/proc/}"; done; true'
   sleep 1
-  poll 20 ready "$id" || fail "the daemon did not come back after kill $round"
+  poll "$daemon_timeout" ready "$id" || fail "the daemon did not come back after kill $round"
 done
-output=$(docker logs "$id" 2>&1) || true
+output=$(docker logs "$id" 2>&1)
 expect_text "nix-daemon exited, restarting"
-docker rm -f "$id" >/dev/null
+remove "$id"
 
 # --- adapting dev ----------------------------------------------------------------
 
@@ -119,8 +121,7 @@ expect_line "root"
 # --- capabilities ----------------------------------------------------------------
 
 test_case "works with only CHOWN, DAC_OVERRIDE, FOWNER, SETUID and SETGID"
-run --cap-drop ALL --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER --cap-add SETUID --cap-add SETGID \
-  -v "$WORK/project:/home/dev/project" -w /home/dev/project -- sh -c 'id -u; nix store info >/dev/null && echo nix-ok; touch created2 && echo written'
+run "${only_documented_caps[@]}" -v "$WORK/project:/home/dev/project" -w /home/dev/project -- sh -c 'id -u; nix store info >/dev/null && echo nix-ok; touch created2 && echo written'
 expect_line "1002"
 expect_line "nix-ok"
 expect_line "written"

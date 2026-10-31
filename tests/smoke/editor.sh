@@ -35,14 +35,13 @@ for directory in "${directories[@]}"; do
 done
 
 test_case "the editor server starts, also after garbage collection"
-id=$(start -v "$EDITOR_SERVER:/srv/server:ro")
-poll 20 ready "$id" || fail "the daemon did not answer"
-docker exec "$id" nix-collect-garbage >/dev/null 2>&1 || fail "garbage collection failed"
+start_ready id -v "$EDITOR_SERVER:/srv/server:ro"
+collect_garbage "$id"
 docker exec -d -u dev "$id" /srv/server/bin/code-server --host 127.0.0.1 --port 8000 \
   --without-connection-token --accept-server-license-terms
 server_answers() { docker exec -u dev "$id" curl -fs http://127.0.0.1:8000/version >/dev/null; }
 poll 60 server_answers || fail "the server did not answer"
-docker rm -f "$id" >/dev/null
+remove "$id"
 
 # --- project shells -----------------------------------------------------------------
 
@@ -67,7 +66,7 @@ devcontainer_up() {
     devcontainer up --docker-path "$1" --workspace-folder "$workspace" &&
       devcontainer exec --docker-path "$1" --workspace-folder "$workspace" \
         sh -c 'id -un; nix store info >/dev/null && echo nix-ok; touch created && echo written'
-  ) 2>&1 || true
+  ) 2>&1
   host_owner=$(stat -c %u "$workspace/created" 2>/dev/null || echo none)
   "$1" ps -aq --filter "label=devcontainer.local_folder=$workspace" | xargs -r "$1" rm -f >/dev/null
 }
