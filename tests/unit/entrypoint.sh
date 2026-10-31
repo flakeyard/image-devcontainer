@@ -259,6 +259,12 @@ chmod 755 "$work/etc"
 message "cannot change 'dev' to 1002:1002"
 finish
 
+setup
+current="keeps only the paths on the device of home"
+out=$(printf '%s\0' 2049 /home/a 66 /home/mounted 2049 $'/home/new\nline' | paths_on 2049 | tr '\0' '|')
+[[ $out == $'/home/a|/home/new\nline|' ]] || report "paths: $out"
+finish
+
 for identity in "0 1000" "1000 0" "4294967296 1000" "x 1000" "1000 1000"; do
   setup
   read -r uid gid <<<"$identity"
