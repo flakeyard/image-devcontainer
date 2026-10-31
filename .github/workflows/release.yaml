@@ -13,7 +13,7 @@ env:
 
 jobs:
   release:
-    uses: flakeyard/workflow-release/.github/workflows/release.yaml@c066cd3f125589418c6b952c273293c5f655c8f7 # v0.1.0
+    uses: flakeyard/workflow-release/.github/workflows/release.yaml@3d0d3dcf40f8ac8e03dc3f585085ca11d7b8f5ed # v0.1.1
     # Required by the called workflow for every path; with the App, its token
     # does the writes.
     permissions:
@@ -54,7 +54,7 @@ jobs:
           ref: ${{ needs.release.outputs.sha }}
           persist-credentials: false
       # Only cache.nixos.org (FY-0027).
-      - uses: flakeyard/action-setup-nix@2c58fef33760785dfe660be025fcadd88f1269b1 # v0.1.0
+      - uses: flakeyard/action-setup-nix@a90eeb051e85033f5d3c3e40dd213a585f34ec8d # v0.1.1
       - name: Check the size
         shell: bash
         run: nix run --no-update-lock-file .#check-size -- size-budget
@@ -103,7 +103,7 @@ jobs:
         with:
           ref: ${{ needs.release.outputs.sha }}
           persist-credentials: false
-      - uses: flakeyard/action-setup-nix@2c58fef33760785dfe660be025fcadd88f1269b1 # v0.1.0
+      - uses: flakeyard/action-setup-nix@a90eeb051e85033f5d3c3e40dd213a585f34ec8d # v0.1.1
       # Before the push: an image whose SBOM fails is never pushed.
       - name: SBOM
         shell: bash
@@ -158,7 +158,7 @@ jobs:
         with:
           ref: ${{ needs.release.outputs.sha }}
           persist-credentials: false
-      - uses: flakeyard/action-setup-nix@2c58fef33760785dfe660be025fcadd88f1269b1 # v0.1.0
+      - uses: flakeyard/action-setup-nix@a90eeb051e85033f5d3c3e40dd213a585f34ec8d # v0.1.1
       - name: Log in to GHCR
         shell: bash
         env:
@@ -224,7 +224,7 @@ jobs:
         with:
           ref: ${{ needs.release.outputs.sha }}
           persist-credentials: false
-      - uses: flakeyard/action-setup-nix@2c58fef33760785dfe660be025fcadd88f1269b1 # v0.1.0
+      - uses: flakeyard/action-setup-nix@a90eeb051e85033f5d3c3e40dd213a585f34ec8d # v0.1.1
       - shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
