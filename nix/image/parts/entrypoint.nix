@@ -25,7 +25,7 @@
         text = ''
           entrypoint_tools=${pkgs.lib.makeBinPath runtimeInputs}
         ''
-        + builtins.readFile ../../entrypoint/entrypoint.sh;
+        + builtins.readFile ../../../entrypoint/entrypoint.sh;
       };
     };
 }
