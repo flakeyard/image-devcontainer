@@ -4,12 +4,19 @@
 #   nix build --print-out-paths  prints $STREAM
 #   nix build --rebuild D...     records "rebuild ARGS"; fails with
 #                                $REBUILD_ERROR when it is set
+#   nix eval --apply F ...       prints $APPS, the names of the apps of a
+#                                flake as JSON; the current ones by default
 #   nix eval ...                 prints $SYSTEM
-#   nix run FLAKE#APP -- ...     prints $TARBALL_DIGEST (platform-digest)
+#   nix run FLAKE#APP -- ...     prints $TARBALL_DIGEST (publish-digest)
 set -euo pipefail
+current_apps='["publish-digest"]'
 case $1 in
   eval)
-    printf '%s' "$SYSTEM"
+    if [[ " $* " == *" --apply "* ]]; then
+      printf '%s\n' "${APPS-$current_apps}"
+    else
+      printf '%s' "$SYSTEM"
+    fi
     ;;
   run)
     echo "run $*" >>"$CALLS"

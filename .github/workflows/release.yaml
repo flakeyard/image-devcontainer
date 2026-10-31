@@ -67,7 +67,7 @@ jobs:
         env:
           ARCH: ${{ matrix.arch }}
         run: |
-          digest=$(nix run --no-update-lock-file .#platform-digest -- "$RUNNER_TEMP/image.tar")
+          digest=$(nix run --no-update-lock-file .#publish-digest -- "$RUNNER_TEMP/image.tar")
           echo "digest-$ARCH=$digest" >>"$GITHUB_OUTPUT"
 
   # Pushes the tested image of each platform and attests it.
@@ -116,7 +116,7 @@ jobs:
         run: docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin <<<"$GH_TOKEN"
       - name: Push by digest
         shell: bash
-        run: nix run --no-update-lock-file .#push-platform -- "$IMAGE" "$TESTED"
+        run: nix run --no-update-lock-file .#publish-platform -- "$IMAGE" "$TESTED"
       - name: Provenance
         uses: $/.github/actions/attest-once
         with:
@@ -179,7 +179,7 @@ jobs:
         shell: bash
         env:
           MAJOR: ${{ needs.release.outputs.major }}
-        run: nix run --no-update-lock-file .#sync-major -- "$IMAGE" "$MAJOR"
+        run: nix run --no-update-lock-file .#publish-major -- "$IMAGE" "$MAJOR"
       - name: Provenance
         uses: $/.github/actions/attest-once
         with:
@@ -234,5 +234,5 @@ jobs:
           REVISION: ${{ needs.release.outputs.sha }}
           ARCH: ${{ matrix.arch }}
         run: |
-          nix run --no-update-lock-file .#verify-published -- \
+          nix run --no-update-lock-file .#publish-verify -- \
             "$REPOSITORY" "$IMAGE" "$INDEX" "$VERSION" "$REVISION" "$ARCH" "$TESTED"

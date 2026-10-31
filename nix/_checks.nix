@@ -80,7 +80,7 @@ in
         githubScripts = ../.github/scripts;
       }
       ''
-        shellcheck "$scripts"/*.sh "$stubs"/* "$githubScripts"/*.sh
+        shellcheck "$scripts"/*.sh "$scripts"/*/*.sh "$stubs"/* "$githubScripts"/*.sh
         shellcheck -x "$unit"/{lib,scripts,publish,release,licenses}.sh
         # The sandbox has no /usr/bin/env.
         cp -r "$scripts" scripts && cp -r "$stubs" stubs && cp -r "$githubScripts" github-scripts

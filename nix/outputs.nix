@@ -1,4 +1,4 @@
-# The image, its apps and its checks, from the files that are not flake-parts
+# The image and its checks, from the files that are not flake-parts
 # modules yet.
 {
   perSystem =
@@ -23,8 +23,6 @@
 
         # The image as a script that streams a docker archive to stdout.
         packages.image = import ./_image.nix { inherit pkgs parts; };
-
-        apps = import ./_apps.nix { inherit pkgs parts image; };
 
         checks = import ./_checks.nix { inherit pkgs parts image; };
       };

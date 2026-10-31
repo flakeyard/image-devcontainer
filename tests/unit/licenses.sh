@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Unit tests of scripts/check-licenses.sh with stubs of nix and sbomnix.
+# Unit tests of scripts/check/licenses.sh with stubs of nix and sbomnix.
 # Inputs (environment): SCRIPTS, STUBS.
 set -uo pipefail
 export LC_ALL=C
@@ -17,7 +17,7 @@ setup() {
   export PATH=$STUBS:$PATH SYSTEM=x86_64-linux CALLS=$work/calls
   export SBOM=$work/sbom.json CLOSURE=$work/closure CLOSURE_ROOT=$root
   export NON_REDISTRIBUTABLE=$work/deny KNOWN_LICENSES=$work/known.json
-  export COMPLETE_LICENSES_JQ=$SCRIPTS/complete-licenses.jq SBOM_PROBLEMS_JQ=$SCRIPTS/sbom-problems.jq
+  export COMPLETE_LICENSES_JQ=$SCRIPTS/check/licenses/complete.jq SBOM_PROBLEMS_JQ=$SCRIPTS/check/licenses/problems.jq
   printf '%s\n%s\n' "$a" "$b" >"$CLOSURE"
   printf 'BUSL-1.1\nunfree\n' >"$NON_REDISTRIBUTABLE"
   echo '{"nix-cmd": ["LGPL-2.1-or-later"]}' >"$KNOWN_LICENSES"
@@ -33,7 +33,7 @@ component() {
 sbom() { jq -cs '{components: .}' <<<"$(printf '%s\n' "$@")" >"$SBOM"; }
 
 # check_licenses: the check, with the completed SBOM in $work/out.json.
-check_licenses() { "$SCRIPTS/check-licenses.sh" "$work/out.json"; }
+check_licenses() { "$SCRIPTS/check/licenses.sh" "$work/out.json"; }
 
 curl='[{"license":{"id":"curl"}}]'
 
