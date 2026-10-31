@@ -324,6 +324,7 @@ runnable() {
 
 main() {
   if [[ $(id -u) != 0 ]]; then run_unprivileged "$@"; fi
+  stop_on_signals
   local identity uid gid
   identity=$(wanted_identity)
   read -r uid gid <<<"$identity"
@@ -338,6 +339,14 @@ main() {
   fi
   give_streams "$uid" "$gid"
   exec_as_dev "$uid" "$gid" "$@"
+}
+
+# stop_on_signals: ends the entrypoint on SIGTERM and SIGINT until tini takes
+# over. As PID 1 without a handler, bash ignores them, so a container stopped
+# right after it starts would wait for SIGKILL.
+stop_on_signals() {
+  trap 'exit 143' TERM
+  trap 'exit 130' INT
 }
 
 # run_unprivileged COMMAND...: runs the command as it is, without the daemon.

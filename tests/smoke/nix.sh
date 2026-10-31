@@ -15,7 +15,7 @@ expect_no_text "written"
 test_case "builds run as build users"
 # Build and read the result in the same container.
 run -v "$tests/../fixture:/fixture:ro" -- sh -c 'cat "$(nix-build --no-out-link /fixture/uid.nix)"'
-grep -qxE '300[0-9][0-9]' <<<"$output" || fail "not built as a build user"
+expect_build_user
 
 test_case "dev cannot add substituters"
 run -- nix store info --option extra-substituters https://untrusted.invalid
@@ -56,21 +56,20 @@ runner=$(nix --version)
 # --- garbage collection -----------------------------------------------------------
 
 test_case "garbage collection keeps every store path the image uses"
-id=$(start)
-poll 20 ready "$id" || fail "the daemon did not answer"
-docker exec "$id" nix-collect-garbage >/dev/null 2>&1 || fail "garbage collection failed"
+start_ready id
+collect_garbage "$id"
 config=$(docker inspect "$IMAGE" --format '{{json .Config}}')
 output=$(docker exec "$id" sh -c '
   { grep -rhoE "/nix/store/[a-z0-9]{32}-[^/ \"'"'"':]+" /etc /home/dev /usr/lib 2>/dev/null
     for link in /etc/ssl/certs/* /usr/lib/* /lib*/ld-linux*; do readlink "$link"; done
     cat
   } | grep -oE "/nix/store/[a-z0-9]{32}-[^/ \"'"'"':]+" | sort -u |
-  while read -r path; do [ -e "$path" ] || echo "missing $path"; done; echo checked' <<<"$config" 2>&1) || true
+  while read -r path; do [ -e "$path" ] || echo "missing $path"; done; echo checked' <<<"$config" 2>&1)
 expect_line "checked"
 expect_no_text "missing"
 docker restart "$id" >/dev/null
-poll 20 ready "$id" || fail "the daemon did not answer after garbage collection and a restart"
-docker rm -f "$id" >/dev/null
+poll "$daemon_timeout" ready "$id" || fail "the daemon did not answer after garbage collection and a restart"
+remove "$id"
 
 test_case "the store holds exactly the closure the SBOM describes"
 run -- sh -c 'for p in /nix/store/*; do echo "$p"; done'
