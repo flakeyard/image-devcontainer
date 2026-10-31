@@ -100,5 +100,61 @@ run "size: no budget for the system" fail "$SCRIPTS/check-size.sh" "$work/budget
 expect message "no budget for aarch64-linux"
 finish
 
+# --- check-eol ----------------------------------------------------------------
+
+for case in "2026-10-29 ok supported" "2026-12-10 ok in 21 days" "2027-01-02 fail reached its end of life"; do
+  read -r today expected message <<<"$case"
+  setup
+  printf '# comment\nnixos-26.05 2026-12-31\n' >"$work/eol"
+  run "eol: $today" "$expected" "$SCRIPTS/check-eol.sh" "$work/eol" "$today"
+  expect message "$message"
+  finish
+done
+
+# --- check-release-rebuild -----------------------------------------------------------
+
+# rebuild: runs check-release-rebuild in the repository of the test.
+rebuild() { (cd "$work/repo" && "$SCRIPTS/check-release-rebuild.sh" ghcr.io/x/y amd64); }
+
+# release_setup: a git repository with the tag v1.0.0 and a registry that
+# publishes it with the platform digests of the stub.
+release_setup() {
+  setup
+  TARBALL_DIGEST=sha256:$(printf 'a%.0s' {1..64})
+  export REGISTRY=$work/registry TARBALL_DIGEST
+  mkdir -p "$REGISTRY/manifests" "$REGISTRY/tags" "$work/repo"
+  git -C "$work/repo" init -q
+  # Independent of the git configuration of whoever runs the tests.
+  export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+  git -C "$work/repo" -c commit.gpgsign=false commit -q --allow-empty -m init
+  git -C "$work/repo" -c tag.gpgsign=false tag v1.0.0
+  index=$(printf '{"manifests":[{"digest":"%s","platform":{"architecture":"amd64"}}]}' "$TARBALL_DIGEST")
+  printf '%s' "$index" >"$REGISTRY/manifests/sha256:index"
+  echo sha256:index >"$REGISTRY/tags/v1.0.0"
+}
+
+release_setup
+run "release-rebuild: the rebuild has the published digest" ok rebuild
+expect message "v1.0.0 rebuilt for amd64 has the published digest"
+finish
+
+release_setup
+TARBALL_DIGEST=sha256:$(printf 'b%.0s' {1..64})
+run "release-rebuild: another digest fails" fail rebuild
+expect message "the registry has sha256:aaaa"
+finish
+
+release_setup
+rm "$REGISTRY/tags/v1.0.0"
+run "release-rebuild: nothing to do before the first release" ok rebuild
+expect message "No release"
+finish
+
+release_setup
+rm -r "$REGISTRY/tags"
+run "release-rebuild: nothing to do before the first push" ok rebuild
+expect message "No release"
+finish
+
 echo "passed: $passed, failed: $failed"
 ((failed == 0))
