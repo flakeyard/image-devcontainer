@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Stub of sbomnix for the unit tests: writes $SBOM to the file after --cdx.
+set -euo pipefail
+while (($#)); do
+  if [[ $1 == --cdx ]]; then
+    cp -- "$SBOM" "$2"
+    exit 0
+  fi
+  shift
+done
+echo "stub sbomnix: no --cdx" >&2
+exit 2

@@ -76,10 +76,11 @@ in
         tests = ../tests/unit/scripts.sh;
         publish = ../tests/unit/publish.sh;
         release = ../tests/unit/release.sh;
+        licenses = ../tests/unit/licenses.sh;
         githubScripts = ../.github/scripts;
       }
       ''
-        shellcheck "$scripts"/*.sh "$stubs"/* "$tests" "$publish" "$release" "$githubScripts"/*.sh
+        shellcheck "$scripts"/*.sh "$stubs"/* "$tests" "$publish" "$release" "$licenses" "$githubScripts"/*.sh
         # The sandbox has no /usr/bin/env.
         cp -r "$scripts" scripts && cp -r "$stubs" stubs && cp -r "$githubScripts" github-scripts
         chmod -R u+w scripts stubs github-scripts
@@ -87,6 +88,7 @@ in
         SCRIPTS=$PWD/scripts STUBS=$PWD/stubs bash "$tests"
         SCRIPTS=$PWD/scripts STUBS=$PWD/stubs bash "$publish"
         SCRIPTS=$PWD/github-scripts STUBS=$PWD/stubs bash "$release"
+        SCRIPTS=$PWD/scripts STUBS=$PWD/stubs bash "$licenses"
         touch $out
       '';
 
