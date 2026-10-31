@@ -7,6 +7,8 @@
       user = "dev";
       uid = 1000;
       home = "/home/${user}";
+      # Relative to the image root, for the commands that build the image.
+      homeRelative = lib.removePrefix "/" home;
       buildGroup = "nixbld";
       buildGid = 30000;
       buildUsers = map (n: "nixbld${toString n}") (lib.range 1 32);
@@ -21,6 +23,7 @@
           user
           uid
           home
+          homeRelative
           buildGroup
           buildGid
           buildUsers
