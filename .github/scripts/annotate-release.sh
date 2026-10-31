@@ -8,5 +8,5 @@ if grep -qxF -- "$line" <<<"$notes"; then
   echo "The notes of $TAG already name $REFERENCE."
   exit 0
 fi
-gh release edit "$TAG" --repo "$REPOSITORY" --notes "$(printf '%s\n\n%s\n' "$notes" "$line")" >/dev/null
+printf '%s\n\n%s\n' "$notes" "$line" | gh release edit "$TAG" --repo "$REPOSITORY" --notes-file - >/dev/null
 echo "Added $REFERENCE to the notes of $TAG."

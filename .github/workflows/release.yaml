@@ -85,6 +85,11 @@ jobs:
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
+    # One push and attestation per platform at a time, also across releases.
+    concurrency:
+      group: image-push-${{ github.repository }}-${{ matrix.arch }}
+      cancel-in-progress: false
+      queue: max
     permissions:
       contents: read
       packages: write # push to GHCR
@@ -106,6 +111,10 @@ jobs:
           ARM64: ${{ needs.build-test.outputs.digest-arm64 }}
         run: |
           if [[ $ARCH == amd64 ]]; then echo "digest=$AMD64"; else echo "digest=$ARM64"; fi >>"$GITHUB_OUTPUT"
+      # Before the push: an image whose SBOM fails is never pushed.
+      - name: SBOM
+        shell: bash
+        run: nix run --no-update-lock-file .#check-licenses -- "$RUNNER_TEMP/sbom.cdx.json"
       # crane and actions/attest read ~/.docker/config.json.
       - name: Log in to GHCR
         shell: bash
@@ -117,9 +126,6 @@ jobs:
         env:
           TESTED: ${{ steps.tested.outputs.digest }}
         run: nix run --no-update-lock-file .#push-platform -- "$IMAGE" "$TESTED"
-      - name: SBOM
-        shell: bash
-        run: nix run --no-update-lock-file .#check-licenses -- "$RUNNER_TEMP/sbom.cdx.json"
       - id: provenance
         name: Provenance attested before
         shell: bash
@@ -127,6 +133,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           DIGEST: ${{ steps.tested.outputs.digest }}
+          REVISION: ${{ needs.release.outputs.sha }}
         run: .github/scripts/attested.sh
       - if: steps.provenance.outputs.attested != 'true'
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
@@ -141,6 +148,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           DIGEST: ${{ steps.tested.outputs.digest }}
+          REVISION: ${{ needs.release.outputs.sha }}
           PREDICATE: https://cyclonedx.org/bom
         run: .github/scripts/attested.sh
       - if: steps.sbom.outputs.attested != 'true'
@@ -208,6 +216,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           DIGEST: ${{ steps.index.outputs.digest }}
+          REVISION: ${{ needs.release.outputs.sha }}
         run: .github/scripts/attested.sh
       - if: steps.provenance.outputs.attested != 'true'
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
@@ -231,7 +240,7 @@ jobs:
   # Pulls the published image back on both architectures.
   verify:
     name: Verify on ${{ matrix.runner }}
-    needs: [build-test, index]
+    needs: [release, build-test, index]
     if: ${{ !cancelled() && needs.index.result == 'success' }}
     strategy:
       fail-fast: false
@@ -242,17 +251,28 @@ jobs:
           - arch: arm64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     permissions:
       contents: read
+      packages: read # pull the image
+      attestations: read # verify its attestations
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ needs.release.outputs.sha }}
           persist-credentials: false
+      - uses: flakeyard/action-setup-nix@2c58fef33760785dfe660be025fcadd88f1269b1 # v0.1.0
       - shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           INDEX: ${{ needs.index.outputs.digest }}
-          PLATFORM: ${{ matrix.arch == 'amd64' && needs.build-test.outputs.digest-amd64 || needs.build-test.outputs.digest-arm64 }}
-        run: .github/scripts/verify-published.sh
+          VERSION: ${{ needs.release.outputs.version }}
+          REVISION: ${{ needs.release.outputs.sha }}
+          ARCH: ${{ matrix.arch }}
+          AMD64: ${{ needs.build-test.outputs.digest-amd64 }}
+          ARM64: ${{ needs.build-test.outputs.digest-arm64 }}
+        run: |
+          if [[ $ARCH == amd64 ]]; then platform=$AMD64; else platform=$ARM64; fi
+          nix run --no-update-lock-file .#verify-published -- \
+            "$REPOSITORY" "$IMAGE" "$INDEX" "$VERSION" "$REVISION" "$ARCH" "$platform"

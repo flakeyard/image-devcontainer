@@ -12,8 +12,8 @@ setup() {
   export CALLS=$work/calls NOTES=$work/notes GITHUB_OUTPUT=$work/output PATH=$STUBS:$PATH
   export GH_TOKEN=t REPOSITORY=flakeyard/image-devcontainer IMAGE=ghcr.io/flakeyard/image-devcontainer
   export TAG=v1.2.3 REFERENCE="ghcr.io/flakeyard/image-devcontainer:v1.2.3@sha256:abc"
-  export DIGEST=sha256:abc PREDICATE=""
-  unset ATTESTED
+  export DIGEST=sha256:abc PREDICATE="" REVISION=0123abc
+  unset ATTESTED ATTESTATIONS GH_API_ERROR
   : >"$CALLS"
   : >"$GITHUB_OUTPUT"
   printf '## 1.2.3\n\n### Features\n\n* something\n' >"$NOTES"
@@ -65,22 +65,41 @@ finish
 
 # --- attested -----------------------------------------------------------------------
 
+provenance=https://slsa.dev/provenance/v1
+bom=https://cyclonedx.org/bom
+
 setup
 export ATTESTED=1
 run "attested: true when an attestation verifies" ok "$SCRIPTS/attested.sh"
 check 'grep -qx attested=true "$GITHUB_OUTPUT"' "output: $(cat "$GITHUB_OUTPUT")"
 check 'grep -qF -- "--signer-workflow flakeyard/image-devcontainer/.github/workflows/release.yaml" "$CALLS"' "calls: $(cat "$CALLS")"
+check 'grep -qF -- "--source-digest 0123abc" "$CALLS"' "the release commit is not checked: $(cat "$CALLS")"
+check 'grep -qF -- "--deny-self-hosted-runners" "$CALLS"' "self-hosted runners allowed: $(cat "$CALLS")"
 finish
 
 setup
-run "attested: false otherwise" ok "$SCRIPTS/attested.sh"
+run "attested: false when the digest has no attestation" ok "$SCRIPTS/attested.sh"
 check 'grep -qx attested=false "$GITHUB_OUTPUT"' "output: $(cat "$GITHUB_OUTPUT")"
 finish
 
 setup
-export ATTESTED=1 PREDICATE=https://cyclonedx.org/bom
-run "attested: checks the predicate type of an SBOM" ok "$SCRIPTS/attested.sh"
-check 'grep -qF -- "--predicate-type https://cyclonedx.org/bom" "$CALLS"' "calls: $(cat "$CALLS")"
+export PREDICATE=$bom ATTESTATIONS=$provenance
+run "attested: an SBOM is missing although provenance exists" ok "$SCRIPTS/attested.sh"
+check 'grep -qx attested=false "$GITHUB_OUTPUT"' "output: $(cat "$GITHUB_OUTPUT")"
+check 'grep -qF -- "--predicate-type $bom" "$CALLS"' "calls: $(cat "$CALLS")"
+finish
+
+setup
+export ATTESTATIONS="$provenance $bom"
+run "attested: an attestation that does not verify fails" fail "$SCRIPTS/attested.sh"
+check 'grep -qF "none verifies" "$work/out"' "out: $(cat "$work/out")"
+check '[[ ! -s $GITHUB_OUTPUT ]]' "output written: $(cat "$GITHUB_OUTPUT")"
+finish
+
+setup
+export GH_API_ERROR=1
+run "attested: an API error fails" fail "$SCRIPTS/attested.sh"
+check 'grep -qF "cannot list the attestations" "$work/out"' "out: $(cat "$work/out")"
 finish
 
 echo "passed: $passed, failed: $failed"

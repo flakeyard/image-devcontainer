@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Stub of docker for the unit tests of scripts/: records the call in $CALLS.
+echo "docker $*" >>"$CALLS"
+[[ $1 != run ]] || echo "nix (Nix) 2.35.3"

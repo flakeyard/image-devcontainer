@@ -26,11 +26,21 @@ done
 # descriptor DIGEST ARCHITECTURE: the entry of a platform manifest, which
 # must exist in the registry.
 descriptor() {
-  local manifest
-  manifest=$(crane manifest "$repository@$1") || return 1
-  jq -cn --arg digest "$1" --arg arch "$2" \
-    --arg type "$(jq -r .mediaType <<<"$manifest")" \
-    --argjson size "$(printf '%s' "$manifest" | wc -c)" \
+  local file type size
+  file=$(mktemp)
+  # The exact bytes: $(...) would drop trailing newlines and change the size.
+  crane manifest "$repository@$1" >"$file" || return 1
+  size=$(wc -c <"$file")
+  type=$(jq -r .mediaType "$file")
+  rm -f -- "$file"
+  case $type in
+    application/vnd.docker.distribution.manifest.v2+json | application/vnd.oci.image.manifest.v1+json) ;;
+    *)
+      echo "error: $repository@$1 is not an image manifest: $type" >&2
+      return 1
+      ;;
+  esac
+  jq -cn --arg digest "$1" --arg arch "$2" --arg type "$type" --argjson size "$size" \
     '{mediaType: $type, digest: $digest, size: $size, platform: {architecture: $arch, os: "linux"}}'
 }
 
@@ -52,12 +62,14 @@ index=$(jq -cnS \
 digest=sha256:$(printf '%s' "$index" | sha256sum | cut -d' ' -f1)
 
 # The tag is absent only when the registry says so.
-if current=$(crane digest "$repository:$tag" 2>"${TMPDIR:-/tmp}/publish-index.err"); then
+errors=$(mktemp)
+trap 'rm -f -- "$errors"' EXIT
+if current=$(crane digest "$repository:$tag" 2>"$errors"); then
   state=$current
-elif grep -q MANIFEST_UNKNOWN "${TMPDIR:-/tmp}/publish-index.err"; then
+elif grep -q MANIFEST_UNKNOWN "$errors"; then
   state=absent
 else
-  echo "error: cannot read $repository:$tag: $(cat "${TMPDIR:-/tmp}/publish-index.err")" >&2
+  echo "error: cannot read $repository:$tag: $(cat "$errors")" >&2
   exit 1
 fi
 if [[ $state != absent && $state != "$digest" ]]; then

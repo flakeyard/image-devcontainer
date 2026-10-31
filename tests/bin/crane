@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Stub of crane for the unit tests of scripts/: a registry in $REGISTRY
 # (manifests/<digest>, tags/<tag>); calls that change it go to $CALLS.
-# $CRANE_DENIED makes reading a tag fail without MANIFEST_UNKNOWN.
+# $CRANE_DENIED makes reading a tag or the tag list fail without
+# MANIFEST_UNKNOWN or NAME_UNKNOWN. Manifests are stored and printed as exact
+# bytes, as a registry does.
 set -euo pipefail
 unknown() {
   echo "Error: GET https://ghcr.io/v2/x/manifests/$1: MANIFEST_UNKNOWN: manifest unknown" >&2
@@ -35,13 +37,17 @@ case $1 in
     ;;
   push)
     echo "push ${3#*@}" >>"$CALLS"
-    echo '{"mediaType":"application/vnd.docker.distribution.manifest.v2+json"}' >"$REGISTRY/manifests/${3#*@}"
+    printf '%s' '{"mediaType":"application/vnd.docker.distribution.manifest.v2+json"}' >"$REGISTRY/manifests/${3#*@}"
     ;;
   tag)
     echo "tag $3 ${2#*@}" >>"$CALLS"
     echo "${2#*@}" >"$REGISTRY/tags/$3"
     ;;
   ls)
+    [[ -z ${CRANE_DENIED-} ]] || {
+      echo "Error: DENIED: requested access to the resource is denied" >&2
+      exit 1
+    }
     [[ -d $REGISTRY/tags ]] || {
       echo "Error: NAME_UNKNOWN: repository name not known to registry" >&2
       exit 1
