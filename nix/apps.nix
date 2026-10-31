@@ -90,6 +90,39 @@ in
           sbomnix
         ]
       );
+  # Publication (FY-0027); the registry login must exist.
+  platform-digest = app "platform-digest" "Stream the image and print its platform digest" (
+    with pkgs;
+    [
+      coreutils
+      crane
+    ]
+  );
+  push-platform = app "push-platform" "Push the tested platform image by digest" (
+    with pkgs;
+    [
+      coreutils
+      crane
+    ]
+  );
+  publish-index = app "publish-index" "Publish the manifest list and its release tag" (
+    with pkgs;
+    [
+      coreutils
+      crane
+      gnugrep
+      jq
+      regclient
+    ]
+  );
+  sync-major = app "sync-major" "Point vX at the newest release of major X" (
+    with pkgs;
+    [
+      coreutils
+      crane
+      gnugrep
+    ]
+  );
   check-size = app "check-size" "Compare the image size with its budget" (
     with pkgs;
     [

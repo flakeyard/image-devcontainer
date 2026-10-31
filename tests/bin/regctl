@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Stub of regctl for the unit tests of scripts/: `manifest put` stores stdin
+# under its digest in $REGISTRY, and fails like a registry when the reference
+# names another digest.
+set -euo pipefail
+[[ $1 == manifest && $2 == put ]] || {
+  echo "stub regctl: unsupported: $*" >&2
+  exit 2
+}
+ref=${*: -1}
+content=$(cat)
+digest=sha256:$(printf '%s' "$content" | sha256sum | cut -d' ' -f1)
+[[ ${ref#*@} == "$digest" ]] || {
+  echo "Error: digest mismatch: $digest" >&2
+  exit 1
+}
+printf '%s' "$content" >"$REGISTRY/manifests/$digest"
+echo "put $digest" >>"$CALLS"
