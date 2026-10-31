@@ -50,14 +50,14 @@ in
         ];
         inherit (parts.users) passwd group;
         script = ../entrypoint/entrypoint.sh;
-        tests = ../tests/unit/entrypoint.sh;
+        unit = ../tests/unit;
         built = parts.entrypoint;
       }
       ''
         grep -qx 'user=${parts.users.user}' "$script"
         grep -qx 'home=${parts.users.home}' "$script"
-        shellcheck -x -e SC1091 "$tests"
-        PASSWD=$passwd GROUP=$group ENTRYPOINT=$script bash "$tests"
+        shellcheck -x -e SC1091 "$unit/entrypoint.sh"
+        PASSWD=$passwd GROUP=$group ENTRYPOINT=$script bash "$unit/entrypoint.sh"
         touch $out
       '';
 
@@ -76,22 +76,20 @@ in
         ];
         scripts = ../scripts;
         stubs = ../tests/bin;
-        tests = ../tests/unit/scripts.sh;
-        publish = ../tests/unit/publish.sh;
-        release = ../tests/unit/release.sh;
-        licenses = ../tests/unit/licenses.sh;
+        unit = ../tests/unit;
         githubScripts = ../.github/scripts;
       }
       ''
-        shellcheck "$scripts"/*.sh "$stubs"/* "$tests" "$publish" "$release" "$licenses" "$githubScripts"/*.sh
+        shellcheck "$scripts"/*.sh "$stubs"/* "$githubScripts"/*.sh
+        shellcheck -x "$unit"/{lib,scripts,publish,release,licenses}.sh
         # The sandbox has no /usr/bin/env.
         cp -r "$scripts" scripts && cp -r "$stubs" stubs && cp -r "$githubScripts" github-scripts
         chmod -R u+w scripts stubs github-scripts
         patchShebangs scripts stubs github-scripts
-        SCRIPTS=$PWD/scripts STUBS=$PWD/stubs bash "$tests"
-        SCRIPTS=$PWD/scripts STUBS=$PWD/stubs bash "$publish"
-        SCRIPTS=$PWD/github-scripts STUBS=$PWD/stubs bash "$release"
-        SCRIPTS=$PWD/scripts STUBS=$PWD/stubs bash "$licenses"
+        SCRIPTS=$PWD/scripts STUBS=$PWD/stubs bash "$unit/scripts.sh"
+        SCRIPTS=$PWD/scripts STUBS=$PWD/stubs bash "$unit/publish.sh"
+        SCRIPTS=$PWD/github-scripts STUBS=$PWD/stubs bash "$unit/release.sh"
+        SCRIPTS=$PWD/scripts STUBS=$PWD/stubs bash "$unit/licenses.sh"
         touch $out
       '';
 

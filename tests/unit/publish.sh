@@ -4,7 +4,9 @@
 set -uo pipefail
 export LC_ALL=C
 
-failed=0 passed=0 current=""
+# shellcheck source-path=SCRIPTDIR source=lib.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/lib.sh"
+
 repo=ghcr.io/flakeyard/image-devcontainer
 amd64=sha256:$(printf 'a%.0s' {1..64})
 arm64=sha256:$(printf 'b%.0s' {1..64})
@@ -24,38 +26,6 @@ setup() {
   done
 }
 
-run() {
-  local name=$1 expected=$2 status=0
-  shift 2
-  "$@" >"$work/out" 2>"$work/err" || status=$?
-  current=$name
-  if [[ $expected == ok && $status != 0 ]] || [[ $expected == fail && $status == 0 ]]; then
-    report "expected $expected, exit $status: $(cat "$work/out" "$work/err")"
-  fi
-}
-
-report() {
-  [[ -n $current ]] || return 0
-  echo "FAIL $current: $1"
-  failed=$((failed + 1))
-  current=""
-}
-
-expect() {
-  [[ -n $current ]] || return 0
-  case $1 in
-    message) grep -qF -- "$2" "$work/out" "$work/err" || report "no message '$2' in: $(cat "$work/out" "$work/err")" ;;
-    calls) [[ $(paste -sd';' "$CALLS") == "$2" ]] || report "calls '$(paste -sd';' "$CALLS")', expected '$2'" ;;
-    tag) [[ $(cat "$REGISTRY/tags/$2" 2>/dev/null) == "$3" ]] || report "tag $2 is '$(cat "$REGISTRY/tags/$2" 2>/dev/null)', expected '$3'" ;;
-  esac
-}
-
-finish() {
-  if [[ -n $current ]]; then passed=$((passed + 1)); fi
-  current=""
-  rm -rf -- "$work"
-}
-
 publish() { "$SCRIPTS/publish-index.sh" "$repo" 1.2.3 abc123 "$amd64" "$arm64"; }
 
 # --- push-platform ---------------------------------------------------------------
@@ -63,7 +33,7 @@ publish() { "$SCRIPTS/publish-index.sh" "$repo" 1.2.3 abc123 "$amd64" "$arm64"; 
 setup
 run "push-platform: pushes the tested digest" ok "$SCRIPTS/push-platform.sh" "$repo" "$amd64"
 expect calls "push $amd64"
-[[ -z $current || $(cat "$work/out") == "$amd64" ]] || report "printed $(cat "$work/out")"
+expect output "$amd64"
 finish
 
 setup
@@ -94,10 +64,10 @@ finish
 
 setup
 run "publish-index: pushes the list by digest, then tags it" ok publish
-digest=$(cat "$work/out")
+digest=$(printed)
 expect calls "put $digest;tag v1.2.3 $digest"
 expect tag v1.2.3 "$digest"
-if [[ -n $current ]]; then
+if still_passing; then
   jq -e '.manifests[0].platform.architecture == "amd64" and .manifests[1].platform.architecture == "arm64"
     and .annotations["org.opencontainers.image.version"] == "1.2.3"
     and .annotations["org.opencontainers.image.revision"] == "abc123"' \
@@ -110,16 +80,17 @@ finish
 setup
 run "publish-index: the exact bytes of the list" ok publish
 pinned=sha256:2268211f761ccdcc84ce34b5d106de9887490dffe29561f97410bdb00fd75fbb
-[[ -z $current || $(cat "$work/out") == "$pinned" ]] ||
-  report "digest $(cat "$work/out"), not $pinned: $(cat "$REGISTRY/manifests/$(cat "$work/out")")"
+if still_passing && [[ $(printed) != "$pinned" ]]; then
+  report "digest $(printed), not $pinned: $(cat "$REGISTRY/manifests/$(printed)")"
+fi
 finish
 
 setup
 run "publish-index: the same release gives the same digest" ok publish
-first=$(cat "$work/out")
+first=$(printed)
 : >"$CALLS"
 run "publish-index: a rerun changes no tag" ok publish
-[[ -z $current || $(cat "$work/out") == "$first" ]] || report "digest changed: $first, $(cat "$work/out")"
+expect output "$first"
 expect calls "put $first"
 finish
 
@@ -145,9 +116,9 @@ finish
 
 setup
 run "publish-index: descriptor sizes are the bytes of the manifests" ok publish
-if [[ -n $current ]]; then
+if still_passing; then
   size=$(wc -c <"$REGISTRY/manifests/$amd64")
-  jq -e --argjson s "$size" '.manifests[0].size == $s' "$REGISTRY/manifests/$(cat "$work/out")" >/dev/null ||
+  jq -e --argjson s "$size" '.manifests[0].size == $s' "$REGISTRY/manifests/$(printed)" >/dev/null ||
     report "size is not $size"
 fi
 finish
@@ -161,7 +132,7 @@ finish
 
 setup
 run "publish-index: first run" ok publish
-digest=$(cat "$work/out")
+digest=$(printed)
 rm "$REGISTRY/tags/v1.2.3" && echo "$digest" >"$REGISTRY/tags/v1.2.3"
 : >"$CALLS"
 run "publish-index: a tag already at the digest is left alone" ok publish
@@ -209,7 +180,7 @@ index=$(published)
 export ATTESTED=1
 run "verify-published: a complete release" ok verify "$amd64"
 expect message "Verified $repo:v1.2.3@$index on amd64"
-[[ -z $current ]] || grep -qF -- "--signer-workflow flakeyard/image-devcontainer/.github/workflows/release.yaml" "$CALLS" || report "calls: $(cat "$CALLS")"
+expect called "--signer-workflow flakeyard/image-devcontainer/.github/workflows/release.yaml"
 finish
 
 setup
@@ -232,5 +203,4 @@ index=$(published)
 run "verify-published: missing attestations" fail verify "$amd64"
 finish
 
-echo "passed: $passed, failed: $failed"
-((failed == 0))
+summary
