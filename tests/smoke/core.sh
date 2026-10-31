@@ -98,7 +98,7 @@ expect_line "1000"
 
 test_case "a read-only root fails clearly when dev must change"
 run --read-only --tmpfs /tmp -e DEV_UID=1001 -- id -u
-expect_text "cannot change 'dev' to 1001:1001"
+expect_text "cannot give the files of 'dev' under /home/dev to 1001:1001"
 
 test_case "started without root it warns and runs the command"
 run --user 1000 -- sh -c 'echo ran'
@@ -118,8 +118,8 @@ expect_line "root"
 
 # --- capabilities ----------------------------------------------------------------
 
-test_case "works with only CHOWN, DAC_OVERRIDE, SETUID and SETGID"
-run --cap-drop ALL --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add SETUID --cap-add SETGID \
+test_case "works with only CHOWN, DAC_OVERRIDE, FOWNER, SETUID and SETGID"
+run --cap-drop ALL --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER --cap-add SETUID --cap-add SETGID \
   -v "$WORK/project:/home/dev/project" -w /home/dev/project -- sh -c 'id -u; nix store info >/dev/null && echo nix-ok; touch created2 && echo written'
 expect_line "1002"
 expect_line "nix-ok"
