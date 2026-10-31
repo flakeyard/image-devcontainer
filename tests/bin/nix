@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Stub of nix for the unit tests of scripts/. Records calls in $CALLS.
+#   nix build --dry-run ...      prints $DRY_RUN on stderr
+#   nix build --print-out-paths  prints $STREAM
+#   nix build --rebuild D        records "rebuild D"
+#   nix eval ...                 prints $SYSTEM
+set -euo pipefail
+case $1 in
+  eval)
+    printf '%s' "$SYSTEM"
+    ;;
+  build)
+    if [[ " $* " == *" --dry-run "* ]]; then
+      printf '%s\n' "$DRY_RUN" >&2
+    elif [[ " $* " == *" --print-out-paths "* ]]; then
+      echo "$STREAM"
+    elif [[ " $* " == *" --rebuild "* ]]; then
+      echo "rebuild ${*: -1}" >>"$CALLS"
+    else
+      echo "build" >>"$CALLS"
+    fi
+    ;;
+  *)
+    echo "stub nix: unsupported: $*" >&2
+    exit 2
+    ;;
+esac

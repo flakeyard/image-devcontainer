@@ -58,6 +58,30 @@ in
         touch $out
       '';
 
+  # The scripts of the apps pass shellcheck and their unit tests.
+  scripts =
+    pkgs.runCommand "script-tests"
+      {
+        nativeBuildInputs = with pkgs; [
+          bash
+          coreutils
+          gawk
+          gnugrep
+          shellcheck
+        ];
+        scripts = ../scripts;
+        stubs = ../tests/bin;
+        tests = ../tests/unit/scripts.sh;
+      }
+      ''
+        shellcheck "$scripts"/*.sh "$stubs"/* "$tests"
+        # The sandbox has no /usr/bin/env.
+        cp -r "$scripts" scripts && cp -r "$stubs" stubs && chmod -R u+w scripts stubs
+        patchShebangs scripts stubs
+        SCRIPTS=$PWD/scripts STUBS=$PWD/stubs bash "$tests"
+        touch $out
+      '';
+
   # The image builds.
   image = import ./image.nix { inherit pkgs parts; };
 

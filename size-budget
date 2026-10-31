@@ -1,0 +1,4 @@
+# Budgets of the uncompressed image per system, in MiB (FY-0005). Measured
+# 2026-10-29: x86_64-linux 328, aarch64-linux 356.
+x86_64-linux 360
+aarch64-linux 390
