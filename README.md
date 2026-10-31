@@ -179,7 +179,9 @@ the registry.
 Every app has a file under `nix/apps/` with its description and tools, and a
 script at the same path under `scripts/`; it is named after the path, so
 `nix/apps/check/size.nix` and `scripts/check/size.sh` are the app `check-size`.
-The apps `publish-*` publish the image.
+The apps `publish-*` publish the image. The unit tests of a script are at its
+path under `tests/unit/`; those of the scripts of the release workflow are in
+`tests/unit/release/`.
 
 ## Bootstrap
 

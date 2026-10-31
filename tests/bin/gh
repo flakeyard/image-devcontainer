@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stub of gh for the unit tests of .github/scripts:
+# Stub of gh for the unit tests of the scripts of .github:
 #   release view/edit   notes in $NOTES (edit reads --notes-file -)
 #   attestation verify  succeeds when $ATTESTED is set, fails with HTTP 404
 #                       otherwise; attestations are not bound to a commit, so
