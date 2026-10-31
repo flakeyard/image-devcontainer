@@ -1,5 +1,5 @@
 # The entrypoint builds (writeShellApplication runs shellcheck), names the
-# user and home of users.nix, and passes its unit tests.
+# user and home of nix/image/users.nix, and passes its unit tests.
 {
   perSystem =
     { config, pkgs, ... }:
