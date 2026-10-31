@@ -31,6 +31,33 @@ in
     touch $out
   '';
 
+  # The entrypoint builds (writeShellApplication runs shellcheck), names the
+  # user and home of users.nix, and passes its unit tests.
+  entrypoint =
+    pkgs.runCommand "entrypoint-tests"
+      {
+        nativeBuildInputs = with pkgs; [
+          bash
+          coreutils
+          findutils
+          gawk
+          gnused
+          gnugrep
+          shellcheck
+        ];
+        inherit (parts.users) passwd group;
+        script = ../entrypoint/entrypoint.sh;
+        tests = ../tests/unit/entrypoint.sh;
+        built = parts.entrypoint;
+      }
+      ''
+        grep -qx 'user=${parts.users.user}' "$script"
+        grep -qx 'home=${parts.users.home}' "$script"
+        shellcheck -x -e SC1091 "$tests"
+        PASSWD=$passwd GROUP=$group ENTRYPOINT=$script bash "$tests"
+        touch $out
+      '';
+
   formatting =
     pkgs.runCommand "formatting"
       {
