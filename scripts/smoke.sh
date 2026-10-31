@@ -24,4 +24,6 @@ source "$tests/lib.sh"
 source "$tests/core.sh"
 # shellcheck disable=SC1091
 source "$tests/nix.sh"
+# shellcheck disable=SC1091
+source "$tests/editor.sh"
 summary

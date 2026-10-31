@@ -29,11 +29,21 @@ in
     ]
   );
   smoke =
-    app' "export EXPECTED=${image.expected}\n" "smoke" "Run the smoke tests of the image with docker"
+    app'
+      ''
+        export EXPECTED=${image.expected}
+        export EDITOR_SERVER=${import ./editor-server.nix { inherit pkgs; }}
+      ''
+      "smoke"
+      "Run the smoke tests of the image with docker"
       (
         with pkgs;
         [
+          binutils
           coreutils
+          curl
+          devcontainer
+          findutils
           gawk
           gnugrep
           gnused

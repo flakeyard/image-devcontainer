@@ -103,6 +103,23 @@ set_identity() {
   log "user '$user' is now $uid:$gid"
 }
 
+# give_streams UID GID: gives the pipes and sockets on stdin, stdout and stderr,
+# such as the FIFOs of the container engine, to the user, so that it can
+# reopen them as /dev/stdout and /dev/stderr after dropping root, as
+# nix-direnv does. Files and terminals are left alone: they may belong to the
+# host.
+give_streams() {
+  local fd stream
+  for fd in 0 1 2; do
+    # The entrypoint's own descriptors: /proc/self would be those of chown,
+    # whose stderr goes to /dev/null.
+    stream=/proc/$$/fd/$fd
+    if [[ -p $stream || -S $stream ]]; then
+      chown "$1:$2" "$stream" 2>/dev/null || true
+    fi
+  done
+}
+
 # supervise: runs the Nix daemon and restarts it when it exits; gives up after
 # five exits in a row within a minute of their start.
 supervise() {
@@ -148,8 +165,11 @@ main() {
   set_identity $identity || exit 1
   start_daemon
   export HOME=$home USER=$user LOGNAME=$user
-  exec tini -s -g -- setpriv --reuid="$(field "$passwd_file" "$user" 3)" \
-    --regid="$(field "$passwd_file" "$user" 4)" --init-groups -- "$@"
+  local uid gid
+  uid=$(field "$passwd_file" "$user" 3)
+  gid=$(field "$passwd_file" "$user" 4)
+  give_streams "$uid" "$gid"
+  exec tini -s -g -- setpriv --reuid="$uid" --regid="$gid" --init-groups -- "$@"
 }
 
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then

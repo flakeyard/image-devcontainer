@@ -69,6 +69,10 @@ dockerTools.streamLayeredImage {
       "env" = pkgs.writeText "env" (lib.concatLines env);
       "metadata" = pkgs.writeText "metadata" metadata;
       "nix-version" = pkgs.writeText "nix-version" parts.nix.version;
+      # The library directories nix-ld serves besides glibc.
+      "foreign-libraries" = pkgs.writeText "foreign-libraries" (
+        lib.concatMapStrings (l: "${lib.getLib l}/lib\n") foreign.libraries
+      );
     };
   };
 
