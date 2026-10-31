@@ -1,5 +1,4 @@
-# The image and its checks, from the files that are not flake-parts
-# modules yet.
+# The image, from the files that are not flake-parts modules yet.
 {
   perSystem =
     {
@@ -10,7 +9,6 @@
     }:
     let
       inherit (config.image) parts;
-      inherit (config.packages) image;
     in
     {
       options.image.parts = lib.mkOption {
@@ -23,8 +21,6 @@
 
         # The image as a script that streams a docker archive to stdout.
         packages.image = import ./_image.nix { inherit pkgs parts; };
-
-        checks = import ./_checks.nix { inherit pkgs parts image; };
       };
     };
 }
