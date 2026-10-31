@@ -17,9 +17,8 @@
         "x86_64-linux"
         "aarch64-linux"
       ];
-      # Every file under nix/ is a flake-parts module, except names that start
-      # with `_` and the bodies of apps in the directories of nix/apps/, which
-      # nix/apps/default.nix loads.
+      # Every file under nix/ is a flake-parts module, except the bodies of
+      # apps in the directories of nix/apps/, which nix/apps/default.nix loads.
       imports = [ (inputs.import-tree.matchNot "/apps/[^/]+/.*" ./nix) ];
     };
 }
