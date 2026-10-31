@@ -2,7 +2,8 @@
 # Stub of nix for the unit tests of scripts/. Records calls in $CALLS.
 #   nix build --dry-run ...      prints $DRY_RUN on stderr
 #   nix build --print-out-paths  prints $STREAM
-#   nix build --rebuild D        records "rebuild D"
+#   nix build --rebuild D...     records "rebuild ARGS"; fails with
+#                                $REBUILD_ERROR when it is set
 #   nix eval ...                 prints $SYSTEM
 #   nix run FLAKE#APP -- ...     prints $TARBALL_DIGEST (platform-digest)
 set -euo pipefail
@@ -20,7 +21,11 @@ case $1 in
     elif [[ " $* " == *" --print-out-paths "* ]]; then
       echo "$STREAM"
     elif [[ " $* " == *" --rebuild "* ]]; then
-      echo "rebuild ${*: -1}" >>"$CALLS"
+      echo "rebuild ${*:2}" >>"$CALLS"
+      if [[ -n ${REBUILD_ERROR-} ]]; then
+        echo "$REBUILD_ERROR" >&2
+        exit 1
+      fi
     else
       echo "build" >>"$CALLS"
     fi

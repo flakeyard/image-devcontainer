@@ -33,8 +33,24 @@ jobs:
           -f state="$STATE" -f context="$CONTEXT" -f target_url="$RUN_URL"
           -f description="GitHub Actions run"
 
-  maintenance:
-    name: Maintenance on ${{ matrix.runner }}
+  eol:
+    name: End of life of the nixpkgs branch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: flakeyard/action-setup-nix@2c58fef33760785dfe660be025fcadd88f1269b1 # v0.1.0
+      - name: End of life of the nixpkgs branch
+        shell: bash
+        run: nix run --no-update-lock-file .#check-eol -- nixpkgs-eol
+
+  # Independent of the end of life, so that one does not hide the other.
+  rebuild:
+    name: Rebuild the newest release on ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
@@ -54,9 +70,6 @@ jobs:
           fetch-tags: true
           persist-credentials: false
       - uses: flakeyard/action-setup-nix@2c58fef33760785dfe660be025fcadd88f1269b1 # v0.1.0
-      - name: End of life of the nixpkgs branch
-        shell: bash
-        run: nix run --no-update-lock-file .#check-eol -- nixpkgs-eol
       - name: Rebuild the newest release
         shell: bash
         env:
@@ -66,7 +79,7 @@ jobs:
 
   result:
     name: maintenance
-    needs: [pending, maintenance]
+    needs: [pending, eol, rebuild]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

@@ -60,7 +60,8 @@ finish() {
 
 setup
 run "reproducible: rebuilds the own derivations" ok "$SCRIPTS/check-reproducible.sh"
-expect calls "build;rebuild /nix/store/aaaa-entrypoint.drv^*;rebuild /nix/store/bbbb-stream.drv^*"
+expect calls "build;rebuild --no-link --rebuild --keep-going /nix/store/aaaa-entrypoint.drv^* /nix/store/bbbb-stream.drv^*"
+expect message "Rebuilding /nix/store/bbbb-stream.drv"
 expect message "needs 2 derivations"
 expect message "Two streams of the image are equal"
 finish
@@ -71,6 +72,13 @@ DRY_RUN="these 300 paths will be fetched (1.00 MiB download, 4.00 MiB unpacked):
 run "reproducible: nothing to rebuild" ok "$SCRIPTS/check-reproducible.sh"
 expect calls "build"
 expect message "needs 0 derivations"
+finish
+
+setup
+export REBUILD_ERROR="error: derivation '/nix/store/bbbb-stream.drv' may not be deterministic"
+run "reproducible: a rebuild that differs fails" fail "$SCRIPTS/check-reproducible.sh"
+expect message "bbbb-stream.drv' may not be deterministic"
+unset REBUILD_ERROR
 finish
 
 setup
@@ -111,10 +119,48 @@ for case in "2026-10-29 ok supported" "2026-12-10 ok in 21 days" "2027-01-02 fai
   finish
 done
 
+# A malformed EOL file fails with a message instead of counting from today.
+while IFS='|' read -r name content message; do
+  setup
+  printf '%b' "$content" >"$work/eol"
+  run "eol: $name" fail "$SCRIPTS/check-eol.sh" "$work/eol" 2026-10-29
+  expect message "$message"
+  finish
+done <<'CASES'
+no date|# comment\nnixos-26.05\n|'' is not a date
+an invalid date|nixos-26.05 2026-02-30\n|'2026-02-30' is not a date
+another date format|nixos-26.05 31.12.2026\n|'31.12.2026' is not a date
+no data line|# comment\n\n|no data line
+an empty file||no data line
+two data lines|nixos-26.05 2026-12-31\nnixos-26.11 2027-06-30\n|more than one data line
+not a branch|2026-12-31\n|'2026-12-31' is not a branch
+an extra field|nixos-26.05 2026-12-31 x\n|unexpected 'x'
+CASES
+
+setup
+printf 'nixos-26.05 2026-12-31' >"$work/eol"
+run "eol: a last line without a newline" ok "$SCRIPTS/check-eol.sh" "$work/eol" 2026-10-29
+expect message "supported until 2026-12-31"
+finish
+
+setup
+printf 'nixos-26.05 2026-12-31\n' >"$work/eol"
+run "eol: an invalid today" fail "$SCRIPTS/check-eol.sh" "$work/eol" ""
+expect message "'' is not a date"
+finish
+
+setup
+run "eol: a missing file" fail "$SCRIPTS/check-eol.sh" "$work/none"
+finish
+
 # --- check-release-rebuild -----------------------------------------------------------
 
-# rebuild: runs check-release-rebuild in the repository of the test.
-rebuild() { (cd "$work/repo" && "$SCRIPTS/check-release-rebuild.sh" ghcr.io/x/y amd64); }
+# rebuild [ARCH [DIR]]: runs check-release-rebuild for ARCH, amd64 by
+# default, in DIR, the repository of the test by default.
+rebuild() {
+  local arch=${1:-amd64} dir=${2:-$work/repo}
+  (cd "$dir" && "$SCRIPTS/check-release-rebuild.sh" ghcr.io/x/y "$arch")
+}
 
 # release_setup: a git repository with the tag v1.0.0 and a registry that
 # publishes it with the platform digests of the stub.
@@ -153,6 +199,34 @@ finish
 release_setup
 rm -r "$REGISTRY/tags"
 run "release-rebuild: a release missing from the registry fails" fail rebuild
+expect message "::error::The release v1.0.0 was never published"
+expect message "make a new patch release"
+finish
+
+release_setup
+git -C "$work/repo" -c tag.gpgsign=false tag v1.1.0
+run "release-rebuild: the newest tag is the release" fail rebuild
+expect message "The release v1.1.0 was never published"
+finish
+
+release_setup
+git -C "$work/repo" tag -d v1.0.0 >/dev/null
+git -C "$work/repo" -c tag.gpgsign=false tag v1.0.0-rc.1
+git -C "$work/repo" -c tag.gpgsign=false tag v1.0
+run "release-rebuild: other tags are no releases" ok rebuild
+expect message "No release"
+finish
+
+release_setup
+mkdir "$work/plain"
+# git must not find a repository above the directory.
+GIT_CEILING_DIRECTORIES=$work run "release-rebuild: git errors fail" fail rebuild amd64 "$work/plain"
+expect message "not a git repository"
+finish
+
+release_setup
+run "release-rebuild: no image of the architecture fails" fail rebuild arm64
+expect message "has no arm64 image"
 finish
 
 release_setup
