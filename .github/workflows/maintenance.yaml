@@ -43,7 +43,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: flakeyard/action-setup-nix@2c58fef33760785dfe660be025fcadd88f1269b1 # v0.1.0
+      - uses: flakeyard/action-setup-nix@a90eeb051e85033f5d3c3e40dd213a585f34ec8d # v0.1.1
       - name: End of life of the nixpkgs branch
         shell: bash
         run: nix run --no-update-lock-file .#check-eol -- nixpkgs-eol
@@ -69,7 +69,7 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: false
-      - uses: flakeyard/action-setup-nix@2c58fef33760785dfe660be025fcadd88f1269b1 # v0.1.0
+      - uses: flakeyard/action-setup-nix@a90eeb051e85033f5d3c3e40dd213a585f34ec8d # v0.1.1
       - name: Rebuild the newest release
         shell: bash
         env:
