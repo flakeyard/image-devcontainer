@@ -12,7 +12,7 @@ arm64=sha256:$(printf 'b%.0s' {1..64})
 setup() {
   work=$(mktemp -d)
   export CALLS=$work/calls REGISTRY=$work/registry STREAM=$work/stream
-  export PATH=$STUBS:$PATH TARBALL_DIGEST=$amd64
+  export PATH=$STUBS:$PATH TARBALL_DIGEST=$amd64 PLATFORM_DIGEST=$SCRIPTS/platform-digest.sh
   mkdir -p "$REGISTRY/manifests" "$REGISTRY/tags"
   : >"$CALLS"
   printf '#!%s\necho archive\n' "$(command -v bash)" >"$STREAM"
@@ -70,6 +70,19 @@ setup
 run "push-platform: refuses another digest" fail "$SCRIPTS/push-platform.sh" "$repo" "$arm64"
 expect message "but $arm64 was tested"
 expect calls ""
+finish
+
+setup
+# A platform-digest that records its flake.
+cat >"$work/platform-digest" <<STUB
+#!$(command -v bash)
+echo "platform-digest \$2" >>"\$CALLS"
+echo "\$TARBALL_DIGEST"
+STUB
+chmod +x "$work/platform-digest"
+PLATFORM_DIGEST=$work/platform-digest run "push-platform: computes the digest with platform-digest" ok \
+  "$SCRIPTS/push-platform.sh" "$repo" "$amd64" "$work/flake"
+expect calls "platform-digest $work/flake;push $amd64"
 finish
 
 setup
