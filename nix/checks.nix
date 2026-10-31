@@ -1,8 +1,11 @@
 # Checks of the repository, run by `nix flake check` on every architecture.
-{ pkgs }:
+{
+  pkgs,
+  parts,
+  image,
+}:
 let
   inherit (pkgs) lib;
-  parts = import ./parts.nix { inherit pkgs; };
   nixFiles = lib.fileset.toSource {
     root = ../.;
     fileset = lib.fileset.fileFilter (file: file.hasExt "nix") ../.;
@@ -93,7 +96,7 @@ in
       '';
 
   # The image builds.
-  image = import ./image.nix { inherit pkgs parts; };
+  inherit image;
 
   formatting =
     pkgs.runCommand "formatting"
