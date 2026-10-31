@@ -12,7 +12,7 @@ arm64=sha256:$(printf 'b%.0s' {1..64})
 setup() {
   work=$(mktemp -d)
   export CALLS=$work/calls REGISTRY=$work/registry STREAM=$work/stream
-  export PATH=$STUBS:$PATH TARBALL_DIGEST=$amd64
+  export PATH=$STUBS:$PATH TARBALL_DIGEST=$amd64 PLATFORM_DIGEST=$SCRIPTS/platform-digest.sh
   mkdir -p "$REGISTRY/manifests" "$REGISTRY/tags"
   : >"$CALLS"
   printf '#!%s\necho archive\n' "$(command -v bash)" >"$STREAM"
@@ -73,6 +73,19 @@ expect calls ""
 finish
 
 setup
+# A platform-digest that records its flake.
+cat >"$work/platform-digest" <<STUB
+#!$(command -v bash)
+echo "platform-digest \$2" >>"\$CALLS"
+echo "\$TARBALL_DIGEST"
+STUB
+chmod +x "$work/platform-digest"
+PLATFORM_DIGEST=$work/platform-digest run "push-platform: computes the digest with platform-digest" ok \
+  "$SCRIPTS/push-platform.sh" "$repo" "$amd64" "$work/flake"
+expect calls "platform-digest $work/flake;push $amd64"
+finish
+
+setup
 run "push-platform: rejects a malformed digest" fail "$SCRIPTS/push-platform.sh" "$repo" latest
 expect calls ""
 finish
@@ -90,6 +103,15 @@ if [[ -n $current ]]; then
     and .annotations["org.opencontainers.image.revision"] == "abc123"' \
     "$REGISTRY/manifests/$digest" >/dev/null || report "index: $(cat "$REGISTRY/manifests/$digest")"
 fi
+finish
+
+# The digest of the canonical JSON of the list for the inputs of publish: a
+# change of its bytes changes the digest consumers pin.
+setup
+run "publish-index: the exact bytes of the list" ok publish
+pinned=sha256:2268211f761ccdcc84ce34b5d106de9887490dffe29561f97410bdb00fd75fbb
+[[ -z $current || $(cat "$work/out") == "$pinned" ]] ||
+  report "digest $(cat "$work/out"), not $pinned: $(cat "$REGISTRY/manifests/$(cat "$work/out")")"
 finish
 
 setup

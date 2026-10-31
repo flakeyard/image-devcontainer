@@ -19,6 +19,13 @@ let
     meta = { inherit description; };
   };
   app = app' "";
+  platformDigest = app "platform-digest" "Stream the image and print its platform digest" (
+    with pkgs;
+    [
+      coreutils
+      crane
+    ]
+  );
 in
 {
   check-reproducible = app "check-reproducible" "Rebuild own derivations, compare two streams" (
@@ -70,6 +77,8 @@ in
         export NON_REDISTRIBUTABLE=${nonRedistributable}
         export CLOSURE=${image.expected}/closure
         export CLOSURE_ROOT=${image.closureRoot}
+        export COMPLETE_LICENSES_JQ=${../scripts/complete-licenses.jq}
+        export SBOM_PROBLEMS_JQ=${../scripts/sbom-problems.jq}
         export KNOWN_LICENSES=${
           pkgs.writeText "known-licenses.json" (
             builtins.toJSON (
@@ -93,20 +102,22 @@ in
         ]
       );
   # Publication (FY-0027); the registry login must exist.
-  platform-digest = app "platform-digest" "Stream the image and print its platform digest" (
-    with pkgs;
-    [
-      coreutils
-      crane
-    ]
-  );
-  push-platform = app "push-platform" "Push the tested platform image by digest" (
-    with pkgs;
-    [
-      coreutils
-      crane
-    ]
-  );
+  platform-digest = platformDigest;
+  # The same platform-digest computes the tested and the pushed digest.
+  push-platform =
+    app'
+      ''
+        export PLATFORM_DIGEST=${platformDigest.program}
+      ''
+      "push-platform"
+      "Push the tested platform image by digest"
+      (
+        with pkgs;
+        [
+          coreutils
+          crane
+        ]
+      );
   publish-index = app "publish-index" "Publish the manifest list and its release tag" (
     with pkgs;
     [
