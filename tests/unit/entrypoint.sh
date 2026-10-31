@@ -226,6 +226,39 @@ set_identity 1002 1002 2>"$work/stderr" || report "the next start failed: $(cat 
 [[ -z $current || $(field "$work/etc/passwd" dev 3) == 1002 ]] || report "passwd: $(grep '^dev:' "$work/etc/passwd")"
 finish
 
+setup
+current="a mounted home keeps the owner of its files"
+MOUNT=1
+set_identity 1002 1003 2>"$work/stderr" || report "failed: $(cat "$work/stderr")"
+[[ ! -e $work/chowned ]] || report "files changed owner: $(paste -sd' ' "$work/chowned")"
+[[ -z $current || $(field "$work/etc/passwd" dev 3):$(field "$work/etc/group" dev 3) == 1002:1003 ]] ||
+  report "passwd or group not changed"
+message "$work/home is a mount point: its files keep their owner"
+message "user 'dev' is now 1002:1003"
+finish
+
+setup
+current="a group left behind by a failed start is completed"
+# The state after a start that changed passwd but failed on group.
+sed -i 's/^dev:x:1000:1000:/dev:x:1002:1002:/' "$work/etc/passwd"
+set_identity 1002 1002 2>"$work/stderr" || report "failed: $(cat "$work/stderr")"
+[[ ! -e $work/chowned ]] || report "files changed owner again: $(paste -sd' ' "$work/chowned")"
+[[ -z $current || $(field "$work/etc/group" dev 3) == 1002 ]] || report "group: $(grep '^dev:' "$work/etc/group")"
+message "user 'dev' is now 1002:1002"
+finish
+
+setup
+current="a failing group change leaves passwd alone"
+chmod 444 "$work/etc/group"
+chmod 555 "$work/etc"
+if set_identity 1002 1002 2>"$work/stderr"; then
+  report "succeeded"
+fi
+chmod 755 "$work/etc"
+[[ -z $current || $(field "$work/etc/passwd" dev 3) == 1000 ]] || report "passwd changed: $(grep '^dev:' "$work/etc/passwd")"
+message "cannot change 'dev' to 1002:1002"
+finish
+
 for identity in "0 1000" "1000 0" "4294967296 1000" "x 1000" "1000 1000"; do
   setup
   read -r uid gid <<<"$identity"
@@ -238,6 +271,41 @@ for identity in "0 1000" "1000 0" "4294967296 1000" "x 1000" "1000 1000"; do
 done
 
 # --- supervise ----------------------------------------------------------------
+
+setup
+current="root's PATH is fixed"
+[[ $daemon_path == /bin:/usr/bin ]] || report "PATH of root without the build's tools: $daemon_path"
+entrypoint_tools=/tools
+# shellcheck source-path=SCRIPTDIR source=../../entrypoint/entrypoint.sh
+source "$ENTRYPOINT"
+unset entrypoint_tools
+[[ $daemon_path == /tools:/bin:/usr/bin ]] || report "PATH of root with the build's tools: $daemon_path"
+finish
+
+setup
+current="root's Nix processes get proxies but not the container's settings"
+daemon_path=$(dirname -- "$(command -v env)")
+out=$(NIX_CONFIG='trusted-users = dev' NIX_USER_CONF_FILES=/tmp/nix.conf XDG_CONFIG_HOME=/tmp \
+  https_proxy=http://proxy:3128 NO_PROXY=localhost no_proxy="" as_root NIX_REMOTE=daemon env)
+expected="PATH=$daemon_path
+HOME=/root
+NIX_SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+https_proxy=http://proxy:3128
+NO_PROXY=localhost
+NIX_REMOTE=daemon"
+[[ $out == "$expected" ]] || report "environment: $(paste -sd' ' <<<"$out")"
+finish
+
+setup
+current="does not start the daemon when /nix is read-only"
+mkdir -p "$work/nix/daemon-socket"
+chmod 555 "$work/nix/daemon-socket" "$work/nix"
+socket=$work/nix/daemon-socket/socket
+supervise() { touch "$work/supervised"; }
+start_daemon 2>"$work/stderr" || report "failed"
+[[ ! -e $work/supervised ]] || report "the daemon was started"
+message "/nix is not writable: the Nix daemon is not started"
+finish
 
 setup
 current="gives up after five quick exits of the daemon"

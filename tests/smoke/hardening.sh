@@ -74,3 +74,39 @@ output=$(docker exec "$id" sh -c 'find / -xdev -path /nix/store -prune -o -type 
 expect_line "checked"
 expect_no_text "dangling"
 docker rm -f "$id" >/dev/null
+
+test_case "a mounted home keeps the owner of its files"
+mkdir -p "$WORK/home/old"
+touch "$WORK/home/old/file"
+sudo chown 1004:1004 "$WORK/home"
+sudo chown -R 1000:1000 "$WORK/home/old"
+run -v "$WORK/home:/home/dev" -- id -u
+expect_line "1004"
+expect_text "/home/dev is a mount point: its files keep their owner"
+[[ $(stat -c %u:%g "$WORK/home/old" "$WORK/home/old/file" | sort -u) == 1000:1000 ]] ||
+  fail "files of the old uid changed owner: $(stat -c '%n %u:%g' "$WORK/home/old" "$WORK/home/old/file")"
+
+test_case "the daemon gets the proxies but not the settings of the container"
+id=$(start -e https_proxy=http://proxy.invalid:3128 -e NIX_CONFIG='trusted-users = root dev' -e XDG_CONFIG_HOME=/tmp)
+# Nothing listens at the proxy; the daemon only has to start.
+poll 20 ready "$id" || fail "the daemon did not answer"
+output=$(docker exec "$id" sh -c 'for p in /proc/[0-9]*; do
+  [ "$(tr "\0" " " <"$p/cmdline" 2>/dev/null)" = "nix-daemon " ] && tr "\0" "\n" <"$p/environ"
+done; true' 2>&1) || true
+expect_line "https_proxy=http://proxy.invalid:3128"
+expect_no_text "NIX_CONFIG"
+expect_no_text "XDG_CONFIG_HOME"
+docker rm -f "$id" >/dev/null
+
+test_case "dev can reopen the terminal of docker run -t"
+run -t -- sh -c 'echo to-stderr >/dev/stderr && stat -c %U "$(readlink /proc/self/fd/2)"'
+# A terminal ends lines with CR LF.
+output=${output//$'\r'/}
+expect_line "to-stderr"
+expect_line "dev"
+
+test_case "a read-only /nix runs the command without the daemon"
+run --read-only --tmpfs /tmp -- sh -c 'echo ran'
+expect_text "/nix is not writable: the Nix daemon is not started"
+expect_line "ran"
+expect_no_text "did not answer"
