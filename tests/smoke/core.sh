@@ -3,6 +3,14 @@
 # after tests/smoke/lib.sh. Inputs (environment): IMAGE, WORK (a scratch
 # directory on the runner).
 
+# no_zombies ID: no process of the container is a zombie; output holds their
+# number and the command line of PID 1.
+no_zombies() {
+  local id=$1
+  output=$(docker exec -i "$id" sh -s <"$probes/zombies.sh" 2>&1)
+  [[ $(head -n 1 <<<"$output") == 0 ]]
+}
+
 # --- the user and its shell ---------------------------------------------------
 
 test_case "runs the command as dev with its home"
@@ -10,7 +18,7 @@ run -- bash -c 'echo "$(id -u):$(id -g) $HOME $USER $LOGNAME"'
 expect_line "1000:1000 /home/dev dev dev"
 
 test_case "has the tools by name"
-run -- bash -c 'for t in nix direnv bash ls find diff grep sed awk tar gzip xz bzip2 zstd less ps which mount getent curl git ssh tini; do command -v "$t" >/dev/null || echo "missing $t"; done; echo done'
+run -i -- bash -s <"$probes/tools.sh"
 expect_line "done"
 expect_no_text "missing"
 
@@ -31,12 +39,8 @@ remove "$id"
 test_case "tini is PID 1 and reaps orphans"
 start_ready id
 docker exec -u dev "$id" sh -c '(sleep 0.3 &) ; (sleep 0.3 &) ; (sleep 0.3 &)'
-zombies() {
-  output=$(docker exec "$id" sh -c 'z=0; for s in /proc/[0-9]*/stat; do read -r _ _ state _ <"$s" 2>/dev/null && [ "$state" = Z ] && z=$((z+1)); done; echo $z; tr "\0" " " </proc/1/cmdline' 2>&1)
-  [[ $(head -n 1 <<<"$output") == 0 ]]
-}
 sleep 1
-poll 10 zombies || fail "zombies left"
+poll 10 no_zombies "$id" || fail "zombies left"
 expect_text "tini"
 remove "$id"
 
@@ -57,7 +61,7 @@ remove "$id"
 test_case "restarts the Nix daemon after it is killed"
 start_ready id
 for round in 1 2 3; do
-  docker exec "$id" sh -c 'for p in /proc/[0-9]*; do [ "$(tr "\0" " " <"$p/cmdline" 2>/dev/null)" = "nix-daemon " ] && kill -9 "${p#/proc/}"; done; true'
+  docker exec -i "$id" sh -s <"$probes/kill-daemon.sh"
   sleep 1
   poll "$daemon_timeout" ready "$id" || fail "the daemon did not come back after kill $round"
 done

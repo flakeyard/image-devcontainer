@@ -3,14 +3,17 @@
 # audit. Sourced by scripts/smoke.sh after tests/smoke/lib.sh. Inputs
 # (environment): IMAGE, WORK, tests.
 
+# command_uid ID: output is the uid of the command of the container.
+command_uid() {
+  local id=$1
+  output=$(docker exec -i "$id" sh -s <"$probes/command-uid.sh" 2>/dev/null)
+  # Processes may end while the loop reads /proc: wait for the uid itself.
+  [[ $output =~ ^[0-9]+$ ]]
+}
+
 test_case "root never runs programs from dev's profile"
 start_ready id
-docker exec -u dev "$id" sh -c '
-  rm -rf "$HOME/.nix-profile" && mkdir -p "$HOME/.nix-profile/bin" &&
-  for tool in sh bash direnv nix id; do
-    printf "#!/bin/sh\ntouch /tmp/ran-from-profile\nexit 0\n" >"$HOME/.nix-profile/bin/$tool"
-    chmod +x "$HOME/.nix-profile/bin/$tool"
-  done'
+docker exec -i -u dev "$id" sh -s <"$probes/plant-profile.sh"
 output=$(docker exec "$id" sh -c 'id -u')
 expect_line "0"
 # Only whether the shells ran a program of the profile matters.
@@ -36,22 +39,13 @@ expect_line "1000"
 expect_text "expected decimal uid and gid up to 4294967294"
 docker restart "$id" >/dev/null
 poll "$daemon_timeout" ready "$id" || fail "the daemon did not answer after a restart"
-# The command of the container, sleep, runs as dev after the restart too. Its
-# first word is sleep itself; the entrypoint and tini only end with it.
-command_uid() {
-  output=$(docker exec "$id" sh -c 'for p in /proc/[0-9]*; do
-    set -- $(cat "$p/cmdline" 2>/dev/null | tr "\0" " ")
-    [ "${1##*/}" = sleep ] && [ "${2-}" = infinity ] && awk "/^Uid:/ { print \$2 }" "$p/status" 2>/dev/null
-  done' 2>/dev/null) || true
-  # Processes may end while the loop reads /proc: wait for the uid itself.
-  [[ $output =~ ^[0-9]+$ ]]
-}
-poll 20 command_uid || fail "the command did not start after the restart"
+# The command of the container, sleep, runs as dev after the restart too.
+poll 20 command_uid "$id" || fail "the command did not start after the restart"
 expect_line "1000"
 remove "$id"
 
 test_case "dev cannot change the files that decide trust"
-run -- sh -c 'for f in /etc/passwd /etc/group /etc/nix/nix.conf /etc/nix/new.conf /nix/var/nix/db/new /nix/var/nix/gcroots/new; do touch "$f" 2>/dev/null && echo "wrote $f"; done; stat -c "%U:%G %a" /nix/store; echo checked'
+run -i -- sh -s <"$probes/trust-files.sh"
 expect_line "checked"
 expect_line "root:nixbld 1775"
 expect_no_text "wrote"
@@ -67,7 +61,7 @@ expect_line "from-stdin"
 test_case "every link into the store outside the store is kept by GC"
 start_ready id
 collect_garbage "$id"
-output=$(docker exec "$id" sh -c 'find / -xdev -path /nix/store -prune -o -type l -lname "/nix/store/*" -print | while read -r link; do [ -e "$link" ] || echo "dangling $link"; done; echo checked' 2>&1)
+output=$(docker exec -i "$id" sh -s <"$probes/dangling-links.sh" 2>&1)
 expect_line "checked"
 expect_no_text "dangling"
 remove "$id"
@@ -86,9 +80,7 @@ expect_text "/home/dev is a mount point: its files keep their owner"
 test_case "the daemon gets the proxies but not the settings of the container"
 # Nothing listens at the proxy; the daemon only has to start.
 start_ready id -e https_proxy=http://proxy.invalid:3128 -e NIX_CONFIG='trusted-users = root dev' -e XDG_CONFIG_HOME=/tmp
-output=$(docker exec "$id" sh -c 'for p in /proc/[0-9]*; do
-  [ "$(tr "\0" " " <"$p/cmdline" 2>/dev/null)" = "nix-daemon " ] && tr "\0" "\n" <"$p/environ"
-done; true' 2>&1)
+output=$(docker exec -i "$id" sh -s <"$probes/daemon-environ.sh" 2>&1)
 expect_line "https_proxy=http://proxy.invalid:3128"
 expect_no_text "NIX_CONFIG"
 expect_no_text "XDG_CONFIG_HOME"

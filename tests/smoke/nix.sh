@@ -7,7 +7,7 @@
 # --- the store and trust ---------------------------------------------------------
 
 test_case "the store and the Nix settings belong to root"
-run -- sh -c 'stat -c "%U %a" /nix/store; touch /nix/store/x 2>/dev/null && echo store-written; touch /etc/nix/local.conf 2>/dev/null && echo conf-written; echo checked'
+run -i -- sh -s <"$probes/store-owner.sh"
 expect_line "root 1775"
 expect_line "checked"
 expect_no_text "written"
@@ -51,7 +51,8 @@ expect_line "Version: $nix_version"
 versions=$(grep -oE -- '-nix-2\.[0-9]+\.[0-9]+$' <<<"$output" | sort -u)
 [[ $versions == "-nix-$nix_version" ]] || fail "Nix versions in the store: $(paste -sd' ' <<<"$versions")"
 runner=$(nix --version)
-[[ ${runner##* } =~ ^${nix_version%.*}\. ]] || fail "the runner has ${runner##* }, the image $nix_version"
+runner_version=${runner##* }
+[[ $runner_version == "${nix_version%.*}".* ]] || fail "the runner has $runner_version, the image $nix_version"
 
 # --- garbage collection -----------------------------------------------------------
 
@@ -59,12 +60,7 @@ test_case "garbage collection keeps every store path the image uses"
 start_ready id
 collect_garbage "$id"
 config=$(docker inspect "$IMAGE" --format '{{json .Config}}')
-output=$(docker exec "$id" sh -c '
-  { grep -rhoE "/nix/store/[a-z0-9]{32}-[^/ \"'"'"':]+" /etc /home/dev /usr/lib 2>/dev/null
-    for link in /etc/ssl/certs/* /usr/lib/* /lib*/ld-linux*; do readlink "$link"; done
-    cat
-  } | grep -oE "/nix/store/[a-z0-9]{32}-[^/ \"'"'"':]+" | sort -u |
-  while read -r path; do [ -e "$path" ] || echo "missing $path"; done; echo checked' <<<"$config" 2>&1)
+output=$(docker exec -i -e CONFIG="$config" "$id" sh -s <"$probes/store-paths-in-use.sh" 2>&1)
 expect_line "checked"
 expect_no_text "missing"
 docker restart "$id" >/dev/null
