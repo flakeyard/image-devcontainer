@@ -1,27 +1,20 @@
 #!/usr/bin/env bash
 # Usage: check-release-rebuild REPOSITORY ARCH
 #
-# Rebuilds the newest release in the registry from its git tag and compares
-# the platform digest of ARCH with the published one (FY-0027). Run in a
-# full clone with tags; passes with a notice before the first release.
+# Rebuilds the newest release from its git tag and compares the platform
+# digest of ARCH with the one published in REPOSITORY (FY-0027). Run in a full
+# clone with tags; passes with a notice before the first release.
 set -euo pipefail
 shopt -s inherit_errexit
 
 repository=$1 arch=$2
 work=$(mktemp -d)
 trap 'rm -rf -- "$work"' EXIT
-# Before the first push, the registry does not know the repository.
-if ! tags=$(crane ls "$repository" 2>"$work/errors"); then
-  if grep -q NAME_UNKNOWN "$work/errors"; then
-    tags=""
-  else
-    cat "$work/errors" >&2
-    exit 1
-  fi
-fi
-newest=$(grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' <<<"$tags" | sort -V | tail -n 1 || true)
+# The newest release is the newest tag vX.Y.Z of the repository; its image
+# must be in the registry.
+newest=$(git tag -l 'v*.*.*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || true)
 if [[ -z $newest ]]; then
-  echo "::notice::No release in $repository yet; nothing to rebuild."
+  echo "::notice::No release yet; nothing to rebuild."
   exit 0
 fi
 published=$(crane manifest "$repository:$newest" |

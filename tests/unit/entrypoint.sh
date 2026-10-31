@@ -113,6 +113,23 @@ for value in abc -1 1e3 " 1001" "1001 " 12345678901 4294967295 4294967296 999999
 done
 
 setup
+export DEV_GID=1005
+identity "DEV_GID without DEV_UID is ignored" "1000 1000"
+finish
+
+setup
+MOUNT=1 OWNER="1002 0"
+identity "a mount owned by group root is not adopted" "1000 1000"
+message "ignoring uid or gid 0"
+finish
+
+setup
+MOUNT=1 OWNER="30001 30000"
+identity "a mount owned by a build user is not adopted" "1000 1000"
+message "ignoring uid 30001: it belongs to 'nixbld1'"
+finish
+
+setup
 export DEV_UID=0
 identity "rejects uid 0" "1000 1000"
 message "ignoring uid or gid 0"

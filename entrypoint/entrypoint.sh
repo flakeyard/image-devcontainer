@@ -112,7 +112,10 @@ set_identity() {
 }
 
 # own_files TEST OLD NEW DEVICE: gives the files under home that match
-# `find TEST OLD` and are on DEVICE to NEW.
+# `find TEST OLD` and are on DEVICE to NEW. chown -h does not follow a link at
+# the end of a path, but a process of dev that replaces a directory of the
+# path with a link while the container starts could redirect it; chown -R
+# would not, but it would also cross into mounted files of the host.
 own_files() {
   find "$home" -xdev "$1" "$2" -printf '%D\0%p\0' |
     while IFS= read -r -d '' dev && IFS= read -r -d '' path; do
