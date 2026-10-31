@@ -74,14 +74,18 @@ in
         stubs = ../tests/bin;
         tests = ../tests/unit/scripts.sh;
         publish = ../tests/unit/publish.sh;
+        release = ../tests/unit/release.sh;
+        githubScripts = ../.github/scripts;
       }
       ''
-        shellcheck "$scripts"/*.sh "$stubs"/* "$tests" "$publish"
+        shellcheck "$scripts"/*.sh "$stubs"/* "$tests" "$publish" "$release" "$githubScripts"/*.sh
         # The sandbox has no /usr/bin/env.
-        cp -r "$scripts" scripts && cp -r "$stubs" stubs && chmod -R u+w scripts stubs
-        patchShebangs scripts stubs
+        cp -r "$scripts" scripts && cp -r "$stubs" stubs && cp -r "$githubScripts" github-scripts
+        chmod -R u+w scripts stubs github-scripts
+        patchShebangs scripts stubs github-scripts
         SCRIPTS=$PWD/scripts STUBS=$PWD/stubs bash "$tests"
         SCRIPTS=$PWD/scripts STUBS=$PWD/stubs bash "$publish"
+        SCRIPTS=$PWD/github-scripts STUBS=$PWD/stubs bash "$release"
         touch $out
       '';
 

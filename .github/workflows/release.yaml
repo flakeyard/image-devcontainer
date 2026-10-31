@@ -1,0 +1,258 @@
+# Releases the repository with flakeyard/workflow-release and publishes the
+# image of the release in the same run (FY-0020, FY-0027).
+name: release
+
+on:
+  push:
+    branches: [main, "release/v*"]
+
+permissions: {}
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  release:
+    uses: flakeyard/workflow-release/.github/workflows/release.yaml@c066cd3f125589418c6b952c273293c5f655c8f7 # v0.1.0
+    # Required by the called workflow for every path; with the App, its token
+    # does the writes.
+    permissions:
+      contents: write # releases and tags without an App
+      issues: write # release-please labels
+      pull-requests: write # the release pull request
+      actions: write # dispatched checks without an App
+    with:
+      app-client-id: ${{ vars.BOT_CLIENT_ID }}
+      environment: release
+      move-major-tag: true
+    secrets:
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+
+  # Tests the image of the release commit, without write permissions.
+  build-test:
+    name: Test ${{ matrix.arch }}
+    needs: release
+    if: ${{ !cancelled() && needs.release.outputs.released == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    outputs:
+      digest-amd64: ${{ steps.digest.outputs.digest-amd64 }}
+      digest-arm64: ${{ steps.digest.outputs.digest-arm64 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release.outputs.sha }}
+          persist-credentials: false
+      # Only cache.nixos.org (FY-0027).
+      - uses: flakeyard/action-setup-nix@2c58fef33760785dfe660be025fcadd88f1269b1 # v0.1.0
+      - name: Check the size
+        shell: bash
+        run: nix run --no-update-lock-file .#check-size -- size-budget
+      - name: Smoke tests
+        shell: bash
+        run: nix run --no-update-lock-file .#smoke -- tests/smoke
+      - id: digest
+        name: Digest
+        shell: bash
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          digest=$(nix run --no-update-lock-file .#platform-digest -- "$RUNNER_TEMP/image.tar")
+          echo "digest-$ARCH=$digest" >>"$GITHUB_OUTPUT"
+
+  # Pushes the tested image of each platform and attests it.
+  push:
+    name: Push ${{ matrix.arch }}
+    needs: [release, build-test]
+    if: ${{ !cancelled() && needs.build-test.result == 'success' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write # push to GHCR
+      id-token: write # sign attestations
+      attestations: write # store attestations
+      artifact-metadata: write # link attestations to the package
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release.outputs.sha }}
+          persist-credentials: false
+      - uses: flakeyard/action-setup-nix@2c58fef33760785dfe660be025fcadd88f1269b1 # v0.1.0
+      - id: tested
+        name: Tested digest
+        shell: bash
+        env:
+          ARCH: ${{ matrix.arch }}
+          AMD64: ${{ needs.build-test.outputs.digest-amd64 }}
+          ARM64: ${{ needs.build-test.outputs.digest-arm64 }}
+        run: |
+          if [[ $ARCH == amd64 ]]; then echo "digest=$AMD64"; else echo "digest=$ARM64"; fi >>"$GITHUB_OUTPUT"
+      # crane and actions/attest read ~/.docker/config.json.
+      - name: Log in to GHCR
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin <<<"$GH_TOKEN"
+      - name: Push by digest
+        shell: bash
+        env:
+          TESTED: ${{ steps.tested.outputs.digest }}
+        run: nix run --no-update-lock-file .#push-platform -- "$IMAGE" "$TESTED"
+      - name: SBOM
+        shell: bash
+        run: nix run --no-update-lock-file .#check-licenses -- "$RUNNER_TEMP/sbom.cdx.json"
+      - id: provenance
+        name: Provenance attested before
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          DIGEST: ${{ steps.tested.outputs.digest }}
+        run: .github/scripts/attested.sh
+      - if: steps.provenance.outputs.attested != 'true'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.tested.outputs.digest }}
+          push-to-registry: true
+      - id: sbom
+        name: SBOM attested before
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          DIGEST: ${{ steps.tested.outputs.digest }}
+          PREDICATE: https://cyclonedx.org/bom
+        run: .github/scripts/attested.sh
+      - if: steps.sbom.outputs.attested != 'true'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.tested.outputs.digest }}
+          sbom-path: ${{ runner.temp }}/sbom.cdx.json
+          push-to-registry: true
+      - name: Log out
+        if: always()
+        shell: bash
+        run: docker logout ghcr.io
+
+  # Publishes the manifest list and its tags, one run at a time.
+  index:
+    name: Publish the image
+    needs: [release, build-test, push]
+    if: ${{ !cancelled() && needs.push.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    concurrency:
+      group: image-publish-${{ github.repository }}
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      contents: write # the image reference in the release notes
+      packages: write # the manifest list and its tags
+      id-token: write # sign the attestation
+      attestations: write # store the attestation
+      artifact-metadata: write # link the attestation to the package
+    outputs:
+      digest: ${{ steps.index.outputs.digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release.outputs.sha }}
+          persist-credentials: false
+      - uses: flakeyard/action-setup-nix@2c58fef33760785dfe660be025fcadd88f1269b1 # v0.1.0
+      - name: Log in to GHCR
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin <<<"$GH_TOKEN"
+      - id: index
+        name: Manifest list and release tag
+        shell: bash
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+          REVISION: ${{ needs.release.outputs.sha }}
+          AMD64: ${{ needs.build-test.outputs.digest-amd64 }}
+          ARM64: ${{ needs.build-test.outputs.digest-arm64 }}
+        run: |
+          digest=$(nix run --no-update-lock-file .#publish-index -- "$IMAGE" "$VERSION" "$REVISION" "$AMD64" "$ARM64")
+          echo "digest=$digest" >>"$GITHUB_OUTPUT"
+      - name: Major version tag
+        shell: bash
+        env:
+          MAJOR: ${{ needs.release.outputs.major }}
+        run: nix run --no-update-lock-file .#sync-major -- "$IMAGE" "$MAJOR"
+      - id: provenance
+        name: Provenance attested before
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          DIGEST: ${{ steps.index.outputs.digest }}
+        run: .github/scripts/attested.sh
+      - if: steps.provenance.outputs.attested != 'true'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.index.outputs.digest }}
+          push-to-registry: true
+      - name: Name the image in the release notes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          TAG: ${{ needs.release.outputs.tag }}
+          REFERENCE: ${{ env.IMAGE }}:${{ needs.release.outputs.tag }}@${{ steps.index.outputs.digest }}
+        run: .github/scripts/annotate-release.sh
+      - name: Log out
+        if: always()
+        shell: bash
+        run: docker logout ghcr.io
+
+  # Pulls the published image back on both architectures.
+  verify:
+    name: Verify on ${{ matrix.runner }}
+    needs: [build-test, index]
+    if: ${{ !cancelled() && needs.index.result == 'success' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          INDEX: ${{ needs.index.outputs.digest }}
+          PLATFORM: ${{ matrix.arch == 'amd64' && needs.build-test.outputs.digest-amd64 || needs.build-test.outputs.digest-arm64 }}
+        run: .github/scripts/verify-published.sh

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Stub of gh for the unit tests of .github/scripts: release notes in $NOTES,
+# attestations that verify when $ATTESTED is set; changes go to $CALLS.
+set -euo pipefail
+case "$1 $2" in
+  "release view") cat "$NOTES" ;;
+  "release edit")
+    while (($#)) && [[ $1 != --notes ]]; do shift; done
+    printf '%s' "$2" >"$NOTES"
+    echo "edit" >>"$CALLS"
+    ;;
+  "attestation verify")
+    echo "verify $*" >>"$CALLS"
+    [[ -n ${ATTESTED-} ]]
+    ;;
+  *)
+    echo "stub gh: unsupported: $*" >&2
+    exit 2
+    ;;
+esac
