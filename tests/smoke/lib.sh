@@ -5,6 +5,9 @@
 
 failed=0 passed=0 current="" output=""
 
+# Scripts that tests run in a container, as `sh -s <"$probes/NAME.sh"`.
+# shellcheck disable=SC2034 # used by the tests
+probes=$(dirname -- "${BASH_SOURCE[0]}")/probes
 # Seconds the Nix daemon of a new container has to answer.
 daemon_timeout=20
 # The capabilities the README documents as required.
