@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # Stub of gh for the unit tests of .github/scripts:
 #   release view/edit   notes in $NOTES (edit reads --notes-file -)
-#   attestation verify  succeeds when $ATTESTED is set
-#   api .../attestations/D  payloads of the predicate types in $ATTESTATIONS
-#                       (space-separated); HTTP 404 when unset; $GH_API_ERROR
+#   attestation verify  succeeds when $ATTESTED is set, fails with HTTP 404
+#                       otherwise; attestations are not bound to a commit, so
+#                       --source-digest always fails
+#   api .../attestations/D  attestations of the predicate types in
+#                       $ATTESTATIONS (space-separated; "-" for one without an
+#                       inline bundle); HTTP 404 when unset; $GH_API_ERROR
 #                       makes it fail otherwise
 # Changes and checks go to $CALLS.
 set -euo pipefail
@@ -15,7 +18,14 @@ case "$1 $2" in
     ;;
   "attestation verify")
     echo "verify $*" >>"$CALLS"
-    [[ -n ${ATTESTED-} ]]
+    if [[ " $* " == *" --source-digest "* ]]; then
+      echo "stub gh: the attestation is of another commit" >&2
+      exit 1
+    fi
+    if [[ -z ${ATTESTED-} ]]; then
+      echo "gh: Not Found (HTTP 404)" >&2
+      exit 1
+    fi
     ;;
   api\ *)
     if [[ -n ${GH_API_ERROR-} ]]; then
@@ -27,9 +37,13 @@ case "$1 $2" in
       exit 1
     fi
     for type in $ATTESTATIONS; do
-      printf '{"predicateType":"%s"}' "$type" | base64 -w0
-      echo
-    done
+      if [[ $type == - ]]; then
+        echo '{"bundle": null, "bundle_url": "https://example.invalid/bundle"}'
+      else
+        payload=$(printf '{"predicateType":"%s"}' "$type" | base64 -w0)
+        printf '{"bundle": {"dsseEnvelope": {"payload": "%s"}}}\n' "$payload"
+      fi
+    done | jq -s '{attestations: .}'
     ;;
   *)
     echo "stub gh: unsupported: $*" >&2

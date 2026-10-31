@@ -7,7 +7,9 @@
 #     tested digest, for ARCH;
 #   - the image pulled by INDEX runs;
 #   - the list and the platform have provenance, and the platform an SBOM,
-#     from the release workflow for the release commit.
+#     from the release workflow. They are not bound to the commit: a platform
+#     digest keeps the attestations of the release that first published it,
+#     and the annotations of the attested list name the commit.
 # Inputs (environment): GH_TOKEN. Needs docker, as on GitHub-hosted runners.
 set -euo pipefail
 shopt -s inherit_errexit
@@ -33,7 +35,7 @@ docker pull --quiet "$image@$index" >/dev/null
 docker run --rm "$image@$index" nix --version
 
 args=(--repo "$repository" --signer-workflow "$repository/.github/workflows/release.yaml"
-  --source-digest "$revision" --deny-self-hosted-runners)
+  --deny-self-hosted-runners)
 gh attestation verify "oci://$image@$index" "${args[@]}" >/dev/null
 gh attestation verify "oci://$image@$platform" "${args[@]}" >/dev/null
 gh attestation verify "oci://$image@$platform" "${args[@]}" --predicate-type https://cyclonedx.org/bom >/dev/null

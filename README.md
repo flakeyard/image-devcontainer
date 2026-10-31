@@ -129,8 +129,9 @@ lists the license of every package (predicate type `https://cyclonedx.org/bom`).
 - The same commit yields the same digests. An update of `flake.lock` can change
   the digests even when the contents stay the same.
 - A release that does not change the image has the platform digests of the
-  previous one, and with them its platform attestations; the manifest list and
-  its attestation are new.
+  previous one, and with them its platform attestations, which name the commit
+  of the earlier release. The manifest list and its attestation are new; the
+  list names the version and the commit of the release in its annotations.
 - A failed publication is completed by re-running all jobs of the release
   workflow run; re-running only the failed jobs may lose the tested digests.
 
