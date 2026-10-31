@@ -92,6 +92,15 @@ if [[ -n $current ]]; then
 fi
 finish
 
+# The digest of the canonical JSON of the list for the inputs of publish: a
+# change of its bytes changes the digest consumers pin.
+setup
+run "publish-index: the exact bytes of the list" ok publish
+pinned=sha256:2268211f761ccdcc84ce34b5d106de9887490dffe29561f97410bdb00fd75fbb
+[[ -z $current || $(cat "$work/out") == "$pinned" ]] ||
+  report "digest $(cat "$work/out"), not $pinned: $(cat "$REGISTRY/manifests/$(cat "$work/out")")"
+finish
+
 setup
 run "publish-index: the same release gives the same digest" ok publish
 first=$(cat "$work/out")
