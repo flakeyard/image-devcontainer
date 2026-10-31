@@ -4,8 +4,8 @@
 set -uo pipefail
 export LC_ALL=C
 
-# shellcheck source-path=SCRIPTDIR source=lib.sh
-source "$(dirname -- "${BASH_SOURCE[0]}")/lib.sh"
+# shellcheck source-path=SCRIPTDIR source=../lib.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib.sh"
 
 a=/nix/store/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-curl-8.0
 b=/nix/store/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb-nix-cmd-2.35.3
