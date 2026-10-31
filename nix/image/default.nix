@@ -76,9 +76,7 @@
         passthru = {
           # Refers to every path in `contents`: its closure is the image's
           # store, which the SBOM describes.
-          closureRoot = pkgs.writeText "image-closure-root" (
-            lib.concatMapStringsSep "\n" toString contents
-          );
+          closureRoot = pkgs.writeText "image-closure-root" (lib.concatMapStringsSep "\n" toString contents);
           # What the smoke tests expect of the image.
           expected = pkgs.linkFarm "image-expected" {
             "nix.conf" = pkgs.writeText "nix.conf" parts.nixConf;
