@@ -4,7 +4,7 @@ let
   inherit (pkgs) lib;
   inherit (parts) users;
   homeRel = lib.removePrefix "/" users.home;
-  foreign = import ./foreign.nix { inherit pkgs; };
+  foreign = import ./_foreign.nix { inherit pkgs; };
   # The image's Nix writes the store database of the image.
   dockerTools = pkgs.dockerTools.override { inherit (parts) nix; };
 

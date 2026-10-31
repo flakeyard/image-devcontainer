@@ -9,11 +9,11 @@ let
   # nix-direnv falls back to its own nix; it must be the image's.
   nix-direnv = pkgs.nix-direnv.override { inherit nix; };
 
-  users = import ./users.nix { inherit lib; };
+  users = import ./_users.nix { inherit lib; };
 in
 {
   inherit nix nix-direnv users;
-  entrypoint = import ./entrypoint.nix { inherit pkgs nix; };
-  tools = import ./tools.nix { inherit pkgs nix nix-direnv; };
-  nixConf = import ./nix-conf.nix { inherit users; };
+  entrypoint = import ./_entrypoint.nix { inherit pkgs nix; };
+  tools = import ./_tools.nix { inherit pkgs nix nix-direnv; };
+  nixConf = import ./_nix-conf.nix { inherit users; };
 }

@@ -24,7 +24,7 @@ let
 
   # Licenses of the components sbomnix cannot match.
   knownLicenses = pkgs.writeText "known-licenses.json" (
-    builtins.toJSON (import ./licenses.nix { inherit pkgs parts; })
+    builtins.toJSON (import ./_licenses.nix { inherit pkgs parts; })
   );
 
   # mkApp: an app that runs scripts/NAME.sh with coreutils and runtimeInputs
@@ -76,7 +76,7 @@ in
     ];
     environment = {
       EXPECTED = "${image.expected}";
-      EDITOR_SERVER = "${import ./editor-server.nix { inherit pkgs; }}";
+      EDITOR_SERVER = "${import ./_editor-server.nix { inherit pkgs; }}";
     };
   };
   check-licenses = mkApp {
