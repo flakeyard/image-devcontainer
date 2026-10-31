@@ -9,10 +9,10 @@
 #   - no license forbids redistribution.
 # Inputs (environment): CLOSURE, the store paths of the image, one per line;
 # CLOSURE_ROOT, the store path the SBOM is generated from, which is not in
-# the image;
-# NON_REDISTRIBUTABLE, identifiers of licenses that forbid redistribution,
-# one per line, from nixpkgs; KNOWN_LICENSES, a JSON object of component names
-# and SPDX identifiers for components sbomnix cannot match.
+# the image; NON_REDISTRIBUTABLE, identifiers of licenses that forbid
+# redistribution, one per line, from nixpkgs; KNOWN_LICENSES, a JSON object of
+# component names and SPDX identifiers for components sbomnix cannot match;
+# COMPLETE_LICENSES_JQ and SBOM_PROBLEMS_JQ, the jq programs of these steps.
 set -euo pipefail
 shopt -s inherit_errexit
 
@@ -20,53 +20,46 @@ output=$1
 flake=${2:-.}
 system=$(nix eval --raw --impure --expr builtins.currentSystem)
 
+# generate_sbom FILE: writes the SBOM of the image as sbomnix makes it.
+generate_sbom() {
+  local file=$1
+  sbomnix "$flake#packages.$system.image.closureRoot" --cdx "$file" >&2
+}
+
+# complete_licenses SBOM: prints SBOM, its components without a license
+# completed from KNOWN_LICENSES by name without a trailing version.
+complete_licenses() {
+  local sbom=$1
+  jq --slurpfile known "$KNOWN_LICENSES" --from-file "$COMPLETE_LICENSES_JQ" "$sbom"
+}
+
+# sbom_problems SBOM: prints the problems of SBOM, one per line.
+sbom_problems() {
+  local sbom=$1
+  jq -r --rawfile closure "$CLOSURE" --rawfile deny "$NON_REDISTRIBUTABLE" \
+    --arg root "$CLOSURE_ROOT" --from-file "$SBOM_PROBLEMS_JQ" "$sbom"
+}
+
+# print_summary SBOM: prints the number of components and store paths.
+print_summary() {
+  local sbom=$1 count
+  count=$(jq '.components | length' "$sbom")
+  echo "The SBOM of $system has $count components for $(grep -c . "$CLOSURE") store paths."
+}
+
+# fail_on PROBLEMS: fails listing PROBLEMS, one per line, unless empty.
+fail_on() {
+  local problems=$1
+  [[ -n $problems ]] || return 0
+  echo "error: the SBOM does not pass:" >&2
+  printf '  %s\n' "$problems" >&2
+  exit 1
+}
+
 raw=$(mktemp)
 trap 'rm -f -- "$raw"' EXIT
-sbomnix "$flake#packages.$system.image.closureRoot" --cdx "$raw" >&2
-
-# Complete components without a license from KNOWN_LICENSES, by name without
-# a trailing version.
-jq --slurpfile known "$KNOWN_LICENSES" '
-  .components |= map(
-    if (.licenses // []) | length > 0 then .
-    else (.name | sub("-[0-9][0-9.]*$"; "")) as $name
-      | if $known[0][$name] then .licenses = [$known[0][$name][] | {license: {id: .}}] else . end
-    end)' "$raw" >"$output"
-
-# The SBOM describes the closure of CLOSURE_ROOT: CLOSURE and CLOSURE_ROOT
-# itself, a text file that only names the contents of the image. sbomnix puts
-# it in .metadata.component; it is excluded in case a component has it too.
-# A component is a derivation and names all its outputs, also those the image
-# does not contain, such as -dev or -man: it is extra only when none of its
-# outputs is in the image. Components without nix:output_path name no store
-# path and are only checked for licenses.
-report=$(jq -r --rawfile closure "$CLOSURE" --rawfile deny "$NON_REDISTRIBUTABLE" \
-  --arg root "$CLOSURE_ROOT" '
-  def nonempty_string: strings | select(. != "");
-  def outputs: [.properties[]? | select(.name == "nix:output_path") | .value
-    | splits("\\s+") | nonempty_string];
-  ($closure | split("\n") | map(select(. != ""))) as $paths
-  | ($deny | split("\n") | map(select(. != ""))) as $denied
-  | [.components[]? | outputs | select(length > 0) | select(index($root) | not)] as $components
-  | ($paths - ($components | add // []) | map("missing \(.)")) +
-    [$components[] | select(any(.[]; . as $o | $paths | index($o)) | not)
-      | "extra \(.[0])"] +
-    [.components[]? | .name as $n
-      | if (.licenses // []) | length == 0 then "unlicensed \($n)"
-        elif .licenses | type != "array" then "malformed \(.licenses | tojson) \($n)"
-        else .licenses[]
-          # A license is an object with a non-empty string id or name.
-          | ([.license? | objects | (.id | nonempty_string) // (.name | nonempty_string)] | first) as $l
-          | if $l == null then "malformed \(tojson) \($n)"
-            elif $denied | index($l) then "forbidden \($l) \($n)"
-            else empty end
-        end]
-  | .[]' "$output")
-
-count=$(jq '.components | length' "$output")
-echo "The SBOM of $system has $count components for $(grep -c . "$CLOSURE") store paths."
-if [[ -n $report ]]; then
-  echo "error: the SBOM does not pass:" >&2
-  printf '  %s\n' "$report" >&2
-  exit 1
-fi
+generate_sbom "$raw"
+complete_licenses "$raw" >"$output"
+problems=$(sbom_problems "$output")
+print_summary "$output"
+fail_on "$problems"
