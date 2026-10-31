@@ -12,7 +12,7 @@ setup() {
   export CALLS=$work/calls NOTES=$work/notes GITHUB_OUTPUT=$work/output PATH=$STUBS:$PATH
   export GH_TOKEN=t REPOSITORY=flakeyard/image-devcontainer IMAGE=ghcr.io/flakeyard/image-devcontainer
   export TAG=v1.2.3 REFERENCE="ghcr.io/flakeyard/image-devcontainer:v1.2.3@sha256:abc"
-  export DIGEST=sha256:abc PREDICATE="" REVISION=0123abc
+  export DIGEST=sha256:abc PREDICATE=""
   unset ATTESTED ATTESTATIONS GH_API_ERROR
   : >"$CALLS"
   : >"$GITHUB_OUTPUT"
@@ -73,8 +73,14 @@ export ATTESTED=1
 run "attested: true when an attestation verifies" ok "$SCRIPTS/attested.sh"
 check 'grep -qx attested=true "$GITHUB_OUTPUT"' "output: $(cat "$GITHUB_OUTPUT")"
 check 'grep -qF -- "--signer-workflow flakeyard/image-devcontainer/.github/workflows/release.yaml" "$CALLS"' "calls: $(cat "$CALLS")"
-check 'grep -qF -- "--source-digest 0123abc" "$CALLS"' "the release commit is not checked: $(cat "$CALLS")"
+check '! grep -qF -- "--source-digest" "$CALLS"' "bound to a commit: $(cat "$CALLS")"
 check 'grep -qF -- "--deny-self-hosted-runners" "$CALLS"' "self-hosted runners allowed: $(cat "$CALLS")"
+finish
+
+setup
+export ATTESTED=1 ATTESTATIONS="$provenance $bom"
+run "attested: an unchanged image reuses the previous release's attestation" ok "$SCRIPTS/attested.sh"
+check 'grep -qx attested=true "$GITHUB_OUTPUT"' "output: $(cat "$GITHUB_OUTPUT")"
 finish
 
 setup

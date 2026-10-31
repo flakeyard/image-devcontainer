@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 # Writes attested=true to $GITHUB_OUTPUT when an attestation of the release
-# workflow for the release commit verifies for the digest, so that a rerun
-# creates no new one (FY-0027); attested=false when the digest has no
-# attestation of that predicate type. Fails otherwise: an attestation that
-# exists but does not verify, or an error, must not lead to another one.
+# workflow verifies for the digest, so that a rerun creates no new one
+# (FY-0027); attested=false when the digest has no attestation of that
+# predicate type. Fails otherwise: an attestation that exists but does not
+# verify, or an error, must not lead to another one.
+# The attestation is not bound to a commit: a release that leaves the image
+# unchanged reuses that of the release that first published the digest.
 # Inputs (environment): GH_TOKEN, REPOSITORY (owner/name), IMAGE (registry
-# repository), DIGEST, REVISION (the release commit), PREDICATE (empty for
-# provenance).
+# repository), DIGEST, PREDICATE (empty for provenance).
 set -euo pipefail
 shopt -s inherit_errexit
 
 predicate=${PREDICATE:-https://slsa.dev/provenance/v1}
 args=(--repo "$REPOSITORY" --signer-workflow "$REPOSITORY/.github/workflows/release.yaml"
-  --source-digest "$REVISION" --deny-self-hosted-runners --predicate-type "$predicate")
+  --deny-self-hosted-runners --predicate-type "$predicate")
 errors=$(mktemp)
 trap 'rm -f -- "$errors"' EXIT
 if gh attestation verify "oci://$IMAGE@$DIGEST" "${args[@]}" >/dev/null 2>"$errors"; then

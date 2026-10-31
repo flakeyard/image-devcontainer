@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Stub of gh for the unit tests of .github/scripts:
 #   release view/edit   notes in $NOTES (edit reads --notes-file -)
-#   attestation verify  succeeds when $ATTESTED is set
+#   attestation verify  succeeds when $ATTESTED is set; attestations are not
+#                       bound to a commit, so --source-digest always fails
 #   api .../attestations/D  payloads of the predicate types in $ATTESTATIONS
 #                       (space-separated); HTTP 404 when unset; $GH_API_ERROR
 #                       makes it fail otherwise
@@ -15,6 +16,10 @@ case "$1 $2" in
     ;;
   "attestation verify")
     echo "verify $*" >>"$CALLS"
+    if [[ " $* " == *" --source-digest "* ]]; then
+      echo "stub gh: the attestation is of another commit" >&2
+      exit 1
+    fi
     [[ -n ${ATTESTED-} ]]
     ;;
   api\ *)

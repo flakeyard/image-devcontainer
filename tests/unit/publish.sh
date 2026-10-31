@@ -187,7 +187,7 @@ index=$(published)
 export ATTESTED=1
 run "verify-published: a complete release" ok verify "$amd64"
 expect message "Verified $repo:v1.2.3@$index on amd64"
-[[ -z $current ]] || grep -qF -- "--source-digest abc123" "$CALLS" || report "calls: $(cat "$CALLS")"
+[[ -z $current ]] || grep -qF -- "--signer-workflow flakeyard/image-devcontainer/.github/workflows/release.yaml" "$CALLS" || report "calls: $(cat "$CALLS")"
 finish
 
 setup
