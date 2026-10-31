@@ -8,17 +8,54 @@ set -euo pipefail
 shopt -s inherit_errexit
 
 repository=$1 arch=$2
+release_pattern='^v[0-9]+\.[0-9]+\.[0-9]+$'
 work=$(mktemp -d)
 trap 'rm -rf -- "$work"' EXIT
-# The newest release is the newest tag vX.Y.Z of the repository; its image
-# must be in the registry.
-newest=$(git tag -l 'v*.*.*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || true)
+
+# newest_release: the newest tag vX.Y.Z of the repository, nothing when there
+# is none. Its image must be in the registry.
+newest_release() {
+  local tags
+  tags=$(git tag -l 'v*.*.*')
+  # grep exits with 1 when no tag is a release, with more on errors.
+  { grep -E -- "$release_pattern" <<<"$tags" || (($? == 1)); } | sort -V | tail -n 1
+}
+
+# never_published RELEASE: fails with what to do about a release whose image
+# is not in the registry. The runner reads workflow commands on stderr too.
+never_published() {
+  local release=$1
+  echo "::error::The release $release was never published: $repository has no tag $release." \
+    "Rerun the failed jobs of its release workflow, or after 30 days make a new patch release (FY-0027)." >&2
+  exit 1
+}
+
+# published_digest RELEASE: the platform digest of ARCH that the registry has
+# for RELEASE.
+published_digest() {
+  local release=$1 index digest
+  if ! index=$(crane manifest "$repository:$release" 2>"$work/errors"); then
+    cat -- "$work/errors" >&2
+    # An unknown tag, or a repository that was never pushed to.
+    if grep -qE 'MANIFEST_UNKNOWN|NAME_UNKNOWN' "$work/errors"; then
+      never_published "$release"
+    fi
+    exit 1
+  fi
+  digest=$(jq -r --arg arch "$arch" '.manifests[] | select(.platform.architecture == $arch) | .digest' <<<"$index")
+  if [[ -z $digest ]]; then
+    echo "::error::The manifest list of $release in $repository has no $arch image." >&2
+    exit 1
+  fi
+  echo "$digest"
+}
+
+newest=$(newest_release)
 if [[ -z $newest ]]; then
   echo "::notice::No release yet; nothing to rebuild."
   exit 0
 fi
-published=$(crane manifest "$repository:$newest" |
-  jq -r --arg arch "$arch" '.manifests[] | select(.platform.architecture == $arch) | .digest')
+published=$(published_digest "$newest")
 
 git worktree add --detach "$work/source" "$newest" >/dev/null
 # The tools of the release, not of HEAD: another crane may compress differently.

@@ -147,8 +147,12 @@ finish
 
 # --- check-release-rebuild -----------------------------------------------------------
 
-# rebuild: runs check-release-rebuild in the repository of the test.
-rebuild() { (cd "$work/repo" && "$SCRIPTS/check-release-rebuild.sh" ghcr.io/x/y amd64); }
+# rebuild [ARCH [DIR]]: runs check-release-rebuild for ARCH, amd64 by
+# default, in DIR, the repository of the test by default.
+rebuild() {
+  local arch=${1:-amd64} dir=${2:-$work/repo}
+  (cd "$dir" && "$SCRIPTS/check-release-rebuild.sh" ghcr.io/x/y "$arch")
+}
 
 # release_setup: a git repository with the tag v1.0.0 and a registry that
 # publishes it with the platform digests of the stub.
@@ -187,6 +191,34 @@ finish
 release_setup
 rm -r "$REGISTRY/tags"
 run "release-rebuild: a release missing from the registry fails" fail rebuild
+expect message "::error::The release v1.0.0 was never published"
+expect message "make a new patch release"
+finish
+
+release_setup
+git -C "$work/repo" -c tag.gpgsign=false tag v1.1.0
+run "release-rebuild: the newest tag is the release" fail rebuild
+expect message "The release v1.1.0 was never published"
+finish
+
+release_setup
+git -C "$work/repo" tag -d v1.0.0 >/dev/null
+git -C "$work/repo" -c tag.gpgsign=false tag v1.0.0-rc.1
+git -C "$work/repo" -c tag.gpgsign=false tag v1.0
+run "release-rebuild: other tags are no releases" ok rebuild
+expect message "No release"
+finish
+
+release_setup
+mkdir "$work/plain"
+# git must not find a repository above the directory.
+GIT_CEILING_DIRECTORIES=$work run "release-rebuild: git errors fail" fail rebuild amd64 "$work/plain"
+expect message "not a git repository"
+finish
+
+release_setup
+run "release-rebuild: no image of the architecture fails" fail rebuild arm64
+expect message "has no arm64 image"
 finish
 
 release_setup
