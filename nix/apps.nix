@@ -69,6 +69,7 @@ in
       ''
         export NON_REDISTRIBUTABLE=${nonRedistributable}
         export CLOSURE=${image.expected}/closure
+        export CLOSURE_ROOT=${image.closureRoot}
         export KNOWN_LICENSES=${
           pkgs.writeText "known-licenses.json" (
             builtins.toJSON (
