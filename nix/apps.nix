@@ -22,6 +22,15 @@ in
       gawk
     ]
   );
+  smoke = app "smoke" "Run the smoke tests of the image with docker" (
+    with pkgs;
+    [
+      coreutils
+      gawk
+      gnugrep
+      gnused
+    ]
+  );
   check-size = app "check-size" "Compare the image size with its budget" (
     with pkgs;
     [

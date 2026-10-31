@@ -64,6 +64,9 @@ jobs:
       - name: Check the flake
         shell: bash
         run: nix flake check --no-update-lock-file --print-build-logs
+      - name: Smoke tests
+        shell: bash
+        run: nix run --no-update-lock-file .#smoke -- tests/smoke
 
   required:
     name: required
