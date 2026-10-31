@@ -1,5 +1,5 @@
 # The problems of a completed CycloneDX SBOM of the image (FY-0027), one per
-# line. Used by check-licenses.sh. Inputs: $closure, the store paths of the
+# line. Used by check/licenses.sh. Inputs: $closure, the store paths of the
 # image, one per line; $deny, identifiers of licenses that forbid
 # redistribution, one per line; $root, the store path the SBOM is generated
 # from.

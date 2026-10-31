@@ -9,6 +9,10 @@ shopt -s inherit_errexit
 
 repository=$1 arch=$2
 release_pattern='^v[0-9]+\.[0-9]+\.[0-9]+$'
+# The app that computes the platform digest, and its name in releases made
+# before it was renamed.
+digest_app=publish-digest
+old_digest_app=platform-digest
 work=$(mktemp -d)
 trap 'rm -rf -- "$work"' EXIT
 
@@ -50,6 +54,19 @@ published_digest() {
   echo "$digest"
 }
 
+# release_digest_app SOURCE: the app of the release in SOURCE that computes
+# its platform digest.
+release_digest_app() {
+  local source=$1 system apps
+  system=$(nix eval --raw --impure --expr builtins.currentSystem)
+  apps=$(nix eval --no-update-lock-file --json "$source#apps.$system" --apply builtins.attrNames)
+  if jq -e --arg app "$digest_app" 'any(.[]; . == $app)' <<<"$apps" >/dev/null; then
+    echo "$digest_app"
+  else
+    echo "$old_digest_app"
+  fi
+}
+
 newest=$(newest_release)
 if [[ -z $newest ]]; then
   echo "::notice::No release yet; nothing to rebuild."
@@ -59,7 +76,8 @@ published=$(published_digest "$newest")
 
 git worktree add --detach "$work/source" "$newest" >/dev/null
 # The tools of the release, not of HEAD: another crane may compress differently.
-rebuilt=$(nix run --no-update-lock-file "$work/source#platform-digest" -- "$work/image.tar" "$work/source")
+app=$(release_digest_app "$work/source")
+rebuilt=$(nix run --no-update-lock-file "$work/source#$app" -- "$work/image.tar" "$work/source")
 git worktree remove --force "$work/source"
 
 if [[ $rebuilt != "$published" ]]; then

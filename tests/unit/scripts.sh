@@ -29,7 +29,7 @@ these 300 paths will be fetched (100.00 MiB download, 400.00 MiB unpacked):
 # --- check-reproducible --------------------------------------------------------
 
 setup
-run "reproducible: rebuilds the own derivations" ok "$SCRIPTS/check-reproducible.sh"
+run "reproducible: rebuilds the own derivations" ok "$SCRIPTS/check/reproducible.sh"
 expect calls "build;rebuild --no-link --rebuild --keep-going /nix/store/aaaa-entrypoint.drv^* /nix/store/bbbb-stream.drv^*"
 expect message "Rebuilding /nix/store/bbbb-stream.drv"
 expect message "needs 2 derivations"
@@ -39,21 +39,21 @@ finish
 setup
 DRY_RUN="these 300 paths will be fetched (1.00 MiB download, 4.00 MiB unpacked):
   /nix/store/cccc-glibc"
-run "reproducible: nothing to rebuild" ok "$SCRIPTS/check-reproducible.sh"
+run "reproducible: nothing to rebuild" ok "$SCRIPTS/check/reproducible.sh"
 expect calls "build"
 expect message "needs 0 derivations"
 finish
 
 setup
 export REBUILD_ERROR="error: derivation '/nix/store/bbbb-stream.drv' may not be deterministic"
-run "reproducible: a rebuild that differs fails" fail "$SCRIPTS/check-reproducible.sh"
+run "reproducible: a rebuild that differs fails" fail "$SCRIPTS/check/reproducible.sh"
 expect message "bbbb-stream.drv' may not be deterministic"
 unset REBUILD_ERROR
 finish
 
 setup
 touch "$work/vary"
-run "reproducible: different streams fail" fail "$SCRIPTS/check-reproducible.sh"
+run "reproducible: different streams fail" fail "$SCRIPTS/check/reproducible.sh"
 expect message "two streams of the image differ"
 finish
 
@@ -61,20 +61,20 @@ finish
 
 setup
 printf '# comment\nx86_64-linux 3\naarch64-linux 1\n' >"$work/budget"
-run "size: within the budget" ok "$SCRIPTS/check-size.sh" "$work/budget"
+run "size: within the budget" ok "$SCRIPTS/check/size.sh" "$work/budget"
 expect message "is 3 MiB (3145728 bytes); its budget is 3 MiB"
 finish
 
 setup
 printf 'x86_64-linux 2\n' >"$work/budget"
-run "size: over the budget" fail "$SCRIPTS/check-size.sh" "$work/budget"
+run "size: over the budget" fail "$SCRIPTS/check/size.sh" "$work/budget"
 expect message "exceeds its budget"
 finish
 
 setup
 SYSTEM=aarch64-linux
 printf 'x86_64-linux 3\n' >"$work/budget"
-run "size: no budget for the system" fail "$SCRIPTS/check-size.sh" "$work/budget"
+run "size: no budget for the system" fail "$SCRIPTS/check/size.sh" "$work/budget"
 expect message "no budget for aarch64-linux"
 finish
 
@@ -84,7 +84,7 @@ for case in "2026-10-29 ok supported" "2026-12-10 ok in 21 days" "2027-01-02 fai
   read -r today expected message <<<"$case"
   setup
   printf '# comment\nnixos-26.05 2026-12-31\n' >"$work/eol"
-  run "eol: $today" "$expected" "$SCRIPTS/check-eol.sh" "$work/eol" "$today"
+  run "eol: $today" "$expected" "$SCRIPTS/check/eol.sh" "$work/eol" "$today"
   expect message "$message"
   finish
 done
@@ -93,7 +93,7 @@ done
 while IFS='|' read -r name content message; do
   setup
   printf '%b' "$content" >"$work/eol"
-  run "eol: $name" fail "$SCRIPTS/check-eol.sh" "$work/eol" 2026-10-29
+  run "eol: $name" fail "$SCRIPTS/check/eol.sh" "$work/eol" 2026-10-29
   expect message "$message"
   finish
 done <<'CASES'
@@ -109,18 +109,18 @@ CASES
 
 setup
 printf 'nixos-26.05 2026-12-31' >"$work/eol"
-run "eol: a last line without a newline" ok "$SCRIPTS/check-eol.sh" "$work/eol" 2026-10-29
+run "eol: a last line without a newline" ok "$SCRIPTS/check/eol.sh" "$work/eol" 2026-10-29
 expect message "supported until 2026-12-31"
 finish
 
 setup
 printf 'nixos-26.05 2026-12-31\n' >"$work/eol"
-run "eol: an invalid today" fail "$SCRIPTS/check-eol.sh" "$work/eol" ""
+run "eol: an invalid today" fail "$SCRIPTS/check/eol.sh" "$work/eol" ""
 expect message "'' is not a date"
 finish
 
 setup
-run "eol: a missing file" fail "$SCRIPTS/check-eol.sh" "$work/none"
+run "eol: a missing file" fail "$SCRIPTS/check/eol.sh" "$work/none"
 finish
 
 # --- check-release-rebuild -----------------------------------------------------------
@@ -129,7 +129,7 @@ finish
 # default, in DIR, the repository of the test by default.
 rebuild() {
   local arch=${1:-amd64} dir=${2:-$work/repo}
-  (cd "$dir" && "$SCRIPTS/check-release-rebuild.sh" ghcr.io/x/y "$arch")
+  (cd "$dir" && "$SCRIPTS/check/release-rebuild.sh" ghcr.io/x/y "$arch")
 }
 
 # release_setup: a git repository with the tag v1.0.0 and a registry that
@@ -208,6 +208,11 @@ finish
 
 release_setup
 run "release-rebuild: uses the tools of the release" ok rebuild
+expect called "/source#publish-digest -- "
+finish
+
+release_setup
+APPS='["platform-digest","smoke"]' run "release-rebuild: a release before the rename has platform-digest" ok rebuild
 expect called "/source#platform-digest -- "
 finish
 

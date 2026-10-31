@@ -176,6 +176,11 @@ not a required check, warns before the nixpkgs branch in `nixpkgs-eol` reaches
 its end of life and rebuilds the newest release to compare its digests with
 the registry.
 
+Every app has a file under `nix/apps/` with its description and tools, and a
+script at the same path under `scripts/`; it is named after the path, so
+`nix/apps/check/size.nix` and `scripts/check/size.sh` are the app `check-size`.
+The apps `publish-*` publish the image.
+
 ## Bootstrap
 
 This repository is bootstrapped under [FY-0022][fy-0022]. Until their providers

@@ -14,7 +14,7 @@ arm64=sha256:$(printf 'b%.0s' {1..64})
 setup() {
   work=$(mktemp -d)
   export CALLS=$work/calls REGISTRY=$work/registry STREAM=$work/stream
-  export PATH=$STUBS:$PATH TARBALL_DIGEST=$amd64 PLATFORM_DIGEST=$SCRIPTS/platform-digest.sh
+  export PATH=$STUBS:$PATH TARBALL_DIGEST=$amd64 PUBLISH_DIGEST=$SCRIPTS/publish/digest.sh
   mkdir -p "$REGISTRY/manifests" "$REGISTRY/tags"
   : >"$CALLS"
   printf '#!%s\necho archive\n' "$(command -v bash)" >"$STREAM"
@@ -26,37 +26,37 @@ setup() {
   done
 }
 
-publish() { "$SCRIPTS/publish-index.sh" "$repo" 1.2.3 abc123 "$amd64" "$arm64"; }
+publish() { "$SCRIPTS/publish/index.sh" "$repo" 1.2.3 abc123 "$amd64" "$arm64"; }
 
-# --- push-platform ---------------------------------------------------------------
+# --- publish-platform ---------------------------------------------------------------
 
 setup
-run "push-platform: pushes the tested digest" ok "$SCRIPTS/push-platform.sh" "$repo" "$amd64"
+run "publish-platform: pushes the tested digest" ok "$SCRIPTS/publish/platform.sh" "$repo" "$amd64"
 expect calls "push $amd64"
 expect output "$amd64"
 finish
 
 setup
-run "push-platform: refuses another digest" fail "$SCRIPTS/push-platform.sh" "$repo" "$arm64"
+run "publish-platform: refuses another digest" fail "$SCRIPTS/publish/platform.sh" "$repo" "$arm64"
 expect message "but $arm64 was tested"
 expect calls ""
 finish
 
 setup
-# A platform-digest that records its flake.
-cat >"$work/platform-digest" <<STUB
+# A publish-digest that records its flake.
+cat >"$work/publish-digest" <<STUB
 #!$(command -v bash)
-echo "platform-digest \$2" >>"\$CALLS"
+echo "publish-digest \$2" >>"\$CALLS"
 echo "\$TARBALL_DIGEST"
 STUB
-chmod +x "$work/platform-digest"
-PLATFORM_DIGEST=$work/platform-digest run "push-platform: computes the digest with platform-digest" ok \
-  "$SCRIPTS/push-platform.sh" "$repo" "$amd64" "$work/flake"
-expect calls "platform-digest $work/flake;push $amd64"
+chmod +x "$work/publish-digest"
+PUBLISH_DIGEST=$work/publish-digest run "publish-platform: computes the digest with publish-digest" ok \
+  "$SCRIPTS/publish/platform.sh" "$repo" "$amd64" "$work/flake"
+expect calls "publish-digest $work/flake;push $amd64"
 finish
 
 setup
-run "push-platform: rejects a malformed digest" fail "$SCRIPTS/push-platform.sh" "$repo" latest
+run "publish-platform: rejects a malformed digest" fail "$SCRIPTS/publish/platform.sh" "$repo" latest
 expect calls ""
 finish
 
@@ -141,44 +141,44 @@ finish
 
 setup
 run "publish-index: rejects a malformed version" fail \
-  "$SCRIPTS/publish-index.sh" "$repo" 1.2 abc "$amd64" "$arm64"
+  "$SCRIPTS/publish/index.sh" "$repo" 1.2 abc "$amd64" "$arm64"
 expect calls ""
 finish
 
-# --- sync-major --------------------------------------------------------------------
+# --- publish-major --------------------------------------------------------------------
 
 setup
 for version in 1.2.3 1.10.0 1.9.9 2.0.0; do
   echo "sha256:$(printf '%s' "$version" | sha256sum | cut -d' ' -f1)" >"$REGISTRY/tags/v$version"
 done
 newest=$(cat "$REGISTRY/tags/v1.10.0")
-run "sync-major: points vX at the newest release of the major" ok "$SCRIPTS/sync-major.sh" "$repo" 1
+run "publish-major: points vX at the newest release of the major" ok "$SCRIPTS/publish/major.sh" "$repo" 1
 expect tag v1 "$newest"
 expect message "v1 now points at v1.10.0"
 : >"$CALLS"
-run "sync-major: a rerun changes nothing" ok "$SCRIPTS/sync-major.sh" "$repo" 1
+run "publish-major: a rerun changes nothing" ok "$SCRIPTS/publish/major.sh" "$repo" 1
 expect calls ""
 finish
 
 setup
-run "sync-major: fails without a release of the major" fail "$SCRIPTS/sync-major.sh" "$repo" 3
+run "publish-major: fails without a release of the major" fail "$SCRIPTS/publish/major.sh" "$repo" 3
 expect message "no release of major version 3"
 finish
 
-# --- verify-published -----------------------------------------------------------
+# --- publish-verify -----------------------------------------------------------
 
 # published: a release 1.2.3 as publish-index leaves it; prints its digest.
 published() {
-  "$SCRIPTS/publish-index.sh" "$repo" 1.2.3 abc123 "$amd64" "$arm64" 2>/dev/null
+  "$SCRIPTS/publish/index.sh" "$repo" 1.2.3 abc123 "$amd64" "$arm64" 2>/dev/null
 }
 verify() {
-  "$SCRIPTS/verify-published.sh" flakeyard/image-devcontainer "$repo" "$index" 1.2.3 abc123 amd64 "$1"
+  "$SCRIPTS/publish/verify.sh" flakeyard/image-devcontainer "$repo" "$index" 1.2.3 abc123 amd64 "$1"
 }
 
 setup
 index=$(published)
 export ATTESTED=1
-run "verify-published: a complete release" ok verify "$amd64"
+run "publish-verify: a complete release" ok verify "$amd64"
 expect message "Verified $repo:v1.2.3@$index on amd64"
 expect called "--signer-workflow flakeyard/image-devcontainer/.github/workflows/release.yaml"
 finish
@@ -186,7 +186,7 @@ finish
 setup
 index=$(published)
 export ATTESTED=1
-run "verify-published: another tested digest" fail verify "$arm64"
+run "publish-verify: another tested digest" fail verify "$arm64"
 expect message "was tested"
 finish
 
@@ -194,13 +194,13 @@ setup
 index=$(published)
 echo "sha256:$(printf 'd%.0s' {1..64})" >"$REGISTRY/tags/v1.2.3"
 export ATTESTED=1
-run "verify-published: the release tag points elsewhere" fail verify "$amd64"
+run "publish-verify: the release tag points elsewhere" fail verify "$amd64"
 expect message "not at $index"
 finish
 
 setup
 index=$(published)
-run "verify-published: missing attestations" fail verify "$amd64"
+run "publish-verify: missing attestations" fail verify "$amd64"
 finish
 
 summary

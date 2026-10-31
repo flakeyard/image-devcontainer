@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Usage: push-platform REPOSITORY TESTED_DIGEST [FLAKE]
+# Usage: publish-platform REPOSITORY TESTED_DIGEST [FLAKE]
 #
 # Builds the image of this system again, fails unless its digest is the
 # tested one, and pushes it by digest, without a tag (FY-0027). Prints the
 # digest. The registry login must exist.
-# Inputs (environment): PLATFORM_DIGEST, the platform-digest app, which
+# Inputs (environment): PUBLISH_DIGEST, the publish-digest app, which
 # computed the tested digest.
 set -euo pipefail
 # Command substitutions fail like other commands.
@@ -22,7 +22,7 @@ digest_pattern='^sha256:[0-9a-f]{64}$'
 archive=$(mktemp)
 trap 'rm -f -- "$archive"' EXIT
 # The tested and the pushed digest come from the same code.
-digest=$("$PLATFORM_DIGEST" "$archive" "$flake")
+digest=$("$PUBLISH_DIGEST" "$archive" "$flake")
 if [[ $digest != "$tested" ]]; then
   echo "error: the image has digest $digest, but $tested was tested" >&2
   exit 1

@@ -1,6 +1,6 @@
 # Completes the components of a CycloneDX SBOM that have no license with the
 # licenses of $known[0], an object of component names and SPDX identifiers for
-# components sbomnix cannot match. Used by check-licenses.sh.
+# components sbomnix cannot match. Used by check/licenses.sh.
 
 # has_licenses: whether a component lists any license.
 def has_licenses: (.licenses // []) | length > 0;

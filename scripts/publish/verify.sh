@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: verify-published REPOSITORY IMAGE INDEX VERSION REVISION ARCH PLATFORM
+# Usage: publish-verify REPOSITORY IMAGE INDEX VERSION REVISION ARCH PLATFORM
 #
 # Checks the published image of a release on a runner of ARCH (FY-0027):
 #   - vVERSION points at the manifest list INDEX, which has exactly the two
