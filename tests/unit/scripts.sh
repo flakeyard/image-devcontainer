@@ -60,7 +60,8 @@ finish() {
 
 setup
 run "reproducible: rebuilds the own derivations" ok "$SCRIPTS/check-reproducible.sh"
-expect calls "build;rebuild /nix/store/aaaa-entrypoint.drv^*;rebuild /nix/store/bbbb-stream.drv^*"
+expect calls "build;rebuild --no-link --rebuild --keep-going /nix/store/aaaa-entrypoint.drv^* /nix/store/bbbb-stream.drv^*"
+expect message "Rebuilding /nix/store/bbbb-stream.drv"
 expect message "needs 2 derivations"
 expect message "Two streams of the image are equal"
 finish
@@ -71,6 +72,13 @@ DRY_RUN="these 300 paths will be fetched (1.00 MiB download, 4.00 MiB unpacked):
 run "reproducible: nothing to rebuild" ok "$SCRIPTS/check-reproducible.sh"
 expect calls "build"
 expect message "needs 0 derivations"
+finish
+
+setup
+export REBUILD_ERROR="error: derivation '/nix/store/bbbb-stream.drv' may not be deterministic"
+run "reproducible: a rebuild that differs fails" fail "$SCRIPTS/check-reproducible.sh"
+expect message "bbbb-stream.drv' may not be deterministic"
+unset REBUILD_ERROR
 finish
 
 setup

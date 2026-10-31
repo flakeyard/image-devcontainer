@@ -23,10 +23,12 @@ mapfile -t derivations < <(own_derivations <<<"$plan")
 echo "The image needs ${#derivations[@]} derivations that are not in a binary cache."
 
 nix build --no-link --no-update-lock-file --print-build-logs "$installable"
-for derivation in "${derivations[@]}"; do
-  echo "Rebuilding $derivation"
-  nix build --no-link --rebuild "$derivation^*"
-done
+if ((${#derivations[@]} > 0)); then
+  printf 'Rebuilding %s\n' "${derivations[@]}"
+  # One build of all outputs; --keep-going reports every derivation that
+  # fails or differs, not only the first.
+  nix build --no-link --rebuild --keep-going "${derivations[@]/%/^*}"
+fi
 
 stream=$(nix build --no-link --no-update-lock-file --print-out-paths "$installable")
 first=$("$stream" | sha256sum)
