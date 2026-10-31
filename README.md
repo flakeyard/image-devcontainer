@@ -48,9 +48,11 @@ it.
   1. gives `dev` the uid and gid of `DEV_UID` and `DEV_GID` when they are set,
      otherwise of the owner of the working directory when it is a mount point
      not owned by root, and the files of `dev` on the home directory's own file
-     system with it; mounted files are left alone;
+     system with it; mounted files are left alone, and all of the home when it
+     is a mount point itself;
   2. starts the Nix daemon, restarts it when it exits, and waits until it
-     answers;
+     answers; with a read-only `/nix`, it says so and runs the command without
+     the daemon;
   3. runs the command as `dev` under `tini`, which reaps orphaned processes and
      forwards signals.
 
@@ -62,11 +64,20 @@ it.
   Started without root, the entrypoint warns that the Nix daemon is not running
   and runs the command.
 
+  The pipes, sockets and terminal (`docker run -t`) that the container engine
+  makes the standard input, output and error belong to `dev`, so that it can
+  reopen them as `/dev/stdin`, `/dev/stdout` and `/dev/stderr`; the terminal
+  keeps its group. Files and named pipes keep their owner.
+
 - **Environment.** Root's `PATH` is `/bin:/usr/bin`; `dev` gets
   `~/.nix-profile/bin` in front of it, from the entrypoint and from
   `/etc/bashrc`, because root must never run programs `dev` controls. The Nix
-  daemon runs with a fixed environment, so variables such as `NIX_CONFIG` set
-  for the container reach only the commands, never the daemon.
+  processes of root, the daemon and the entrypoint's check that it answers, run
+  with a fixed environment and `PATH`, so variables such as `NIX_CONFIG` or
+  `XDG_CONFIG_HOME` set for the container reach only the commands, never root.
+  Only the proxy variables `http_proxy`, `https_proxy`, `all_proxy` and
+  `no_proxy`, in lower and upper case, pass to the daemon when set, because it
+  downloads from the binary cache.
 
 - **Capabilities.** The entrypoint and the Nix daemon need `CHOWN`,
   `DAC_OVERRIDE`, `FOWNER`, `SETUID` and `SETGID`, which Docker and Podman grant
