@@ -104,8 +104,22 @@ finish
 
 setup
 export GH_API_ERROR=1
-run "attested: an API error fails" fail "$SCRIPTS/attested.sh"
+run "attested: an API error fails, whatever the verification reported" fail "$SCRIPTS/attested.sh"
 check 'grep -qF "cannot list the attestations" "$work/out"' "out: $(cat "$work/out")"
+check '[[ ! -s $GITHUB_OUTPUT ]]' "output written: $(cat "$GITHUB_OUTPUT")"
+finish
+
+setup
+export ATTESTATIONS="- $provenance"
+run "attested: an attestation without an inline bundle fails" fail "$SCRIPTS/attested.sh"
+check 'grep -qF "no inline bundle" "$work/out"' "out: $(cat "$work/out")"
+check '[[ ! -s $GITHUB_OUTPUT ]]' "output written: $(cat "$GITHUB_OUTPUT")"
+finish
+
+setup
+export ATTESTATIONS=$bom
+run "attested: an attestation of another type does not count" ok "$SCRIPTS/attested.sh"
+check 'grep -qx attested=false "$GITHUB_OUTPUT"' "output: $(cat "$GITHUB_OUTPUT")"
 finish
 
 echo "passed: $passed, failed: $failed"
