@@ -71,3 +71,10 @@ expect_no_text "missing"
 docker restart "$id" >/dev/null
 poll 20 ready "$id" || fail "the daemon did not answer after garbage collection and a restart"
 docker rm -f "$id" >/dev/null
+
+test_case "the store holds exactly the closure the SBOM describes"
+run -- sh -c 'for p in /nix/store/*; do echo "$p"; done'
+actual=$(grep '^/nix/store/' <<<"$output" | sort)
+closure=$(sort "$EXPECTED/closure")
+[[ $actual == "$closure" ]] ||
+  fail "differs: $(diff <(echo "$closure") <(echo "$actual") | grep '^[<>]' | head -n 5 | paste -sd' ')"

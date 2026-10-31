@@ -49,6 +49,47 @@ in
           gnused
         ]
       );
+  check-licenses =
+    let
+      # Identifiers of the licenses in nixpkgs that forbid redistribution.
+      nonRedistributable = pkgs.writeText "non-redistributable-licenses" (
+        lib.concatLines (
+          lib.concatMap (
+            license:
+            lib.filter (id: id != null) [
+              (license.spdxId or null)
+              (license.shortName or null)
+              (license.fullName or null)
+            ]
+          ) (lib.filter (license: !(license.redistributable or true)) (lib.attrValues lib.licenses))
+        )
+      );
+    in
+    app'
+      ''
+        export NON_REDISTRIBUTABLE=${nonRedistributable}
+        export KNOWN_LICENSES=${
+          pkgs.writeText "known-licenses.json" (
+            builtins.toJSON (
+              import ./licenses.nix {
+                inherit pkgs;
+                parts = import ./parts.nix { inherit pkgs; };
+              }
+            )
+          )
+        }
+      ''
+      "check-licenses"
+      "Generate the SBOM and check the licenses of the image"
+      (
+        with pkgs;
+        [
+          coreutils
+          gawk
+          jq
+          sbomnix
+        ]
+      );
   check-size = app "check-size" "Compare the image size with its budget" (
     with pkgs;
     [
