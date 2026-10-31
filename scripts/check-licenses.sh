@@ -36,16 +36,21 @@ jq --slurpfile known "$KNOWN_LICENSES" '
 # The SBOM describes the closure of CLOSURE_ROOT: CLOSURE and CLOSURE_ROOT
 # itself, a text file that only names the contents of the image. sbomnix puts
 # it in .metadata.component; it is excluded in case a component has it too.
-# Components without nix:output_path name no store path and are only checked
-# for licenses.
+# A component is a derivation and names all its outputs, also those the image
+# does not contain, such as -dev or -man: it is extra only when none of its
+# outputs is in the image. Components without nix:output_path name no store
+# path and are only checked for licenses.
 report=$(jq -r --rawfile closure "$CLOSURE" --rawfile deny "$NON_REDISTRIBUTABLE" \
   --arg root "$CLOSURE_ROOT" '
   def nonempty_string: strings | select(. != "");
+  def outputs: [.properties[]? | select(.name == "nix:output_path") | .value
+    | splits("\\s+") | nonempty_string];
   ($closure | split("\n") | map(select(. != ""))) as $paths
   | ($deny | split("\n") | map(select(. != ""))) as $denied
-  | [.components[]?.properties[]? | select(.name == "nix:output_path") | .value] as $outputs
-  | ($paths - $outputs | map("missing \(.)")) +
-    ($outputs - $paths - [$root] | unique | map("extra \(.)")) +
+  | [.components[]? | outputs | select(length > 0) | select(index($root) | not)] as $components
+  | ($paths - ($components | add // []) | map("missing \(.)")) +
+    [$components[] | select(any(.[]; . as $o | $paths | index($o)) | not)
+      | "extra \(.[0])"] +
     [.components[]? | .name as $n
       | if (.licenses // []) | length == 0 then "unlicensed \($n)"
         elif .licenses | type != "array" then "malformed \(.licenses | tojson) \($n)"

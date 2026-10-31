@@ -133,6 +133,19 @@ message "extra $c"
 finish
 
 setup
+dev=/nix/store/dddddddddddddddddddddddddddddddd-curl-8.0-dev
+sbom "$(component curl "$a $dev" "$curl")" "$(component nix-cmd "$b" null)"
+run "outputs of an image component that the image does not contain" ok
+finish
+
+setup
+sbom "$(jq -cn --arg a "$a" --arg dev "$dev" --argjson l "$curl" \
+  '{name: "curl", licenses: $l, properties: [{name: "nix:output_path", value: $dev}, {name: "nix:output_path", value: $a}]}')" \
+  "$(component nix-cmd "$b" null)"
+run "one output path property per output" ok
+finish
+
+setup
 sbom "$(component curl "$a" "$curl")" "$(component nix-cmd "$b" null)" "$(component image-closure-root "$root" "$curl")"
 run "the closure root is not extra" ok
 finish
