@@ -13,7 +13,7 @@ env:
 
 jobs:
   release:
-    uses: flakeyard/workflow-release/.github/workflows/release.yaml@3d0d3dcf40f8ac8e03dc3f585085ca11d7b8f5ed # v0.1.1
+    uses: flakeyard/workflow-release/.github/workflows/release.yaml@a9c3bbdf2b3ec97ea47934e4dd2ded2b405cf329 # v0.2.0
     # Required by the called workflow for every path; with the App, its token
     # does the writes.
     permissions:
@@ -25,6 +25,10 @@ jobs:
       app-client-id: ${{ vars.BOT_CLIENT_ID }}
       environment: release
       move-major-tag: true
+      # Release pull requests by GITHUB_TOKEN; the key only in the gated job
+      # (FY-0030).
+      app-pull-requests: false
+      check-workflow: test.yaml
     secrets:
       APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
 
