@@ -196,6 +196,8 @@ are released:
 - the jobs `pending` and `required` of `.github/workflows/test.yaml` and
   `.github/scripts/commit-status.sh` and `required.sh` are a copy shared with
   the other bootstrapped repositories (provider: `workflow-check`);
+- CI does not check that the tag of the preset in `renovate.json` belongs to an
+  immutable release ([FY-0028][fy-0028]) (provider: `workflow-check`);
 - OpenSSF Scorecard is not run (provider: `workflow-check`).
 
 ## License
@@ -208,3 +210,4 @@ are released:
 [fy-0026]: https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0026-stable-nixpkgs.md
 [fy-0027]: https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0027-publish-image.md
 [fy-0022]: https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0022-bootstrap.md
+[fy-0028]: https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0028-supply-chain.md
