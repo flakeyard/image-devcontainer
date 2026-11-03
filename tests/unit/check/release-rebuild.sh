@@ -101,4 +101,19 @@ APPS='["platform-digest","smoke"]' run "release-rebuild: a release before the re
 expect called "/source#platform-digest -- "
 finish
 
+# worktrees: the number of worktrees of the repository of the test, besides
+# its own.
+worktrees() { git -C "$work/repo" worktree list --porcelain | grep -c '^worktree ' | awk '{ print $1 - 1 }'; }
+
+setup
+run "release-rebuild: removes the worktree of the release" ok rebuild
+if still_passing && [[ $(worktrees) != 0 ]]; then report "worktrees left: $(git -C "$work/repo" worktree list)"; fi
+finish
+
+setup
+RUN_ERROR="error: build failed" run "release-rebuild: a failing rebuild leaves no worktree" fail rebuild
+expect message "build failed"
+if still_passing && [[ $(worktrees) != 0 ]]; then report "worktrees left: $(git -C "$work/repo" worktree list)"; fi
+finish
+
 summary

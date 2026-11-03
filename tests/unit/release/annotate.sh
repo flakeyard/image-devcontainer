@@ -33,4 +33,11 @@ expect empty "$CALLS"
 if still_passing && [[ $(image_lines) != 1 ]]; then report "notes: $(cat "$NOTES")"; fi
 finish
 
+setup
+printf '## 1.2.3\r\n\r\n* something\r\n\r\n%s\r\n' "Image: \`$REFERENCE\`" >"$NOTES"
+run "annotate-release: notes with CRLF line endings that name the image" ok "$SCRIPTS/scripts/annotate-release.sh"
+expect empty "$CALLS"
+expect message "already name"
+finish
+
 summary

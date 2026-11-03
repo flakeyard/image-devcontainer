@@ -7,7 +7,8 @@
 #   nix eval --apply F ...       prints $APPS, the names of the apps of a
 #                                flake as JSON; the current ones by default
 #   nix eval ...                 prints $SYSTEM
-#   nix run FLAKE#APP -- ...     prints $TARBALL_DIGEST (publish-digest)
+#   nix run FLAKE#APP -- ...     prints $TARBALL_DIGEST (publish-digest);
+#                                fails with $RUN_ERROR when it is set
 set -euo pipefail
 current_apps='["publish-digest"]'
 case $1 in
@@ -20,6 +21,10 @@ case $1 in
     ;;
   run)
     echo "run $*" >>"$CALLS"
+    if [[ -n ${RUN_ERROR-} ]]; then
+      echo "$RUN_ERROR" >&2
+      exit 1
+    fi
     echo "$TARBALL_DIGEST"
     ;;
   build)
