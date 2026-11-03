@@ -23,6 +23,22 @@ label: `remoteUser: dev`, `overrideCommand: false`, `init: true` and
 `"postCreateCommand": "direnv allow"` and named volumes for caches under
 `/home/dev` that should survive recreating the container.
 
+Mount the project under `/home/dev` rather than at the default
+`/workspaces/<name>` of Dev Containers tools:
+
+```jsonc
+{
+  "workspaceMount": "source=${localWorkspaceFolder},target=/home/dev/${localWorkspaceFolderBasename},type=bind",
+  "workspaceFolder": "/home/dev/${localWorkspaceFolderBasename}",
+}
+```
+
+Builds run without a sandbox (see [Nix](#behaviour)), so any derivation of any
+flake input of the project can read every file that its build user may read.
+Only `dev` may enter `/home/dev`; a checkout at `/workspaces/<name>` usually is
+readable by everyone, untracked files such as `.env` included. The label cannot
+carry these settings, so every project sets them itself.
+
 Without Dev Containers tools:
 
 ```sh
@@ -89,8 +105,10 @@ it.
   substituter is `cache.nixos.org`; other caches and keys go to
   `/etc/nix/local.conf`, which `/etc/nix/nix.conf` includes. The sandbox is off:
   it needs privileges a dev container does not have and would fall back
-  silently; builds that must be isolated run in CI. Nix collects garbage when
-  free disk space runs low.
+  silently; builds that must be isolated run in CI. Without it, a build runs as
+  a build user with network access and reads every file in the container that is
+  readable by everyone; `/home/dev` is not. Nix collects garbage when free disk
+  space runs low.
 - **Tools.** `nix`, `direnv`, `nix-direnv`, `bash`, coreutils, findutils,
   diffutils, `grep`, `sed`, `awk`, `tar`, `gzip`, `xz`, `bzip2`, `zstd`, `less`,
   procps, `which`, util-linux, `getent`, `curl`, `git`, the OpenSSH client, CA
