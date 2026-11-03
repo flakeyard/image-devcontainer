@@ -1,5 +1,7 @@
 # Releases the repository with flakeyard/workflow-release and publishes the
-# image of the release in the same run (FY-0020, FY-0027).
+# image of the release in the same run (FY-0020, FY-0027). Every job that
+# writes to the package or attests runs in the environment publish, which has
+# no secrets: nothing reaches the registry before the owner approves it.
 name: release
 
 on:
@@ -89,6 +91,7 @@ jobs:
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
+    environment: publish
     # One push and attestation per platform at a time, also across releases.
     concurrency:
       group: image-push-${{ github.repository }}-${{ matrix.arch }}
@@ -145,6 +148,7 @@ jobs:
     if: ${{ !cancelled() && needs.push.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    environment: publish
     concurrency:
       group: image-publish-${{ github.repository }}
       cancel-in-progress: false

@@ -1,5 +1,6 @@
 # The scripts of the apps and of .github pass shellcheck and their unit
-# tests, whose suites are at the paths of the scripts under tests/unit. The
+# tests, whose suites are at the paths of the scripts under tests/unit, and
+# the release workflow passes its static tests in tests/unit/release. The
 # smoke tests and their probes, which need a container engine, pass
 # shellcheck.
 {
@@ -17,6 +18,7 @@
               gnugrep
               jq
               shellcheck
+              yq-go
             ];
             scripts = ../../scripts;
             stubs = ../../tests/bin;
