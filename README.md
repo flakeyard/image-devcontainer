@@ -138,13 +138,21 @@ Versions of the other tools are not part of the API.
 ## Verification
 
 Every release is built by the release workflow of this repository from the
-tagged commit. Verify the image and its SBOM before you trust a digest:
+tagged commit. Verify the digest from the release notes of `vX.Y.Z` against the
+commit of the git tag `vX.Y.Z` before you trust it:
 
 ```sh
-ref=ghcr.io/flakeyard/image-devcontainer@sha256:<digest>
-gh attestation verify "oci://$ref" --repo flakeyard/image-devcontainer \
-  --signer-workflow flakeyard/image-devcontainer/.github/workflows/release.yaml
+repo=flakeyard/image-devcontainer
+commit=$(gh api "repos/$repo/commits/tags/vX.Y.Z" --jq .sha)
+gh attestation verify "oci://ghcr.io/$repo@sha256:<digest>" --repo "$repo" \
+  --signer-workflow "$repo/.github/workflows/release.yaml" \
+  --source-digest "$commit"
 ```
+
+Only an approved release creates the git tag, and the check binds the digest to
+it. The tags of the registry are a convenience: anyone who can write to the
+package can move them, so the digest in the release notes and this check are
+what to trust.
 
 The digest in the release notes is that of the manifest list for both platforms.
 Each platform manifest has a provenance attestation and a CycloneDX SBOM that

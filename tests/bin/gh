@@ -2,8 +2,11 @@
 # Stub of gh for the unit tests of the scripts of .github:
 #   release view/edit   notes in $NOTES (edit reads --notes-file -)
 #   attestation verify  succeeds when $ATTESTED is set, fails with HTTP 404
-#                       otherwise; attestations are not bound to a commit, so
-#                       --source-digest always fails
+#                       otherwise; the attestations are of the commit
+#                       $ATTESTED_COMMIT, so --source-digest of another commit
+#                       fails
+#   api .../commits/tags/T  the commit $TAG_COMMIT of the tag; HTTP 422 when
+#                       unset
 #   api .../attestations/D  attestations of the predicate types in
 #                       $ATTESTATIONS (space-separated; "-" for one without an
 #                       inline bundle); HTTP 404 when unset; $GH_API_ERROR
@@ -18,7 +21,7 @@ case "$1 $2" in
     ;;
   "attestation verify")
     echo "verify $*" >>"$CALLS"
-    if [[ " $* " == *" --source-digest "* ]]; then
+    if [[ " $* " == *" --source-digest "* && " $* " != *" --source-digest ${ATTESTED_COMMIT-} "* ]]; then
       echo "stub gh: the attestation is of another commit" >&2
       exit 1
     fi
@@ -26,6 +29,13 @@ case "$1 $2" in
       echo "gh: Not Found (HTTP 404)" >&2
       exit 1
     fi
+    ;;
+  api\ */commits/tags/*)
+    if [[ -z ${TAG_COMMIT-} ]]; then
+      echo "gh: No commit found for SHA: ${2#*/commits/} (HTTP 422)" >&2
+      exit 1
+    fi
+    printf '{"sha": "%s"}\n' "$TAG_COMMIT"
     ;;
   api\ *)
     if [[ -n ${GH_API_ERROR-} ]]; then

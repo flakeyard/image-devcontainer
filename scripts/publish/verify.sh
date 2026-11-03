@@ -2,14 +2,16 @@
 # Usage: publish-verify REPOSITORY IMAGE INDEX VERSION REVISION ARCH PLATFORM
 #
 # Checks the published image of a release on a runner of ARCH (FY-0027):
+#   - the git tag vVERSION is at REVISION;
 #   - vVERSION points at the manifest list INDEX, which has exactly the two
 #     platforms, the version and the commit as annotations, and PLATFORM, the
 #     tested digest, for ARCH;
 #   - the image pulled by INDEX runs;
-#   - the list and the platform have provenance, and the platform an SBOM,
-#     from the release workflow. They are not bound to the commit: a platform
-#     digest keeps the attestations of the release that first published it,
-#     and the annotations of the attested list name the commit.
+#   - the list has provenance from the release workflow at the commit of the
+#     git tag, which only an approved release creates;
+#   - the platform has provenance and an SBOM from the release workflow. They
+#     are not bound to the commit: a platform digest keeps the attestations of
+#     the release that first published it.
 # Inputs (environment): GH_TOKEN. Needs docker, as on GitHub-hosted runners.
 set -euo pipefail
 shopt -s inherit_errexit
@@ -19,6 +21,17 @@ readonly sbom=https://cyclonedx.org/bom
 fail() {
   echo "error: $1" >&2
   exit 1
+}
+
+# The commit of the git tag vVERSION, from the API.
+tag_commit() {
+  gh api "repos/$repository/commits/tags/v$version" | jq -r .sha
+}
+
+check_git_tag() {
+  local commit
+  commit=$(tag_commit) || fail "cannot read the git tag v$version"
+  [[ $commit == "$revision" ]] || fail "the git tag v$version is at $commit, not at $revision"
 }
 
 check_tag() {
@@ -54,11 +67,12 @@ verify_attestation() {
     --deny-self-hosted-runners "$@" >/dev/null
 }
 
+check_git_tag
 check_tag
 list=$(crane manifest "$image@$index")
 check_list "$list"
 check_runs
-verify_attestation "$index"
+verify_attestation "$index" --source-digest "$revision"
 verify_attestation "$platform"
 verify_attestation "$platform" --predicate-type "$sbom"
 echo "Verified $image:v$version@$index on $arch with its attestations."
