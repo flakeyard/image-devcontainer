@@ -27,7 +27,6 @@ jobs:
           STATE: pending
           CONTEXT: maintenance
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        # The script is not checked out yet; this is its one call.
         run: >-
           gh api --silent -X POST "repos/$REPO/statuses/$SHA"
           -f state="$STATE" -f context="$CONTEXT" -f target_url="$RUN_URL"
@@ -77,31 +76,25 @@ jobs:
           ARCH: ${{ matrix.arch }}
         run: nix run --no-update-lock-file .#check-release-rebuild -- "$IMAGE" "$ARCH"
 
+  # Scheduled runs need no result job: a failed check fails the run.
   result:
     name: maintenance
     needs: [pending, eol, rebuild]
-    if: always()
+    if: always() && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
-      contents: read
       statuses: write # commit status of a dispatched run
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - id: result
-        shell: bash
-        env:
-          NEEDS: ${{ toJSON(needs) }}
-        run: .github/scripts/required.sh
-      - if: always() && github.event_name == 'workflow_dispatch'
-        shell: bash
+      - shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
-          STATE: ${{ steps.result.outcome == 'success' && 'success' || 'failure' }}
+          STATE: ${{ needs.eol.result == 'success' && needs.rebuild.result == 'success' && 'success' || 'failure' }}
           CONTEXT: maintenance
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: .github/scripts/commit-status.sh
+        run: >-
+          gh api --silent -X POST "repos/$REPO/statuses/$SHA"
+          -f state="$STATE" -f context="$CONTEXT" -f target_url="$RUN_URL"
+          -f description="GitHub Actions run"
