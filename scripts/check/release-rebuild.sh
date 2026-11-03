@@ -13,8 +13,15 @@ release_pattern='^v[0-9]+\.[0-9]+\.[0-9]+$'
 # before it was renamed.
 digest_app=publish-digest
 old_digest_app=platform-digest
+
+# cleanup: removes the worktree of the release, which git would keep listing
+# after its directory is gone, and the scratch directory.
+cleanup() {
+  git worktree remove --force "$work/source" >/dev/null 2>&1 || true
+  rm -rf -- "$work"
+}
 work=$(mktemp -d)
-trap 'rm -rf -- "$work"' EXIT
+trap cleanup EXIT
 
 # newest_release: the newest tag vX.Y.Z of the repository, nothing when there
 # is none. Its image must be in the registry.
@@ -78,7 +85,6 @@ git worktree add --detach "$work/source" "$newest" >/dev/null
 # The tools of the release, not of HEAD: another crane may compress differently.
 app=$(release_digest_app "$work/source")
 rebuilt=$(nix run --no-update-lock-file "$work/source#$app" -- "$work/image.tar" "$work/source")
-git worktree remove --force "$work/source"
 
 if [[ $rebuilt != "$published" ]]; then
   echo "::error::$newest rebuilt for $arch has digest $rebuilt, the registry has $published."
