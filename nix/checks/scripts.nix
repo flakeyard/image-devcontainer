@@ -1,5 +1,7 @@
 # The scripts of the apps and of .github pass shellcheck and their unit
-# tests, whose suites are at the paths of the scripts under tests/unit.
+# tests, whose suites are at the paths of the scripts under tests/unit. The
+# smoke tests and their probes, which need a container engine, pass
+# shellcheck.
 {
   perSystem =
     { pkgs, ... }:
@@ -19,6 +21,7 @@
             scripts = ../../scripts;
             stubs = ../../tests/bin;
             unit = ../../tests/unit;
+            smoke = ../../tests/smoke;
             # A store path name cannot start with a period.
             github = builtins.path {
               name = "github";
@@ -28,6 +31,7 @@
           ''
             shellcheck "$scripts"/*.sh "$scripts"/*/*.sh "$stubs"/* "$github"/scripts/*.sh "$github"/actions/*/*.sh
             shellcheck -x "$unit"/lib.sh "$unit"/*/*.sh
+            shellcheck -x "$smoke"/*.sh "$smoke"/probes/*.sh
             # The sandbox has no /usr/bin/env.
             cp -r "$scripts" scripts && cp -r "$stubs" stubs && cp -r "$github" github
             chmod -R u+w scripts stubs github
