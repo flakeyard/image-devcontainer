@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Unit tests of scripts/publish/verify.sh, with stubs of crane, regctl, docker
 # and gh and a registry in a directory. The release is published with
-# scripts/publish/index.sh. Inputs (environment): SCRIPTS, the scripts
-# directory; STUBS, the stubs.
+# scripts/publish/index.sh and scripts/publish/tag.sh. Inputs (environment):
+# SCRIPTS, the scripts directory; STUBS, the stubs.
 set -uo pipefail
 export LC_ALL=C
 
@@ -26,9 +26,13 @@ setup() {
   done
 }
 
-# published: a release 1.2.3 as publish-index leaves it; prints its digest.
+# published: a release 1.2.3 as publish-index and publish-tag leave it;
+# prints its digest.
 published() {
-  "$SCRIPTS/publish/index.sh" "$repo" 1.2.3 abc123 "$amd64" "$arm64" 2>/dev/null
+  local digest
+  digest=$("$SCRIPTS/publish/index.sh" "$repo" 1.2.3 abc123 "$amd64" "$arm64" 2>/dev/null)
+  "$SCRIPTS/publish/tag.sh" "$repo" 1.2.3 "$digest" >/dev/null 2>&1
+  echo "$digest"
 }
 verify() {
   "$SCRIPTS/publish/verify.sh" flakeyard/image-devcontainer "$repo" "$index" 1.2.3 abc123 amd64 "$1"

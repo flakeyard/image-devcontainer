@@ -152,7 +152,8 @@ lists the license of every package (predicate type `https://cyclonedx.org/bom`).
 ## Registry
 
 - `vX.Y.Z` is set once and never moved; `vX` points at the newest published
-  `vX.Y.Z`; there is no `latest`.
+  `vX.Y.Z`; there is no `latest`. Both are set only after the manifest list has
+  its provenance attestation.
 - Platform manifests are pushed by digest without tags. The tags `sha256-*` hold
   the attestations. Neither is ever deleted, and nothing cleans up the package.
 - The same commit yields the same digests. An update of `flake.lock` can change
