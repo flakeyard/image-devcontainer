@@ -1,9 +1,12 @@
-# CI of this repository on both architectures. Weekly, because runner image
-# updates can break the image's tests without a change here.
+# CI of this repository on both architectures, then workflow-check over its
+# jobs, whose check / required is the required check (FY-0031). Weekly,
+# because runner image updates can break the image's tests without a change
+# here.
 name: test
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, edited] # edited: the title check
   push:
     branches: [main, "release/v*"]
   schedule:
@@ -14,33 +17,14 @@ permissions: {}
 
 concurrency:
   group: test-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # A title or description edit must not cancel a long run.
+  cancel-in-progress: >-
+    ${{ github.event_name == 'pull_request'
+        && github.event.action != 'edited' }}
 
 jobs:
-  pending:
-    name: Report pending
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    permissions:
-      statuses: write # commit status of a dispatched run
-    steps:
-      - shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
-          STATE: pending
-          CONTEXT: required
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        # The script is not checked out yet; this is its one call.
-        run: >-
-          gh api --silent -X POST "repos/$REPO/statuses/$SHA"
-          -f state="$STATE" -f context="$CONTEXT" -f target_url="$RUN_URL"
-          -f description="GitHub Actions run"
-
-  check:
-    name: Check on ${{ matrix.runner }}
+  image:
+    name: Image on ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
@@ -87,31 +71,18 @@ jobs:
         shell: bash
         run: nix run --no-update-lock-file .#check-licenses -- "$RUNNER_TEMP/sbom.cdx.json"
 
-  required:
-    name: required
-    needs: [pending, check, licenses]
-    if: always()
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
+  check:
+    needs: [image, licenses]
+    # Dispatched runs post their final status on every outcome.
+    if: ${{ !cancelled() || github.event_name == 'workflow_dispatch' }}
+    uses: flakeyard/workflow-check/.github/workflows/check.yaml@30e031ba81beb738ab4cbe18425a8f4f7a6af552 # v0.1.0
     permissions:
-      contents: read
-      statuses: write # commit status of a dispatched run
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - id: result
-        shell: bash
-        env:
-          NEEDS: ${{ toJSON(needs) }}
-        run: .github/scripts/required.sh
-      - if: always() && github.event_name == 'workflow_dispatch'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
-          STATE: ${{ steps.result.outcome == 'success' && 'success' || 'failure' }}
-          CONTEXT: required
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: .github/scripts/commit-status.sh
+      actions: read # own job name and the jobs of the run
+      contents: read # repository files through the contents API
+      pull-requests: read # the title of the pull request
+      statuses: write # commit statuses of dispatched runs
+    with:
+      needs: ${{ toJSON(needs) }}
+      # The job image runs nix flake check itself, before the smoke tests.
+      flake: ""
+      renovate-presets: '["flakeyard/renovate-config"]'

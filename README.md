@@ -170,11 +170,15 @@ the image after `action-setup-nix` has released it.
 - `nix run .#check-licenses -- sbom.cdx.json` generates the SBOM and checks the
   licenses.
 
-CI runs all of them on both architectures; the release workflow publishes the
-image ([FY-0027][fy-0027]). The weekly workflow `maintenance.yaml`, which is
-not a required check, warns before the nixpkgs branch in `nixpkgs-eol` reaches
-its end of life and rebuilds the newest release to compare its digests with
-the registry.
+CI runs all of them on both architectures and ends with
+[workflow-check][workflow-check], which checks the pull request title,
+`renovate.json` and the release behind its preset tag and reports the only
+required check, `check / required` ([FY-0031][fy-0031]). The release workflow
+publishes the image ([FY-0027][fy-0027]), and `scorecard.yaml` runs OpenSSF
+Scorecard on `main`. The weekly workflow `maintenance.yaml`, which is not a
+required check, warns before the nixpkgs branch in `nixpkgs-eol` reaches its end
+of life and rebuilds the newest release to compare its digests with the
+registry.
 
 Every app has a file under `nix/apps/` with its description and tools, and a
 script at the same path under `scripts/`; it is named after the path, so
@@ -191,14 +195,7 @@ are released:
 - actionlint, zizmor, shellcheck, shfmt, statix, deadnix, Prettier,
   markdownlint, typos and `reuse lint` run locally before every pull request
   (provider: `workflow-check` and the atoms);
-- pull request titles are checked by the reviewer (provider: `workflow-check`);
-- rulesets require no status checks (provider: `workflow-check`);
-- the jobs `pending` and `required` of `.github/workflows/test.yaml` and
-  `.github/scripts/commit-status.sh` and `required.sh` are a copy shared with
-  the other bootstrapped repositories (provider: `workflow-check`);
-- CI does not check that the tag of the preset in `renovate.json` belongs to an
-  immutable release ([FY-0028][fy-0028]) (provider: `workflow-check`);
-- OpenSSF Scorecard is not run (provider: `workflow-check`).
+- rulesets require no status checks (provider: `workflow-check`).
 
 ## License
 
@@ -206,8 +203,14 @@ are released:
 
 [releases]: https://github.com/flakeyard/image-devcontainer/releases
 [versioning]: https://github.com/flakeyard/.github/blob/main/VERSIONING.md
-[fy-0005]: https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0005-dev-container-image.md
-[fy-0026]: https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0026-stable-nixpkgs.md
-[fy-0027]: https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0027-publish-image.md
-[fy-0022]: https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0022-bootstrap.md
-[fy-0028]: https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0028-supply-chain.md
+[fy-0005]:
+  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0005-dev-container-image.md
+[fy-0026]:
+  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0026-stable-nixpkgs.md
+[fy-0027]:
+  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0027-publish-image.md
+[fy-0022]:
+  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0022-bootstrap.md
+[fy-0031]:
+  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0031-check-pull-requests-and-pushes-with-workflow-check.md
+[workflow-check]: https://github.com/flakeyard/workflow-check
