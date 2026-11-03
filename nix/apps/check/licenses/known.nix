@@ -29,6 +29,8 @@ lib.genAttrs nixComponents (_: ids nixLibrary)
   # Our own derivations: the entrypoint and the links that keep paths alive.
   entrypoint = [ lib.licenses.mit.spdxId ];
   image-roots = [ lib.licenses.mit.spdxId ];
+  # Links to the client of OpenSSH.
+  openssh-client = ids pkgs.openssh;
   # Links to bash and env made by dockerTools.
   bin-sh = ids pkgs.bashInteractive;
   usr-bin-env = ids pkgs.coreutils;
