@@ -68,7 +68,8 @@ it.
      is a mount point itself;
   2. starts the Nix daemon, restarts it when it exits, and waits until it
      answers; with a read-only `/nix`, it says so and runs the command without
-     the daemon;
+     the daemon. The daemon logs to `/var/log/nix-daemon.log`, which moves to
+     `/var/log/nix-daemon.log.old` past 10 MiB;
   3. runs the command as `dev` under `tini`, which reaps orphaned processes and
      forwards signals.
 

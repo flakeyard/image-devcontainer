@@ -23,6 +23,8 @@ setup() {
   # shellcheck source-path=SCRIPTDIR source=../../entrypoint/entrypoint.sh
   source "$ENTRYPOINT"
   passwd_file=$work/etc/passwd group_file=$work/etc/group home=$work/home
+  mountinfo=$work/mountinfo
+  : >"$mountinfo"
   MOUNT="" OWNER="1000 1000"
   is_mount() { [[ -n $MOUNT ]]; }
   owner_of() { echo "$OWNER"; }
@@ -239,10 +241,43 @@ chmod 755 "$work/etc"
 expect message "cannot change 'dev' to 1002:1002"
 finish
 
+# mounted PATH: a line of mountinfo for a mount point at PATH, escaped.
+mounted() {
+  local path=$1
+  path=${path//\\/\\134} path=${path// /\\040} path=${path//$'\t'/\\011} path=${path//$'\n'/\\012}
+  printf '36 35 0:40 / %s rw,relatime - ext4 /dev/sda1 rw\n' "$path"
+}
+
 setup
-begin "keeps only the paths on the device of home"
-out=$(printf '%s\0' 2049 /home/a 66 /home/mounted 2049 $'/home/new\nline' | paths_on 2049 | tr '\0' '|')
-[[ $out == $'/home/a|/home/new\nline|' ]] || report "paths: $out"
+begin "leaves out the mount points under home"
+for path in "$home/mounted dir" "$home/new"$'\n'"line" "$home/back\\slash" /elsewhere; do
+  mounted "$path" >>"$mountinfo"
+done
+out=$(printf '%s\0' "$home/a" "$home/mounted dir" "$home/new"$'\n'"line" "$home/back\\slash" "$home/b" | not_mounted | tr '\0' '|')
+[[ $out == "$home/a|$home/b|" ]] || report "paths: $out"
+finish
+
+# Files of the image layers on overlayfs may have another device than home.
+setup
+sed -i "s/^dev:x:1000:1000:/dev:x:$(id -u):$(id -g):/" "$work/etc/passwd"
+sed -i "s/^dev:x:1000:/dev:x:$(id -g):/" "$work/etc/group"
+mkdir "$work/home/project"
+touch "$work/home/.gitconfig"
+mounted "$work/home/project" >"$mountinfo"
+mounted "$work/home/.gitconfig" >>"$mountinfo"
+run "gives the files under home to dev, but not mount points" ok set_identity 1002 1003
+if still_passing; then
+  grep -qx "$work/home/.config/file" "$work/chowned" || report "files not given: $(paste -sd' ' "$work/chowned")"
+  ! grep -qx -e "$work/home/project" -e "$work/home/.gitconfig" "$work/chowned" ||
+    report "mount points given away: $(paste -sd' ' "$work/chowned")"
+fi
+finish
+
+setup
+mountinfo=$work/missing
+run "keeps the files when the mount points are unknown" fail set_identity 1002 1002
+expect message "cannot give the files of 'dev'"
+[[ ! -s $work/chowned ]] || report "files changed owner: $(paste -sd' ' "$work/chowned")"
 finish
 
 for identity in "0 1000" "1000 0" "4294967296 1000" "x 1000" "1000 1000"; do
@@ -302,6 +337,28 @@ run "gives up after five quick exits of the daemon" any supervise
 unset -f sleep
 [[ $(wc -l <"$work/starts") == 5 ]] || report "started $(wc -l <"$work/starts") times"
 expect message "nix-daemon exited 5 times in a row, giving up"
+finish
+
+setup
+daemon_log_max_bytes=10
+printf '%s\n' first-line >"$work/daemon.log"
+run "moves a full daemon log aside" ok append_bounded "$work/daemon.log" <<<"second-line"
+expect line "$work/daemon.log.old" first-line
+expect line "$work/daemon.log" second-line
+if still_passing && grep -q first-line "$work/daemon.log"; then report "the old lines stayed"; fi
+finish
+
+setup
+run "appends to a daemon log below its size" ok append_bounded "$work/daemon.log" <<<$'one\ntwo'
+expect line "$work/daemon.log" one
+expect line "$work/daemon.log" two
+[[ ! -e $work/daemon.log.old ]] || report "the log moved aside"
+finish
+
+setup
+daemon_log_max_bytes=0
+run "passes the daemon log through when it is not a regular file" ok append_bounded /dev/stdout <<<"to-the-container"
+expect output "to-the-container"
 finish
 
 summary

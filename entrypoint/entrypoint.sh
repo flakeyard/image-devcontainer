@@ -12,6 +12,7 @@ passwd_file=/etc/passwd
 group_file=/etc/group
 socket=/nix/var/nix/daemon-socket/socket
 daemon_log=/var/log/nix-daemon.log
+mountinfo=/proc/self/mountinfo
 ca_file=/etc/ssl/certs/ca-certificates.crt
 # PATH of the command run as dev, and of the Nix processes run as root. Root's
 # is fixed: not the container's, and never dev's profile, which dev controls.
@@ -30,6 +31,9 @@ daemon_poll=0.1
 max_quick_exits=5
 quick_exit_seconds=60
 restart_delay=1
+# The daemon log moves to $daemon_log.old past this size, so that it takes at
+# most twice as much of the container's disk (bytes).
+daemon_log_max_bytes=$((10 * 1024 * 1024))
 
 # The largest uid and gid: 4294967295 means "unchanged" to setresuid, and
 # larger values wrap around to 0.
@@ -191,36 +195,54 @@ rewrite_passwd() {
 # own_home "OLD_UID OLD_GID" UID GID: gives the files of `dev` under home to
 # UID:GID, unless home itself is mounted: then all of it belongs to the host.
 own_home() {
-  local old=$1 uid=$2 gid=$3 old_uid old_gid home_dev
+  local old=$1 uid=$2 gid=$3 old_uid old_gid
   if is_mount "$home"; then
     log "$home is a mount point: its files keep their owner"
     return 0
   fi
   read -r old_uid old_gid <<<"$old"
-  home_dev=$(stat -c %d -- "$home")
   # Owner and group apart: a file of root in the group of dev stays root's.
-  if ! own_files -user "$old_uid" "$uid" "$home_dev" ||
-    ! own_files -group "$old_gid" ":$gid" "$home_dev"; then
+  if ! own_files -user "$old_uid" "$uid" || ! own_files -group "$old_gid" ":$gid"; then
     log "cannot give the files of '$user' under $home to $uid:$gid"
     return 1
   fi
 }
 
-# own_files TEST OLD NEW DEVICE: gives the files under home that match
-# `find TEST OLD` and are on DEVICE to NEW. chown -h does not follow a link at
-# the end of a path, but a process of dev that replaces a directory of the
+# own_files TEST OLD NEW: gives the files under home that match `find TEST
+# OLD` to NEW, except mount points: find -xdev does not enter a mounted
+# directory but lists it, and lists mounted files. Their device would not tell
+# them apart: on overlayfs with layers on different file systems, files have
+# the device of their layer, not that of home. chown -h does not follow a link
+# at the end of a path, but a process of dev that replaces a directory of the
 # path with a link while the container starts could redirect it; chown -R
 # would not, but it would also cross into mounted files of the host.
 own_files() {
-  local test=$1 old=$2 new=$3 device=$4
-  find "$home" -xdev "$test" "$old" -printf '%D\0%p\0' | paths_on "$device" | change_owner "$new"
+  local test=$1 old=$2 new=$3
+  # Without the mount points, mounted files of the host would change owner.
+  [[ -r $mountinfo ]] || return 1
+  find "$home" -xdev "$test" "$old" -print0 | not_mounted | change_owner "$new"
 }
 
-# paths_on DEVICE: of the NUL-separated pairs of device and path on stdin,
-# prints the paths on DEVICE, NUL-separated.
-paths_on() {
-  local device=$1
-  awk -v RS='\0' -v ORS='\0' -v device="$device" 'NR % 2 { on = ($0 == device); next } on'
+# not_mounted: of the NUL-separated paths on stdin, prints those that are not
+# mount points, NUL-separated.
+not_mounted() {
+  awk -v RS='\0' -v ORS='\0' 'FILENAME == ARGV[1] { mounted[$0]; next } !($0 in mounted)' <(mount_points) -
+}
+
+# mount_points: the mount points of mountinfo under home, NUL-separated.
+# Mountinfo writes a space, tab, newline or backslash as an octal escape.
+mount_points() {
+  awk -v ORS='\0' -v prefix="$home/" '
+    function decode(path,  decoded) {
+      while (match(path, /\\[0-7][0-7][0-7]/)) {
+        decoded = decoded substr(path, 1, RSTART - 1) sprintf("%c", octal(substr(path, RSTART + 1, 3)))
+        path = substr(path, RSTART + 4)
+      }
+      return decoded path
+    }
+    function octal(digits) { return substr(digits, 1, 1) * 64 + substr(digits, 2, 1) * 8 + substr(digits, 3, 1) }
+    { point = decode($5) }
+    index(point, prefix) == 1 { print point }' "$mountinfo"
 }
 
 # give_streams UID GID: gives stdin, stdout and stderr to the user when the
@@ -265,13 +287,29 @@ supervise() {
   local exits=0 started
   while ((exits < max_quick_exits)); do
     started=$SECONDS
-    as_root nix-daemon >>"$daemon_log" 2>&1 || true
+    as_root nix-daemon 2>&1 | append_bounded "$daemon_log" || true
     if ((SECONDS - started >= quick_exit_seconds)); then exits=0; fi
     exits=$((exits + 1))
     log "nix-daemon exited, restarting (see $daemon_log)"
     sleep "$restart_delay"
   done
   log "nix-daemon exited $exits times in a row, giving up"
+}
+
+# append_bounded FILE: appends the lines of stdin to FILE. A regular FILE
+# larger than daemon_log_max_bytes moves to FILE.old first.
+append_bounded() {
+  local file=$1 line
+  while IFS= read -r line || [[ -n $line ]]; do
+    if too_large "$file"; then mv -f -- "$file" "$file.old" || true; fi
+    printf '%s\n' "$line" >>"$file"
+  done
+}
+
+# too_large FILE: FILE is a regular file larger than daemon_log_max_bytes.
+too_large() {
+  local file=$1 size
+  [[ -f $file ]] && size=$(stat -c %s -- "$file") && ((size > daemon_log_max_bytes))
 }
 
 # writable DIR: DIR exists and a file can be created in it; on a read-only
