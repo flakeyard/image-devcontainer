@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.1](https://github.com/flakeyard/image-devcontainer/compare/v0.1.0...v0.1.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* entrypoint mount detection and a bounded daemon log ([#44](https://github.com/flakeyard/image-devcontainer/issues/44)) ([81fa352](https://github.com/flakeyard/image-devcontainer/commit/81fa352d614a5e95ecffb5acf0d095e45372cd29))
+* idempotent release notes and a clean rebuild check ([#43](https://github.com/flakeyard/image-devcontainer/issues/43)) ([8d7f0fe](https://github.com/flakeyard/image-devcontainer/commit/8d7f0fe4e1e60168742e6b8f6e751576195a376b))
+* tag the manifest list only after its attestation ([#41](https://github.com/flakeyard/image-devcontainer/issues/41)) ([2a31537](https://github.com/flakeyard/image-devcontainer/commit/2a315374654554dddb9c4bc89b96c99f1924452b))
+* the image root and the OpenSSH client without stray entries ([#42](https://github.com/flakeyard/image-devcontainer/issues/42)) ([473fd89](https://github.com/flakeyard/image-devcontainer/commit/473fd89b4529ee93831dacd5d932e4872fc1bfa0))
+* verify the manifest list against the commit of its git tag ([#47](https://github.com/flakeyard/image-devcontainer/issues/47)) ([33eed76](https://github.com/flakeyard/image-devcontainer/commit/33eed764e95df3bfdf3ba694011497fb3a295fa1))
+
 ## 0.1.0 (2026-10-31)
 
 
