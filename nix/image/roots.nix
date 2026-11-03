@@ -19,8 +19,9 @@
       };
       config.image.roots = pkgs.linkFarm "image-roots" (
         map (path: {
-          # The name only; `path` keeps the dependency.
-          name = builtins.unsafeDiscardStringContext (baseNameOf path);
+          # Nested, because the image root merges the top level of every
+          # path of its contents. The name only; `path` keeps the dependency.
+          name = "nix-support/image-roots/${builtins.unsafeDiscardStringContext (baseNameOf path)}";
           inherit path;
         }) (lib.unique ([ entrypoint ] ++ foreign.paths))
       );

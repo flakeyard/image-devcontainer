@@ -22,6 +22,10 @@ run -i -- bash -s <"$probes/tools.sh"
 expect_line "done"
 expect_no_text "missing"
 
+test_case "the image root has no entries named after store paths"
+run -- ls -A /
+! grep -qE '^[0-9a-z]{32}-' <<<"$output" || fail "store path names in /: $output"
+
 test_case "interactive and login shells have the direnv hook"
 run -- bash -ic 'type -t _direnv_hook'
 expect_line "function"
