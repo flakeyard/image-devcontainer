@@ -111,9 +111,9 @@ it.
   space runs low.
 - **Tools.** `nix`, `direnv`, `nix-direnv`, `bash`, coreutils, findutils,
   diffutils, `grep`, `sed`, `awk`, `tar`, `gzip`, `xz`, `bzip2`, `zstd`, `less`,
-  procps, `which`, util-linux, `getent`, `curl`, `git`, the OpenSSH client, CA
-  certificates, time zones and service names. Interactive and login shells load
-  the direnv hook.
+  procps, `which`, util-linux, `getent`, `curl`, `git`, the OpenSSH client
+  without its server, CA certificates, time zones and service names. Interactive
+  and login shells load the direnv hook.
 - **Foreign binaries.** Editor servers built for other distributions run through
   nix-ld at the standard loader path, with `libstdc++` and `libgcc_s` besides
   glibc, as VS Code Server needs.

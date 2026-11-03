@@ -17,10 +17,15 @@ test_case "runs the command as dev with its home"
 run -- bash -c 'echo "$(id -u):$(id -g) $HOME $USER $LOGNAME"'
 expect_line "1000:1000 /home/dev dev dev"
 
-test_case "has the tools by name"
+test_case "has the tools by name, and the client of OpenSSH only"
 run -i -- bash -s <"$probes/tools.sh"
 expect_line "done"
 expect_no_text "missing"
+expect_no_text "ssh-server"
+
+test_case "the image root has no entries named after store paths"
+run -- ls -A /
+! grep -qE '^[0-9a-z]{32}-' <<<"$output" || fail "store path names in /: $output"
 
 test_case "interactive and login shells have the direnv hook"
 run -- bash -ic 'type -t _direnv_hook'
