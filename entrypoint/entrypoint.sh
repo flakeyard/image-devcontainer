@@ -31,6 +31,9 @@ daemon_poll=0.1
 max_quick_exits=5
 quick_exit_seconds=60
 restart_delay=1
+# The daemon log moves to $daemon_log.old past this size, so that it takes at
+# most twice as much of the container's disk (bytes).
+daemon_log_max_bytes=$((10 * 1024 * 1024))
 
 # The largest uid and gid: 4294967295 means "unchanged" to setresuid, and
 # larger values wrap around to 0.
@@ -284,13 +287,29 @@ supervise() {
   local exits=0 started
   while ((exits < max_quick_exits)); do
     started=$SECONDS
-    as_root nix-daemon >>"$daemon_log" 2>&1 || true
+    as_root nix-daemon 2>&1 | append_bounded "$daemon_log" || true
     if ((SECONDS - started >= quick_exit_seconds)); then exits=0; fi
     exits=$((exits + 1))
     log "nix-daemon exited, restarting (see $daemon_log)"
     sleep "$restart_delay"
   done
   log "nix-daemon exited $exits times in a row, giving up"
+}
+
+# append_bounded FILE: appends the lines of stdin to FILE. A regular FILE
+# larger than daemon_log_max_bytes moves to FILE.old first.
+append_bounded() {
+  local file=$1 line
+  while IFS= read -r line || [[ -n $line ]]; do
+    if too_large "$file"; then mv -f -- "$file" "$file.old" || true; fi
+    printf '%s\n' "$line" >>"$file"
+  done
+}
+
+# too_large FILE: FILE is a regular file larger than daemon_log_max_bytes.
+too_large() {
+  local file=$1 size
+  [[ -f $file ]] && size=$(stat -c %s -- "$file") && ((size > daemon_log_max_bytes))
 }
 
 # writable DIR: DIR exists and a file can be created in it; on a read-only

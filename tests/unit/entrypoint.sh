@@ -339,4 +339,26 @@ unset -f sleep
 expect message "nix-daemon exited 5 times in a row, giving up"
 finish
 
+setup
+daemon_log_max_bytes=10
+printf '%s\n' first-line >"$work/daemon.log"
+run "moves a full daemon log aside" ok append_bounded "$work/daemon.log" <<<"second-line"
+expect line "$work/daemon.log.old" first-line
+expect line "$work/daemon.log" second-line
+if still_passing && grep -q first-line "$work/daemon.log"; then report "the old lines stayed"; fi
+finish
+
+setup
+run "appends to a daemon log below its size" ok append_bounded "$work/daemon.log" <<<$'one\ntwo'
+expect line "$work/daemon.log" one
+expect line "$work/daemon.log" two
+[[ ! -e $work/daemon.log.old ]] || report "the log moved aside"
+finish
+
+setup
+daemon_log_max_bytes=0
+run "passes the daemon log through when it is not a regular file" ok append_bounded /dev/stdout <<<"to-the-container"
+expect output "to-the-container"
+finish
+
 summary
