@@ -5,7 +5,7 @@
   nixConfig.extra-substituters = [ "https://untrusted.invalid" ];
 
   outputs =
-    { self }:
+    _:
     let
       shell =
         system:
