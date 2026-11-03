@@ -194,8 +194,7 @@ are released:
 
 - actionlint, zizmor, shellcheck, shfmt, statix, deadnix, Prettier,
   markdownlint, typos and `reuse lint` run locally before every pull request
-  (provider: `workflow-check` and the atoms);
-- rulesets require no status checks (provider: `workflow-check`).
+  (provider: `workflow-check` and the atoms).
 
 ## License
 
