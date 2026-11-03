@@ -3,7 +3,8 @@
 # FY-0027). Inputs (environment): GH_TOKEN, REPOSITORY, TAG, REFERENCE.
 set -euo pipefail
 line="Image: \`$REFERENCE\`"
-notes=$(gh release view "$TAG" --repo "$REPOSITORY" --json body --jq .body)
+# Notes edited on the web have CRLF line endings.
+notes=$(gh release view "$TAG" --repo "$REPOSITORY" --json body --jq .body | tr -d '\r')
 if grep -qxF -- "$line" <<<"$notes"; then
   echo "The notes of $TAG already name $REFERENCE."
   exit 0
