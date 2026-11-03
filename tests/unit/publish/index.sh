@@ -28,10 +28,10 @@ setup() {
 publish() { "$SCRIPTS/publish/index.sh" "$repo" 1.2.3 abc123 "$amd64" "$arm64"; }
 
 setup
-run "publish-index: pushes the list by digest, then tags it" ok publish
+run "publish-index: pushes the list by digest without a tag" ok publish
 digest=$(printed)
-expect calls "put $digest;tag v1.2.3 $digest"
-expect tag v1.2.3 "$digest"
+expect calls "put $digest"
+expect tag v1.2.3 ""
 if still_passing; then
   jq -e '.manifests[0].platform.architecture == "amd64" and .manifests[1].platform.architecture == "arm64"
     and .annotations["org.opencontainers.image.version"] == "1.2.3"
@@ -98,7 +98,7 @@ finish
 setup
 run "publish-index: first run" ok publish
 digest=$(printed)
-rm "$REGISTRY/tags/v1.2.3" && echo "$digest" >"$REGISTRY/tags/v1.2.3"
+echo "$digest" >"$REGISTRY/tags/v1.2.3"
 : >"$CALLS"
 run "publish-index: a tag already at the digest is left alone" ok publish
 expect calls "put $digest"

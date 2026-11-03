@@ -169,7 +169,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin <<<"$GH_TOKEN"
       - id: index
-        name: Manifest list and release tag
+        name: Manifest list
         shell: bash
         env:
           VERSION: ${{ needs.release.outputs.version }}
@@ -179,16 +179,23 @@ jobs:
         run: |
           digest=$(nix run --no-update-lock-file .#publish-index -- "$IMAGE" "$VERSION" "$REVISION" "$AMD64" "$ARM64")
           echo "digest=$digest" >>"$GITHUB_OUTPUT"
-      - name: Major version tag
-        shell: bash
-        env:
-          MAJOR: ${{ needs.release.outputs.major }}
-        run: nix run --no-update-lock-file .#publish-major -- "$IMAGE" "$MAJOR"
+      # Before any tag, so that no tag points at a list without provenance.
       - name: Provenance
         uses: $/.github/actions/attest-once
         with:
           image: ${{ env.IMAGE }}
           digest: ${{ steps.index.outputs.digest }}
+      - name: Release tag
+        shell: bash
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+          DIGEST: ${{ steps.index.outputs.digest }}
+        run: nix run --no-update-lock-file .#publish-tag -- "$IMAGE" "$VERSION" "$DIGEST"
+      - name: Major version tag
+        shell: bash
+        env:
+          MAJOR: ${{ needs.release.outputs.major }}
+        run: nix run --no-update-lock-file .#publish-major -- "$IMAGE" "$MAJOR"
       - name: Name the image in the release notes
         shell: bash
         env:

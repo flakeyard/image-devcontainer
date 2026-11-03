@@ -2,10 +2,11 @@
 # Usage: publish-index REPOSITORY VERSION REVISION AMD64_DIGEST ARM64_DIGEST
 #
 # Publishes the manifest list of a release (FY-0027): writes it as canonical
-# JSON with the version and commit as annotations, pushes it by its digest,
-# then sets the tag vVERSION when it is absent. Fails when the tag points at
-# another digest or its state cannot be read. Prints the digest of the list.
-# The registry login must exist.
+# JSON with the version and commit as annotations and pushes it by its digest.
+# publish-tag sets the tag vVERSION once the list is attested. Fails before
+# the push when the tag points at another digest or its state cannot be read,
+# so that a list that can never be tagged is neither pushed nor attested.
+# Prints the digest of the list. The registry login must exist.
 set -euo pipefail
 # Command substitutions fail like other commands.
 shopt -s inherit_errexit
@@ -113,13 +114,9 @@ arm64_entry=$(descriptor "$arm64" arm64)
 index=$(index_manifest "$amd64_entry" "$arm64_entry")
 digest=$(content_digest "$index")
 
-# The tag may only be set when absent or already at the digest.
+# The tag may only be set later when absent or already at the digest.
 state=$(tag_state "$tag")
 check_tag_immutable "$state" "$digest"
 
-# The list is pushed by its digest before the tag points at it.
 printf '%s' "$index" | regctl manifest put --content-type "$index_type" "$repository@$digest" >&2
-if [[ $state == absent ]]; then
-  crane tag "$repository@$digest" "$tag" >&2
-fi
 echo "$digest"
