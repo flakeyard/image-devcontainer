@@ -36,7 +36,7 @@ jobs:
 
   # Tests the image of the release commit, without write permissions.
   build-test:
-    name: Test ${{ matrix.arch }}
+    name: Test
     needs: release
     if: ${{ !cancelled() && needs.release.outputs.released == 'true' }}
     strategy:
@@ -78,7 +78,7 @@ jobs:
 
   # Pushes the tested image of each platform and attests it.
   push:
-    name: Push ${{ matrix.arch }}
+    name: Push
     needs: [release, build-test]
     if: ${{ !cancelled() && needs.build-test.result == 'success' }}
     strategy:
@@ -215,7 +215,7 @@ jobs:
 
   # Pulls the published image back on both architectures.
   verify:
-    name: Verify on ${{ matrix.runner }}
+    name: Verify
     needs: [release, build-test, index]
     if: ${{ !cancelled() && needs.index.result == 'success' }}
     strategy:
