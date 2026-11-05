@@ -1,4 +1,4 @@
-# shellcheck shell=bash disable=SC2016,SC2034,SC2154 # container commands; output and tests are shared with lib.sh and smoke.sh
+# shellcheck shell=bash disable=SC2016,SC2034,SC2154 # container commands; output and fixtures are shared with lib.sh
 # Smoke tests of foreign binaries, project shells and the Dev Containers tools
 # (ADR-0001). Sourced by scripts/smoke.sh after tests/smoke/lib.sh. Inputs
 # (environment): IMAGE; EXPECTED (foreign-libraries); EDITOR_SERVER, an
@@ -83,7 +83,7 @@ remove "$id"
 # --- project shells -----------------------------------------------------------------
 
 test_case "direnv enters a project shell with use flake"
-cp -R "$tests/../fixture/project" "$WORK/project-shell"
+cp -R "$fixtures/project" "$WORK/project-shell"
 sudo chown -R 1004:1004 "$WORK/project-shell"
 run -i -v "$WORK/project-shell:/home/dev/project" -w /home/dev/project -- bash -s <"$probes/project-shell.sh"
 expect_line "print-dev-env-ok"

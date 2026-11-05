@@ -10,17 +10,15 @@
 # repository), DIGEST, PREDICATE (empty for provenance).
 set -euo pipefail
 shopt -s inherit_errexit
+# The checks of the publish apps, from the same commit as this action.
+# shellcheck source=/dev/null # scripts/publish/lib.sh
+source "${BASH_SOURCE[0]%/*}/../../../scripts/publish/lib.sh"
 
 readonly provenance=https://slsa.dev/provenance/v1
 readonly not_found='HTTP 404'
 predicate=${PREDICATE:-$provenance}
 work=$(mktemp -d)
 trap 'rm -rf -- "$work"' EXIT
-
-fail() {
-  echo "error: $1" >&2
-  exit 1
-}
 
 set_output() {
   local attested=$1
@@ -29,9 +27,7 @@ set_output() {
 
 # Keeps the errors of the verification in $work/verify.
 verifies() {
-  gh attestation verify "oci://$IMAGE@$DIGEST" --repo "$REPOSITORY" \
-    --signer-workflow "$REPOSITORY/.github/workflows/release.yaml" \
-    --deny-self-hosted-runners --predicate-type "$predicate" >/dev/null 2>"$work/verify"
+  verify_attestation "$REPOSITORY" "$IMAGE" "$DIGEST" --predicate-type "$predicate" 2>"$work/verify"
 }
 
 # Prints the attestations of the digest as the API lists them; a 404 of the

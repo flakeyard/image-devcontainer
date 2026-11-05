@@ -213,10 +213,11 @@ to compare its digests with the registry.
 Every app has a file under `nix/apps/` with its description and tools, and a
 script at the same path under `scripts/`; it is named after the path, so
 `nix/apps/check/size.nix` and `scripts/check/size.sh` are the app `check-size`.
-The apps `publish-*` publish the image and share the checks in
-`scripts/publish/lib.sh`. The unit tests of a script are at its path under
-`tests/unit/`; those of the release workflow and its scripts are in
-`tests/unit/release/`.
+The apps that build the image do it through `scripts/lib/image.sh`. The apps
+`publish-*` publish the image and share the checks in `scripts/publish/lib.sh`,
+which the action `attest-once` sources as well. The unit tests of a script are
+at its path under `tests/unit/`; those of the release workflow and its scripts
+are in `tests/unit/release/`.
 
 ## Bootstrap
 

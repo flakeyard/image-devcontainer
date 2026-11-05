@@ -17,7 +17,7 @@ setup() {
   export PATH=$STUBS:$PATH SYSTEM=x86_64-linux CALLS=$work/calls
   export SBOM=$work/sbom.json CLOSURE=$work/closure CLOSURE_ROOT=$root
   export NON_REDISTRIBUTABLE=$work/deny KNOWN_LICENSES=$work/known.json
-  export LICENSES_JQ=$SCRIPTS/check/licenses
+  export LICENSES_JQ=$SCRIPTS/check/licenses IMAGE_LIB=$SCRIPTS/lib/image.sh
   printf '%s\n%s\n' "$a" "$b" >"$CLOSURE"
   printf 'BUSL-1.1\nunfree\n' >"$NON_REDISTRIBUTABLE"
   echo '{"nix-cmd": ["LGPL-2.1-or-later"]}' >"$KNOWN_LICENSES"
