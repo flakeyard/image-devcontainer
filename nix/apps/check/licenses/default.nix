@@ -20,5 +20,6 @@ in
     CLOSURE_ROOT = "${image.closureRoot}";
     LICENSES_JQ = "${../../../../scripts/check/licenses}";
     KNOWN_LICENSES = "${knownLicenses}";
+    IMAGE_LIB = "${../../../../scripts/lib/image.sh}";
   };
 }

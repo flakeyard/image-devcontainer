@@ -13,5 +13,6 @@
   environment = {
     EXPECTED = "${config.packages.image.expected}";
     EDITOR_SERVER = "${import ./editor-server.nix { inherit pkgs; }}";
+    IMAGE_LIB = "${../../../scripts/lib/image.sh}";
   };
 }

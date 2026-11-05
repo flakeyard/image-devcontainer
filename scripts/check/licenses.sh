@@ -12,12 +12,15 @@
 # the image; NON_REDISTRIBUTABLE, identifiers of licenses that forbid
 # redistribution, one per line, from nixpkgs; KNOWN_LICENSES, a JSON object of
 # component names and SPDX identifiers for components sbomnix cannot match;
-# LICENSES_JQ, the directory of the jq programs of these steps.
+# LICENSES_JQ, the directory of the jq programs of these steps; IMAGE_LIB,
+# scripts/lib/image.sh.
 set -euo pipefail
 shopt -s inherit_errexit
 
 output=$1
-system=$(nix eval --raw --impure --expr builtins.currentSystem)
+# shellcheck source=/dev/null # scripts/lib/image.sh, from the app
+source "$IMAGE_LIB"
+system=$(current_system)
 
 # generate_sbom FILE: writes the SBOM of the image as sbomnix makes it.
 generate_sbom() {
