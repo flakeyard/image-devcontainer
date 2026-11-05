@@ -1,10 +1,18 @@
 # shellcheck shell=bash disable=SC2154 # repository and work come from the script
-# Checks of the arguments and the release tag that the publish-* scripts
-# share, sourced from $PUBLISH_LIB (FY-0032). tag_state and
-# check_tag_immutable use $repository and $work of the script.
+# Checks of the arguments, the release tag and the attestations that the
+# publish-* scripts share, sourced from $PUBLISH_LIB (FY-0032), and by
+# attest-once from the same commit. tag_state and check_tag_immutable use
+# $repository and $work of the script.
 
 version_pattern='^[0-9]+\.[0-9]+\.[0-9]+$'
 digest_pattern='^sha256:[0-9a-f]{64}$'
+
+# fail MESSAGE: exits with the error MESSAGE.
+fail() {
+  local message=$1
+  echo "error: $message" >&2
+  exit 1
+}
 
 # require_version VERSION: exits unless VERSION is X.Y.Z.
 require_version() {
@@ -31,8 +39,7 @@ tag_state() {
   elif grep -q MANIFEST_UNKNOWN "$work/errors"; then
     echo absent
   else
-    echo "error: cannot read $repository:$tag: $(cat "$work/errors")" >&2
-    exit 1
+    fail "cannot read $repository:$tag: $(cat "$work/errors")"
   fi
 }
 
@@ -41,6 +48,16 @@ tag_state() {
 check_tag_immutable() {
   local tag=$1 state=$2 digest=$3
   [[ $state == absent || $state == "$digest" ]] && return 0
-  echo "error: $repository:$tag points at $state, not at $digest; release tags are immutable" >&2
-  exit 1
+  fail "$repository:$tag points at $state, not at $digest; release tags are immutable"
+}
+
+# verify_attestation REPOSITORY IMAGE DIGEST [ARGS...]: an attestation of the
+# release workflow of REPOSITORY verifies for IMAGE@DIGEST; ARGS go to gh
+# attestation verify, such as --predicate-type.
+verify_attestation() {
+  local repository=$1 image=$2 digest=$3
+  shift 3
+  gh attestation verify "oci://$image@$digest" --repo "$repository" \
+    --signer-workflow "$repository/.github/workflows/release.yaml" \
+    --deny-self-hosted-runners "$@" >/dev/null
 }
