@@ -10,8 +10,8 @@ export LC_ALL=C
 source "$(dirname -- "${BASH_SOURCE[0]}")/../lib.sh"
 
 repo=ghcr.io/flakeyard/image-devcontainer
-amd64=sha256:$(printf 'a%.0s' {1..64})
-arm64=sha256:$(printf 'b%.0s' {1..64})
+amd64=$(digest_of a)
+arm64=$(digest_of b)
 revision=abc123 other=def456
 
 setup() {
@@ -22,9 +22,7 @@ setup() {
   : >"$CALLS"
   unset ATTESTED ATTESTED_COMMIT TAG_COMMIT
   # The platform manifests of a release, pushed by digest.
-  for digest in "$amd64" "$arm64"; do
-    printf '%s' '{"mediaType":"application/vnd.docker.distribution.manifest.v2+json"}' >"$REGISTRY/manifests/$digest"
-  done
+  pushed_platforms "$amd64" "$arm64"
 }
 
 # published: a release 1.2.3 as publish-index and publish-tag leave it;
@@ -60,7 +58,7 @@ finish
 
 setup
 index=$(published)
-echo "sha256:$(printf 'd%.0s' {1..64})" >"$REGISTRY/tags/v1.2.3"
+digest_of d >"$REGISTRY/tags/v1.2.3"
 attested
 run "publish-verify: the release tag points elsewhere" fail verify "$amd64"
 expect message "not at $index"

@@ -9,8 +9,8 @@ export LC_ALL=C
 source "$(dirname -- "${BASH_SOURCE[0]}")/../lib.sh"
 
 repo=ghcr.io/flakeyard/image-devcontainer
-amd64=sha256:$(printf 'a%.0s' {1..64})
-arm64=sha256:$(printf 'b%.0s' {1..64})
+amd64=$(digest_of a)
+arm64=$(digest_of b)
 
 setup() {
   work=$(mktemp -d)

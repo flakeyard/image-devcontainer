@@ -9,10 +9,10 @@ export LC_ALL=C
 source "$(dirname -- "${BASH_SOURCE[0]}")/../lib.sh"
 
 repo=ghcr.io/flakeyard/image-devcontainer
-amd64=sha256:$(printf 'a%.0s' {1..64})
-arm64=sha256:$(printf 'b%.0s' {1..64})
-list=sha256:$(printf 'd%.0s' {1..64})
-other=sha256:$(printf 'c%.0s' {1..64})
+amd64=$(digest_of a)
+arm64=$(digest_of b)
+list=$(digest_of d)
+other=$(digest_of c)
 
 setup() {
   work=$(mktemp -d)
@@ -29,9 +29,7 @@ tag() { "$SCRIPTS/publish/tag.sh" "$repo" 1.2.3 "$1"; }
 # pushed: pushes the list of a release 1.2.3 by digest, as publish-index does;
 # prints its digest.
 pushed() {
-  for digest in "$amd64" "$arm64"; do
-    printf '%s' '{"mediaType":"application/vnd.docker.distribution.manifest.v2+json"}' >"$REGISTRY/manifests/$digest"
-  done
+  pushed_platforms "$amd64" "$arm64"
   "$SCRIPTS/publish/index.sh" "$repo" 1.2.3 abc123 "$amd64" "$arm64" 2>/dev/null
 }
 

@@ -19,7 +19,7 @@ rebuild() {
 # it with the platform digests of the stub.
 setup() {
   work=$(mktemp -d)
-  TARBALL_DIGEST=sha256:$(printf 'a%.0s' {1..64})
+  TARBALL_DIGEST=$(digest_of a)
   export CALLS=$work/calls REGISTRY=$work/registry TARBALL_DIGEST
   export PATH=$STUBS:$PATH
   : >"$CALLS"
@@ -40,7 +40,7 @@ expect message "v1.0.0 rebuilt for amd64 has the published digest"
 finish
 
 setup
-TARBALL_DIGEST=sha256:$(printf 'b%.0s' {1..64})
+TARBALL_DIGEST=$(digest_of b)
 run "release-rebuild: another digest fails" fail rebuild
 expect message "the registry has sha256:aaaa"
 finish
