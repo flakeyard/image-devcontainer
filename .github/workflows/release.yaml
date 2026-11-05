@@ -42,7 +42,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
+        # The platforms of the image, also of the jobs push and verify.
+        include: &platforms
           - arch: amd64
             runner: ubuntu-24.04
           - arch: arm64
@@ -84,11 +85,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - arch: amd64
-            runner: ubuntu-24.04
-          - arch: arm64
-            runner: ubuntu-24.04-arm
+        include: *platforms
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     environment: publish
@@ -221,11 +218,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - arch: amd64
-            runner: ubuntu-24.04
-          - arch: arm64
-            runner: ubuntu-24.04-arm
+        include: *platforms
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     permissions:
