@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Usage: publish-index REPOSITORY VERSION REVISION AMD64_DIGEST ARM64_DIGEST
 #
-# Publishes the manifest list of a release (FY-0027): writes it as canonical
+# Publishes the manifest list of a release (FY-0032): writes it as canonical
 # JSON with the version and commit as annotations and pushes it by its digest.
 # publish-tag sets the tag vVERSION once the list is attested. Fails before
 # the push when the tag points at another digest or its state cannot be read,

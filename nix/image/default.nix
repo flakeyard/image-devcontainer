@@ -1,4 +1,4 @@
-# The image (FY-0005): a script that streams it as a docker archive. Each
+# The image (ADR-0001): a script that streams it as a docker archive. Each
 # piece is a module of this directory; this file puts them in their order.
 {
   perSystem =

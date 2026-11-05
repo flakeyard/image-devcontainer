@@ -1,4 +1,4 @@
-# Weekly maintenance checks, not required (FY-0026, FY-0027): the end of life
+# Weekly maintenance checks, not required (FY-0026, FY-0032): the end of life
 # of the nixpkgs branch and a rebuild of the newest release. They depend on
 # the date and on the registry, so they never block pull requests.
 name: maintenance

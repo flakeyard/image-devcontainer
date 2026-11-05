@@ -1,5 +1,5 @@
 # shellcheck shell=bash disable=SC2016,SC2154 # commands run in the container; id and the settings come from lib.sh
-# Smoke tests of identity and start-up (FY-0005). Sourced by scripts/smoke.sh
+# Smoke tests of identity and start-up (ADR-0001). Sourced by scripts/smoke.sh
 # after tests/smoke/lib.sh. Inputs (environment): IMAGE, WORK (a scratch
 # directory on the runner).
 

@@ -2,7 +2,7 @@
 # Usage: smoke TESTS_DIR [FLAKE]
 #
 # Loads the image of this system into docker and runs the smoke tests of
-# TESTS_DIR (FY-0005). Needs docker and passwordless sudo, as on GitHub-hosted
+# TESTS_DIR (ADR-0001). Needs docker and passwordless sudo, as on GitHub-hosted
 # runners.
 set -euo pipefail
 

@@ -1,5 +1,5 @@
 # CI of this repository on both architectures, then workflow-check over its
-# jobs, whose check / required is the required check (FY-0031). Weekly,
+# jobs, whose check / required is the required check (FY-0034). Weekly,
 # because runner image updates can break the image's tests without a change
 # here.
 name: test

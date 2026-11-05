@@ -2,7 +2,7 @@
 # Usage: publish-major REPOSITORY MAJOR
 #
 # Points vMAJOR at the manifest list of the newest vMAJOR.Y.Z in the registry
-# (FY-0027). It never moves back, because the newest existing release is
+# (FY-0032). It never moves back, because the newest existing release is
 # always at least the one vMAJOR points at. The registry login must exist.
 set -euo pipefail
 # Command substitutions fail like other commands.

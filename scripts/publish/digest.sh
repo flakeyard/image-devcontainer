@@ -2,7 +2,7 @@
 # Usage: publish-digest ARCHIVE [FLAKE]
 #
 # Streams the image of this system into ARCHIVE and prints its digest as crane
-# pushes it (FY-0027: the tool that computes a platform digest also pushes it).
+# pushes it (FY-0032: the tool that computes a platform digest also pushes it).
 set -euo pipefail
 # Command substitutions fail like other commands.
 shopt -s inherit_errexit

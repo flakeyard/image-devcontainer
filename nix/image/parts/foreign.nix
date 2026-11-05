@@ -1,5 +1,5 @@
 # Support for foreign binaries, such as editor servers built for other
-# distributions (FY-0005): nix-ld at the standard loader path, with the
+# distributions (ADR-0001): nix-ld at the standard loader path, with the
 # libraries those binaries need. Measured with readelf on VS Code Server: all
 # its ELF files need glibc, libstdc++ and libgcc_s only. The smoke tests check
 # that the set is still enough and nothing more.

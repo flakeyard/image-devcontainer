@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Usage: publish-verify REPOSITORY IMAGE INDEX VERSION REVISION ARCH PLATFORM
 #
-# Checks the published image of a release on a runner of ARCH (FY-0027):
+# Checks the published image of a release on a runner of ARCH (FY-0032):
 #   - the git tag vVERSION is at REVISION;
 #   - vVERSION points at the manifest list INDEX, which has exactly the two
 #     platforms, the version and the commit as annotations, and PLATFORM, the

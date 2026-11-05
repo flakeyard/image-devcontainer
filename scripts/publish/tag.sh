@@ -2,7 +2,7 @@
 # Usage: publish-tag REPOSITORY VERSION DIGEST
 #
 # Sets the release tag vVERSION at the manifest list DIGEST when the tag is
-# absent (FY-0027). The list must be pushed and attested first, so that no tag
+# absent (FY-0032). The list must be pushed and attested first, so that no tag
 # points at a list without provenance. Fails when the tag points at another
 # digest or its state cannot be read. The registry login must exist.
 set -euo pipefail

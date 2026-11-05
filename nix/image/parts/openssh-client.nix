@@ -1,4 +1,4 @@
-# The OpenSSH client without the server (FY-0005): links to the client
+# The OpenSSH client without the server (ADR-0001): links to the client
 # programs and the client configuration of OpenSSH, so that neither sshd nor
 # its helpers and configuration are on PATH, in /libexec or in /etc/ssh. The
 # server stays inside the store path of OpenSSH, which the client programs

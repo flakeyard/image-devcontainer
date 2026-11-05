@@ -1,7 +1,7 @@
 name: Attest once
 description: >-
   Attests a digest of the image unless an attestation of the release workflow
-  with the predicate type already verifies for it (FY-0027).
+  with the predicate type already verifies for it (FY-0032).
 inputs:
   image:
     description: Registry repository of the image.

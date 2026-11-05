@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Usage: check-size BUDGET_FILE [FLAKE]
 #
-# Fails when the image of this system is larger than its budget (FY-0005).
+# Fails when the image of this system is larger than its budget (ADR-0001).
 # BUDGET_FILE has lines "<system> <MiB>". Raise a budget only on purpose, in
 # a pull request that says why the image grew.
 set -euo pipefail

@@ -1,5 +1,5 @@
 # The labels of the image. The same for every commit; version and commit are
-# annotations of the manifest list (FY-0027).
+# annotations of the manifest list (FY-0032).
 {
   perSystem =
     { config, lib, ... }:

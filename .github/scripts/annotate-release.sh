@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Adds the image reference to the notes of the release, once (FY-0024,
-# FY-0027). Inputs (environment): GH_TOKEN, REPOSITORY, TAG, REFERENCE.
+# FY-0032). Inputs (environment): GH_TOKEN, REPOSITORY, TAG, REFERENCE.
 set -euo pipefail
 line="Image: \`$REFERENCE\`"
 # Notes edited on the web have CRLF line endings.

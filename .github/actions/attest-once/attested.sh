@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Writes attested=true to $GITHUB_OUTPUT when an attestation of the release
 # workflow verifies for the digest, so that a rerun creates no new one
-# (FY-0027); attested=false when the digest has no attestation of that
+# (FY-0032); attested=false when the digest has no attestation of that
 # predicate type. Fails otherwise: an attestation that exists but does not
 # verify, or an error, must not lead to another one.
 # The attestation is not bound to a commit: a release that leaves the image

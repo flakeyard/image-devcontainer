@@ -2,7 +2,7 @@
 # Usage: publish-platform REPOSITORY TESTED_DIGEST [FLAKE]
 #
 # Builds the image of this system again, fails unless its digest is the
-# tested one, and pushes it by digest, without a tag (FY-0027). Prints the
+# tested one, and pushes it by digest, without a tag (FY-0032). Prints the
 # digest. The registry login must exist.
 # Inputs (environment): PUBLISH_DIGEST, the publish-digest app, which
 # computed the tested digest.

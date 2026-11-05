@@ -2,7 +2,7 @@
 # Usage: check-licenses OUTPUT [FLAKE]
 #
 # Generates the SBOM of the image of this system with sbomnix into OUTPUT (a
-# CycloneDX JSON file), completes it and checks it (FY-0027):
+# CycloneDX JSON file), completes it and checks it (FY-0032):
 #   - every store path of the image is an output of a component;
 #   - every output of a component is a store path of the image;
 #   - every component has licenses, each an object with an SPDX id or a name;
