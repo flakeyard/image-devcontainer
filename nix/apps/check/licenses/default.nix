@@ -10,7 +10,7 @@ in
 {
   description = "Generate the SBOM and check the licenses of the image";
   runtimeInputs = with pkgs; [
-    gawk
+    gnugrep
     jq
     sbomnix
   ];
