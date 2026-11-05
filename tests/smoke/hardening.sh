@@ -1,7 +1,7 @@
 # shellcheck shell=bash disable=SC2016,SC2034,SC2154 # container commands; shared variables
 # Smoke tests of the boundary between dev and root (ADR-0001), from the code
 # audit. Sourced by scripts/smoke.sh after tests/smoke/lib.sh. Inputs
-# (environment): IMAGE, WORK, tests.
+# (environment): IMAGE, WORK.
 
 # command_uid ID: output is the uid of the command of the container.
 command_uid() {
@@ -51,7 +51,7 @@ expect_line "root:nixbld 1775"
 expect_no_text "wrote"
 
 test_case "builds work with only the documented capabilities"
-run "${only_documented_caps[@]}" -v "$tests/../fixture:/fixture:ro" -- sh -c 'cat "$(nix-build --no-out-link /fixture/uid.nix)"'
+build_fixture "${only_documented_caps[@]}"
 expect_build_user
 
 test_case "stdin from a pipe is readable by dev"
