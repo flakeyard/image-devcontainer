@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: smoke TESTS_DIR [FLAKE]
+# Usage: smoke TESTS_DIR
 #
 # Loads the image of this system into docker and runs the smoke tests of
 # TESTS_DIR (ADR-0001). Needs docker and passwordless sudo, as on GitHub-hosted
@@ -7,9 +7,8 @@
 set -euo pipefail
 
 tests=$(cd -- "$1" && pwd)
-flake=${2:-.}
 
-stream=$(nix build --no-link --no-update-lock-file --print-out-paths "$flake#image")
+stream=$(nix build --no-link --no-update-lock-file --print-out-paths .#image)
 loaded=$("$stream" | docker load)
 IMAGE=${loaded##*: }
 echo "Testing $IMAGE"

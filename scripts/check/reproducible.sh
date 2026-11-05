@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: check-reproducible [FLAKE]
+# Usage: check-reproducible
 #
 # Checks that the image is reproducible (FY-0032): rebuilds with --rebuild
 # every derivation of the image that is not in a binary cache, then streams
@@ -7,8 +7,7 @@
 # builds the image, so that Nix still knows which derivations it builds.
 set -euo pipefail
 
-flake=${1:-.}
-installable=$flake#image
+installable=.#image
 
 # own_derivations: reads the output of `nix build --dry-run` and prints the
 # derivations it will build.
