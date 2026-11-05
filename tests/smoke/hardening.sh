@@ -1,5 +1,5 @@
 # shellcheck shell=bash disable=SC2016,SC2034,SC2154 # container commands; shared variables
-# Smoke tests of the boundary between dev and root (FY-0005), from the code
+# Smoke tests of the boundary between dev and root (ADR-0001), from the code
 # audit. Sourced by scripts/smoke.sh after tests/smoke/lib.sh. Inputs
 # (environment): IMAGE, WORK, tests.
 

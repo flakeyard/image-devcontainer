@@ -1,4 +1,4 @@
-# The tools of the image by name, part of its public API (FY-0005): Nix,
+# The tools of the image by name, part of its public API (ADR-0001): Nix,
 # direnv and nix-direnv, bash, and what a shell needs before a project shell
 # exists. No toolchains, editors, other shells or servers.
 {

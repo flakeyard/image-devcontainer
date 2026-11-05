@@ -1,4 +1,4 @@
-# /etc/nix/nix.conf of the image (FY-0005). Only root is trusted; other
+# /etc/nix/nix.conf of the image (ADR-0001). Only root is trusted; other
 # caches and keys go to /etc/nix/local.conf.
 {
   perSystem =

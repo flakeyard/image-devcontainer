@@ -1,5 +1,5 @@
 # shellcheck shell=bash disable=SC2016,SC2154 # commands run in the container; tests is set by smoke.sh
-# Smoke tests of the store, Nix and the image configuration (FY-0005).
+# Smoke tests of the store, Nix and the image configuration (ADR-0001).
 # Sourced by scripts/smoke.sh after tests/smoke/lib.sh. Inputs (environment):
 # IMAGE; EXPECTED, a directory with nix.conf, env, metadata and nix-version;
 # tests, the directory of the smoke tests.

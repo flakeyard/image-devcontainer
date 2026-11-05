@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Entrypoint of the image (FY-0005): adapts `dev` to the owner of the project,
+# Entrypoint of the image (ADR-0001): adapts `dev` to the owner of the project,
 # runs the Nix daemon supervised, and runs the command as `dev` under tini.
 #
 # Of the environment, it reads DEV_UID and DEV_GID; the Nix daemon gets a
@@ -271,7 +271,7 @@ give_streams() {
 
 # as_root [NAME=VALUE...] COMMAND...: runs a Nix process of root with an
 # environment of its own. Settings such as NIX_CONFIG in the container's
-# environment must not reach root, which Nix trusts (FY-0005); only the
+# environment must not reach root, which Nix trusts (ADR-0001); only the
 # proxies of the engine do.
 as_root() {
   local vars=(PATH="$daemon_path" HOME=/root NIX_SSL_CERT_FILE="$ca_file") name

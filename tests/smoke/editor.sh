@@ -1,6 +1,6 @@
 # shellcheck shell=bash disable=SC2016,SC2034,SC2154 # container commands; output and tests are shared with lib.sh and smoke.sh
 # Smoke tests of foreign binaries, project shells and the Dev Containers tools
-# (FY-0005). Sourced by scripts/smoke.sh after tests/smoke/lib.sh. Inputs
+# (ADR-0001). Sourced by scripts/smoke.sh after tests/smoke/lib.sh. Inputs
 # (environment): IMAGE; EXPECTED (foreign-libraries); EDITOR_SERVER, an
 # unpacked VS Code Server; WORK.
 

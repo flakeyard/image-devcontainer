@@ -9,7 +9,7 @@
       };
       config.image.filesystem.bashrc = ''
         # The profile of dev, for dev only: dev controls it, so root never
-        # searches it (FY-0005).
+        # searches it (ADR-0001).
         if [ "$(id -u)" != 0 ]; then
           case ":$PATH:" in
             *":$HOME/.nix-profile/bin:"*) ;;

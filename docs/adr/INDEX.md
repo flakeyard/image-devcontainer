@@ -6,9 +6,10 @@
 
 _None._
 
-## Accepted (0)
+## Accepted (1)
 
-_None._
+- [ADR-0001](records/0001-dev-container-image.md) Dev container image
+  (2026-11-05)
 
 ## Rejected (0)
 

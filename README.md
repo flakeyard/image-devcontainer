@@ -121,7 +121,8 @@ it.
 
 ## Public API
 
-An incompatible change of any of these is a major release ([FY-0005][fy-0005]):
+An incompatible change of any of these is a major release
+([ADR-0001](docs/adr/records/0001-dev-container-image.md)):
 
 - the user `dev`, its home `/home/dev`, and the meaning of `DEV_UID` and
   `DEV_GID`;
@@ -231,8 +232,6 @@ are released:
 
 [releases]: https://github.com/flakeyard/image-devcontainer/releases
 [versioning]: https://github.com/flakeyard/.github/blob/main/VERSIONING.md
-[fy-0005]:
-  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0005-dev-container-image.md
 [fy-0026]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0026-stable-nixpkgs.md
 [fy-0027]:
