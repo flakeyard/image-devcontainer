@@ -9,10 +9,8 @@ shopt -s inherit_errexit
 
 repository=$1 arch=$2
 release_pattern='^v[0-9]+\.[0-9]+\.[0-9]+$'
-# The app that computes the platform digest, and its name in releases made
-# before it was renamed.
+# The app that computes the platform digest.
 digest_app=publish-digest
-old_digest_app=platform-digest
 
 # cleanup: removes the worktree of the release, which git would keep listing
 # after its directory is gone, and the scratch directory.
@@ -61,19 +59,6 @@ published_digest() {
   echo "$digest"
 }
 
-# release_digest_app SOURCE: the app of the release in SOURCE that computes
-# its platform digest.
-release_digest_app() {
-  local source=$1 system apps
-  system=$(nix eval --raw --impure --expr builtins.currentSystem)
-  apps=$(nix eval --no-update-lock-file --json "$source#apps.$system" --apply builtins.attrNames)
-  if jq -e --arg app "$digest_app" 'any(.[]; . == $app)' <<<"$apps" >/dev/null; then
-    echo "$digest_app"
-  else
-    echo "$old_digest_app"
-  fi
-}
-
 newest=$(newest_release)
 if [[ -z $newest ]]; then
   echo "::notice::No release yet; nothing to rebuild."
@@ -83,8 +68,7 @@ published=$(published_digest "$newest")
 
 git worktree add --detach "$work/source" "$newest" >/dev/null
 # The tools of the release, not of HEAD: another crane may compress differently.
-app=$(release_digest_app "$work/source")
-rebuilt=$(nix run --no-update-lock-file "$work/source#$app" -- "$work/image.tar" "$work/source")
+rebuilt=$(nix run --no-update-lock-file "$work/source#$digest_app" -- "$work/image.tar" "$work/source")
 
 if [[ $rebuilt != "$published" ]]; then
   echo "::error::$newest rebuilt for $arch has digest $rebuilt, the registry has $published."

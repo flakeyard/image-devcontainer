@@ -20,7 +20,7 @@ rebuild() {
 setup() {
   work=$(mktemp -d)
   TARBALL_DIGEST=sha256:$(printf 'a%.0s' {1..64})
-  export CALLS=$work/calls REGISTRY=$work/registry SYSTEM=x86_64-linux TARBALL_DIGEST
+  export CALLS=$work/calls REGISTRY=$work/registry TARBALL_DIGEST
   export PATH=$STUBS:$PATH
   : >"$CALLS"
   mkdir -p "$REGISTRY/manifests" "$REGISTRY/tags" "$work/repo"
@@ -94,11 +94,6 @@ finish
 setup
 run "release-rebuild: uses the tools of the release" ok rebuild
 expect called "/source#publish-digest -- "
-finish
-
-setup
-APPS='["platform-digest","smoke"]' run "release-rebuild: a release before the rename has platform-digest" ok rebuild
-expect called "/source#platform-digest -- "
 finish
 
 # worktrees: the number of worktrees of the repository of the test, besides
