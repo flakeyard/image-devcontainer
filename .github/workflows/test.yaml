@@ -38,6 +38,9 @@ jobs:
         with:
           persist-credentials: false
       - uses: flakeyard/action-setup-nix@feaa363e1aa0007d70c643731c508bb40190ce83 # v0.1.2
+      # Before any evaluation of the flake (FY-0017).
+      - name: Check flake.lock
+        uses: flakeyard/action-flake-lock@22ec9e6fc587bc94ecc81057c9f5a0e198c54efa # v0.1.0
       # First, while Nix still knows which derivations it builds itself.
       - name: Check reproducibility
         shell: bash
@@ -83,6 +86,7 @@ jobs:
       statuses: write # commit statuses of dispatched runs
     with:
       needs: ${{ toJSON(needs) }}
-      # The job image runs nix flake check itself, before the smoke tests.
+      # The job image checks flake.lock and runs nix flake check itself,
+      # before the smoke tests.
       flake: ""
       renovate-presets: '["flakeyard/renovate-config"]'
