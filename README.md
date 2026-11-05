@@ -202,8 +202,8 @@ the image after `action-setup-nix` has released it.
 CI runs all of them on both architectures and ends with
 [workflow-check][workflow-check], which checks the pull request title,
 `renovate.json` and the release behind its preset tag and reports the only
-required check, `check / required` ([FY-0031][fy-0031]). The release workflow
-publishes the image ([FY-0027][fy-0027]); its jobs that push to the package or
+required check, `check / required` ([FY-0034][fy-0034]). The release workflow
+publishes the image ([FY-0032][fy-0032]); its jobs that push to the package or
 attest run in the environment `publish` and wait until the owner approves them.
 `scorecard.yaml` runs OpenSSF Scorecard on `main`. The weekly workflow
 `maintenance.yaml`, which is not a required check, warns before the nixpkgs
@@ -234,10 +234,10 @@ are released:
 [versioning]: https://github.com/flakeyard/.github/blob/main/VERSIONING.md
 [fy-0026]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0026-stable-nixpkgs.md
-[fy-0027]:
-  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0027-publish-image.md
+[fy-0032]:
+  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0032-publish-images-behind-an-approval.md
 [fy-0022]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0022-bootstrap.md
-[fy-0031]:
-  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0031-check-pull-requests-and-pushes-with-workflow-check.md
+[fy-0034]:
+  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0034-check-every-repository-with-workflow-check.md
 [workflow-check]: https://github.com/flakeyard/workflow-check

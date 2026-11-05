@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Usage: check-reproducible [FLAKE]
 #
-# Checks that the image is reproducible (FY-0027): rebuilds with --rebuild
+# Checks that the image is reproducible (FY-0032): rebuilds with --rebuild
 # every derivation of the image that is not in a binary cache, then streams
 # the image twice and compares the archives. Run it before anything else
 # builds the image, so that Nix still knows which derivations it builds.

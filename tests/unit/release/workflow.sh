@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Static tests of .github/workflows/release.yaml: the environments of its jobs
-# (FY-0027, FY-0030). A job publishes when it may write to the package or
+# (FY-0032, FY-0030). A job publishes when it may write to the package or
 # attest. Inputs (environment): SCRIPTS, the .github directory.
 set -uo pipefail
 export LC_ALL=C

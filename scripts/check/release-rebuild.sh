@@ -2,7 +2,7 @@
 # Usage: check-release-rebuild REPOSITORY ARCH
 #
 # Rebuilds the newest release from its git tag and compares the platform
-# digest of ARCH with the one published in REPOSITORY (FY-0027). Run in a full
+# digest of ARCH with the one published in REPOSITORY (FY-0032). Run in a full
 # clone with tags; passes with a notice before the first release.
 set -euo pipefail
 shopt -s inherit_errexit
@@ -37,7 +37,7 @@ newest_release() {
 never_published() {
   local release=$1
   echo "::error::The release $release was never published: $repository has no tag $release." \
-    "Rerun the failed jobs of its release workflow, or after 30 days make a new patch release (FY-0027)." >&2
+    "Rerun the failed jobs of its release workflow, or after 30 days make a new patch release (FY-0032)." >&2
   exit 1
 }
 

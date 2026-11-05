@@ -1,5 +1,5 @@
 # Releases the repository with flakeyard/workflow-release and publishes the
-# image of the release in the same run (FY-0020, FY-0027). Every job that
+# image of the release in the same run (FY-0030, FY-0032). Every job that
 # writes to the package or attests runs in the environment publish, which has
 # no secrets: nothing reaches the registry before the owner approves it.
 name: release
@@ -59,7 +59,7 @@ jobs:
         with:
           ref: ${{ needs.release.outputs.sha }}
           persist-credentials: false
-      # Only cache.nixos.org (FY-0027).
+      # Only cache.nixos.org (FY-0032).
       - uses: flakeyard/action-setup-nix@feaa363e1aa0007d70c643731c508bb40190ce83 # v0.1.2
       - name: Check the size
         shell: bash

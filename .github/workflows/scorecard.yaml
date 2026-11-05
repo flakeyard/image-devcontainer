@@ -1,5 +1,5 @@
 # OpenSSF Scorecard of this repository, run by flakeyard/workflow-scorecard
-# on the default branch (FY-0031).
+# on the default branch (FY-0034).
 name: scorecard
 
 on:
