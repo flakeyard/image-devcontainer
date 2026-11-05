@@ -7,6 +7,7 @@
 # the push when the tag points at another digest or its state cannot be read,
 # so that a list that can never be tagged is neither pushed nor attested.
 # Prints the digest of the list. The registry login must exist.
+# Inputs (environment): PUBLISH_LIB, scripts/publish/lib.sh.
 set -euo pipefail
 # Command substitutions fail like other commands.
 shopt -s inherit_errexit
@@ -14,24 +15,9 @@ shopt -s inherit_errexit
 index_type=application/vnd.oci.image.index.v1+json
 docker_manifest_type=application/vnd.docker.distribution.manifest.v2+json
 oci_manifest_type=application/vnd.oci.image.manifest.v1+json
-version_pattern='^[0-9]+\.[0-9]+\.[0-9]+$'
-digest_pattern='^sha256:[0-9a-f]{64}$'
 
-# require_version VERSION: exits unless VERSION is X.Y.Z.
-require_version() {
-  local version=$1
-  [[ $version =~ $version_pattern ]] && return 0
-  echo "error: '$version' is not a version" >&2
-  exit 2
-}
-
-# require_digest DIGEST: exits unless DIGEST is a sha256 digest.
-require_digest() {
-  local digest=$1
-  [[ $digest =~ $digest_pattern ]] && return 0
-  echo "error: '$digest' is not a digest" >&2
-  exit 2
-}
+# shellcheck source=/dev/null # scripts/publish/lib.sh, from the app
+source "$PUBLISH_LIB"
 
 # descriptor DIGEST ARCH: the entry of a platform manifest, which must exist
 # in the registry. Keeps the manifest in $work, which the script removes.
@@ -77,28 +63,6 @@ content_digest() {
   echo "sha256:${sum%% *}"
 }
 
-# tag_state TAG: the digest TAG points at, or "absent" when the registry
-# says it does not know TAG. Exits on any other error.
-tag_state() {
-  local tag=$1 current
-  if current=$(crane digest "$repository:$tag" 2>"$work/errors"); then
-    echo "$current"
-  elif grep -q MANIFEST_UNKNOWN "$work/errors"; then
-    echo absent
-  else
-    echo "error: cannot read $repository:$tag: $(cat "$work/errors")" >&2
-    exit 1
-  fi
-}
-
-# check_tag_immutable STATE DIGEST: exits when the tag is at another digest.
-check_tag_immutable() {
-  local state=$1 digest=$2
-  [[ $state == absent || $state == "$digest" ]] && return 0
-  echo "error: $repository:$tag points at $state, not at $digest; release tags are immutable" >&2
-  exit 1
-}
-
 repository=$1 version=$2 revision=$3 amd64=$4 arm64=$5
 tag=v$version
 require_version "$version"
@@ -116,7 +80,7 @@ digest=$(content_digest "$index")
 
 # The tag may only be set later when absent or already at the digest.
 state=$(tag_state "$tag")
-check_tag_immutable "$state" "$digest"
+check_tag_immutable "$tag" "$state" "$digest"
 
 printf '%s' "$index" | regctl manifest put --content-type "$index_type" "$repository@$digest" >&2
 echo "$digest"

@@ -10,7 +10,7 @@ in
 {
   description = "Generate the SBOM and check the licenses of the image";
   runtimeInputs = with pkgs; [
-    gawk
+    gnugrep
     jq
     sbomnix
   ];
@@ -18,8 +18,7 @@ in
     NON_REDISTRIBUTABLE = "${import ./non-redistributable.nix { inherit pkgs; }}";
     CLOSURE = "${image.expected}/closure";
     CLOSURE_ROOT = "${image.closureRoot}";
-    COMPLETE_LICENSES_JQ = "${../../../../scripts/check/licenses/complete.jq}";
-    SBOM_PROBLEMS_JQ = "${../../../../scripts/check/licenses/problems.jq}";
+    LICENSES_JQ = "${../../../../scripts/check/licenses}";
     KNOWN_LICENSES = "${knownLicenses}";
   };
 }

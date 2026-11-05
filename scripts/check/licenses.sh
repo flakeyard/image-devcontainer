@@ -12,7 +12,7 @@
 # the image; NON_REDISTRIBUTABLE, identifiers of licenses that forbid
 # redistribution, one per line, from nixpkgs; KNOWN_LICENSES, a JSON object of
 # component names and SPDX identifiers for components sbomnix cannot match;
-# COMPLETE_LICENSES_JQ and SBOM_PROBLEMS_JQ, the jq programs of these steps.
+# LICENSES_JQ, the directory of the jq programs of these steps.
 set -euo pipefail
 shopt -s inherit_errexit
 
@@ -30,14 +30,14 @@ generate_sbom() {
 # completed from KNOWN_LICENSES by name without a trailing version.
 complete_licenses() {
   local sbom=$1
-  jq --slurpfile known "$KNOWN_LICENSES" --from-file "$COMPLETE_LICENSES_JQ" "$sbom"
+  jq -L "$LICENSES_JQ" --slurpfile known "$KNOWN_LICENSES" --from-file "$LICENSES_JQ/complete.jq" "$sbom"
 }
 
 # sbom_problems SBOM: prints the problems of SBOM, one per line.
 sbom_problems() {
   local sbom=$1
-  jq -r --rawfile closure "$CLOSURE" --rawfile deny "$NON_REDISTRIBUTABLE" \
-    --arg root "$CLOSURE_ROOT" --from-file "$SBOM_PROBLEMS_JQ" "$sbom"
+  jq -r -L "$LICENSES_JQ" --rawfile closure "$CLOSURE" --rawfile deny "$NON_REDISTRIBUTABLE" \
+    --arg root "$CLOSURE_ROOT" --from-file "$LICENSES_JQ/problems.jq" "$sbom"
 }
 
 # print_summary SBOM: prints the number of components and store paths.

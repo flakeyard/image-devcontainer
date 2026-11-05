@@ -40,7 +40,7 @@ failed_command() {
   fail "exit $status of: ${command%%$'\n'*}"
 }
 
-# test NAME: starts a test.
+# test_case NAME: starts a test.
 test_case() {
   finish
   current=$1

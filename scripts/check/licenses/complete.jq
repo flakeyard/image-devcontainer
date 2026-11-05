@@ -2,8 +2,7 @@
 # licenses of $known[0], an object of component names and SPDX identifiers for
 # components sbomnix cannot match. Used by check/licenses.sh.
 
-# has_licenses: whether a component lists any license.
-def has_licenses: (.licenses // []) | length > 0;
+include "component";
 
 # base_name: the name of a component without a trailing version.
 def base_name: .name | sub("-[0-9][0-9.]*$"; "");
