@@ -16,6 +16,8 @@ readonly definitions='
   def publishes: (.permissions // {}) | [.packages, .attestations, ."id-token"] | any(. == "write");
   def publishing_jobs: [.jobs[] | select(publishes)];
   def jobs_in($name): [.jobs[] | select(environment == $name)];
+  def may_be_skipped: has("if") or has("needs");
+  def names_matrix: (.name // "") | test("matrix\\.");
 '
 
 setup() { work=$(mktemp -d); }
@@ -25,6 +27,13 @@ holds() {
   local filter=$1
   jq -e "$definitions $filter" <<<"$workflow" >/dev/null
 }
+
+# A job skipped before its matrix expands shows its name unexpanded; GitHub
+# appends the matrix values to a name without them.
+setup
+run "release workflow: matrix jobs that may be skipped name no matrix value" ok \
+  holds '[.jobs[] | select(has("strategy") and may_be_skipped and names_matrix)] == []'
+finish
 
 setup
 run "release workflow: every job that publishes runs in publish" ok \
