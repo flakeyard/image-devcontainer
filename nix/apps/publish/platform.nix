@@ -4,4 +4,5 @@
   runtimeInputs = [ pkgs.crane ];
   # The same publish-digest computes the tested and the pushed digest.
   environment.PUBLISH_DIGEST = config.apps.publish-digest.program;
+  environment.PUBLISH_LIB = "${../../../scripts/publish/lib.sh}";
 }

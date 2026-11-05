@@ -16,6 +16,7 @@ setup() {
   work=$(mktemp -d)
   export CALLS=$work/calls REGISTRY=$work/registry STREAM=$work/stream
   export PATH=$STUBS:$PATH TARBALL_DIGEST=$amd64 PUBLISH_DIGEST=$SCRIPTS/publish/digest.sh
+  export PUBLISH_LIB=$SCRIPTS/publish/lib.sh
   mkdir -p "$REGISTRY/manifests"
   : >"$CALLS"
   printf '#!%s\necho archive\n' "$(command -v bash)" >"$STREAM"

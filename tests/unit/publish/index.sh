@@ -15,7 +15,7 @@ arm64=sha256:$(printf 'b%.0s' {1..64})
 setup() {
   work=$(mktemp -d)
   export CALLS=$work/calls REGISTRY=$work/registry
-  export PATH=$STUBS:$PATH
+  export PATH=$STUBS:$PATH PUBLISH_LIB=$SCRIPTS/publish/lib.sh
   mkdir -p "$REGISTRY/manifests" "$REGISTRY/tags"
   : >"$CALLS"
   unset CRANE_DENIED

@@ -7,4 +7,5 @@
     jq
     regclient
   ];
+  environment.PUBLISH_LIB = "${../../../scripts/publish/lib.sh}";
 }
