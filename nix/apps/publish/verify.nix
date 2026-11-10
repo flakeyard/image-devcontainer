@@ -6,4 +6,5 @@
     gh
     jq
   ];
+  environment.PUBLISH_LIB = "${../../../scripts/publish/lib.sh}";
 }

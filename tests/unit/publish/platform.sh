@@ -9,13 +9,14 @@ export LC_ALL=C
 source "$(dirname -- "${BASH_SOURCE[0]}")/../lib.sh"
 
 repo=ghcr.io/flakeyard/image-devcontainer
-amd64=sha256:$(printf 'a%.0s' {1..64})
-arm64=sha256:$(printf 'b%.0s' {1..64})
+amd64=$(digest_of a)
+arm64=$(digest_of b)
 
 setup() {
   work=$(mktemp -d)
   export CALLS=$work/calls REGISTRY=$work/registry STREAM=$work/stream
   export PATH=$STUBS:$PATH TARBALL_DIGEST=$amd64 PUBLISH_DIGEST=$SCRIPTS/publish/digest.sh
+  export IMAGE_LIB=$SCRIPTS/lib/image.sh PUBLISH_LIB=$SCRIPTS/publish/lib.sh
   mkdir -p "$REGISTRY/manifests"
   : >"$CALLS"
   printf '#!%s\necho archive\n' "$(command -v bash)" >"$STREAM"

@@ -25,7 +25,6 @@
           home
           homeRelative
           buildGroup
-          buildGid
           buildUsers
           ;
 

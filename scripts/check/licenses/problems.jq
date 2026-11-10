@@ -12,14 +12,13 @@
 # extra only when none of its outputs is in the image. Components without
 # nix:output_path name no store path and are only checked for licenses.
 
+include "component";
+
 # nonempty_lines: the lines of a string that are not empty.
 def nonempty_lines: split("\n") | map(select(. != ""));
 
 # nonempty_string: the input if it is a non-empty string, else nothing.
 def nonempty_string: strings | select(. != "");
-
-# has_licenses: whether a component lists any license.
-def has_licenses: (.licenses // []) | length > 0;
 
 # license_key: the SPDX id, else the name, of a license entry; null unless
 # the entry has an object with a non-empty string id or name.

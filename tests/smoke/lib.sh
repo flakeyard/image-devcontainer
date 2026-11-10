@@ -8,6 +8,9 @@ failed=0 passed=0 current="" output=""
 # Scripts that tests run in a container, as `sh -s <"$probes/NAME.sh"`.
 # shellcheck disable=SC2034 # used by the tests
 probes=$(dirname -- "${BASH_SOURCE[0]}")/probes
+# The fixtures of tests/fixture, as an absolute path that docker can mount.
+# shellcheck disable=SC2034 # used by the tests
+fixtures=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../fixture" && pwd)
 # Seconds the Nix daemon of a new container has to answer.
 daemon_timeout=20
 # The capabilities the README documents as required.
@@ -40,7 +43,7 @@ failed_command() {
   fail "exit $status of: ${command%%$'\n'*}"
 }
 
-# test NAME: starts a test.
+# test_case NAME: starts a test.
 test_case() {
   finish
   current=$1
@@ -81,6 +84,13 @@ expect_line() { grep -qxF -- "$1" <<<"$output" || fail "no line '$1'"; }
 # expect_text TEXT: output contains the text.
 expect_text() { grep -qF -- "$1" <<<"$output" || fail "no '$1'"; }
 expect_no_text() { ! grep -qF -- "$1" <<<"$output" || fail "unexpected '$1'"; }
+# build_fixture DOCKER_ARGS...: builds the fixture uid.nix and reads the
+# result in the same container; output holds the uid that built it.
+build_fixture() {
+  # shellcheck disable=SC2016 # the command runs in the container
+  run "$@" -v "$fixtures:/fixture:ro" -- sh -c 'cat "$(nix-build --no-out-link /fixture/uid.nix)"'
+}
+
 # expect_build_user: output is the uid of a build user.
 expect_build_user() { grep -qxE -- "$build_uid" <<<"$output" || fail "not built as a build user"; }
 
