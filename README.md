@@ -209,9 +209,10 @@ publishes the image ([FY-0032][fy-0032]); its jobs that push to the package or
 attest run in the environment `publish` and wait until the owner approves them.
 `scorecard.yaml` runs OpenSSF Scorecard on `main`. The weekly run of `test.yaml`
 also rebuilds the newest release on both architectures to compare its digests
-with the registry, in the job `rebuild`, which other events skip. The weekly
-workflow `maintenance.yaml`, which is not a required check, warns before the
-nixpkgs branch in `nixpkgs-eol` reaches its end of life.
+with the registry, in the job `rebuild`, which other events skip. To rebuild on
+demand, use Re-run all jobs on the newest scheduled run of `test.yaml`. The
+weekly workflow `maintenance.yaml`, which is not a required check, warns before
+the nixpkgs branch in `nixpkgs-eol` reaches its end of life.
 
 Every app has a file under `nix/apps/` with its description and tools, and a
 script at the same path under `scripts/`; it is named after the path, so
