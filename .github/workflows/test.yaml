@@ -52,6 +52,9 @@ jobs:
       - name: Check the size
         shell: bash
         run: nix run --no-update-lock-file .#check-size -- size-budget
+      # Only pins the shell library: the unit tests that nix flake check runs
+      # fetch its harness at this commit (ADR-0001 of action-shell-lib).
+      - uses: flakeyard/action-shell-lib@4c8422d8a7fdb2b097b349f643efa8d196e0406b # v0.1.2
       - name: Check the flake
         shell: bash
         run: nix flake check --no-update-lock-file --print-build-logs

@@ -1,77 +1,95 @@
-#!/usr/bin/env bash
-# Unit tests of .github/actions/attest-once/attested.sh with a stub of gh.
-# Inputs (environment): SCRIPTS, the .github directory; STUBS, the stubs.
-set -uo pipefail
-export LC_ALL=C
+# shellcheck shell=bash
+# Tests of .github/actions/attest-once/attested.sh with a stub of gh.
+# shellcheck disable=SC2154 # work comes from setup
 
-# shellcheck source-path=SCRIPTDIR source=../lib.sh
-source "$(dirname -- "${BASH_SOURCE[0]}")/../lib.sh"
-
-setup() {
-  work=$(mktemp -d)
-  export CALLS=$work/calls GITHUB_OUTPUT=$work/output PATH=$STUBS:$PATH
-  export GH_TOKEN=t REPOSITORY=flakeyard/image-devcontainer IMAGE=ghcr.io/flakeyard/image-devcontainer
-  export DIGEST=sha256:abc PREDICATE=""
-  unset ATTESTED ATTESTATIONS GH_API_ERROR
-  : >"$CALLS"
-  : >"$GITHUB_OUTPUT"
-}
-
+attested_script=.github/actions/attest-once/attested.sh
 provenance=https://slsa.dev/provenance/v1
 bom=https://cyclonedx.org/bom
 
-setup
-export ATTESTED=1
-run "attested: true when an attestation verifies" ok "$SCRIPTS/actions/attest-once/attested.sh"
-expect line "$GITHUB_OUTPUT" attested=true
-expect called "--signer-workflow flakeyard/image-devcontainer/.github/workflows/release.yaml"
-expect not_called "--source-digest"
-expect called "--deny-self-hosted-runners"
+# attested_setup: the digest sha256:abc, without attestations; the API lists
+# none with HTTP 404.
+attested_setup() {
+  stubbed_setup
+  apply GH_TOKEN=t REPOSITORY=flakeyard/image-devcontainer IMAGE=ghcr.io/flakeyard/image-devcontainer
+  apply DIGEST=sha256:abc PREDICATE=""
+}
+
+# listed BODY: the API lists the attestations of the digest with BODY.
+listed() {
+  local body=$1
+  fixture repos/flakeyard/image-devcontainer/attestations/sha256:abc "$body"
+}
+
+# attestation TYPE: an attestation of the predicate TYPE as the API lists it;
+# "-" is one without an inline bundle.
+attestation() {
+  local type=$1 payload
+  if [[ $type == - ]]; then
+    echo '{"bundle": null, "bundle_url": "https://example.invalid/bundle"}'
+  else
+    payload=$(printf '{"predicateType":"%s"}' "$type" | base64 -w0)
+    printf '{"bundle": {"dsseEnvelope": {"payload": "%s"}}}\n' "$payload"
+  fi
+}
+
+# attestations TYPE...: the API lists attestations of the predicate TYPEs.
+attestations() {
+  local type
+  listed "$(for type; do attestation "$type"; done | jq -s '{attestations: .}')"
+}
+
+attested_setup
+apply ATTESTED=1
+run "attested: true when an attestation verifies" ok "$attested_script"
+expect output attested true
+expect call "--signer-workflow flakeyard/image-devcontainer/.github/workflows/release.yaml"
+expect no-call "--source-digest"
+expect call "--deny-self-hosted-runners"
 finish
 
-setup
-export ATTESTED=1 ATTESTATIONS="$provenance $bom"
-run "attested: an unchanged image reuses the previous release's attestation" ok "$SCRIPTS/actions/attest-once/attested.sh"
-expect line "$GITHUB_OUTPUT" attested=true
+attested_setup
+apply ATTESTED=1
+attestations "$provenance" "$bom"
+run "attested: an unchanged image reuses the previous release's attestation" ok "$attested_script"
+expect output attested true
 finish
 
-setup
-run "attested: false when the digest has no attestation" ok "$SCRIPTS/actions/attest-once/attested.sh"
-expect line "$GITHUB_OUTPUT" attested=false
+attested_setup
+run "attested: false when the digest has no attestation" ok "$attested_script"
+expect output attested false
 finish
 
-setup
-export PREDICATE=$bom ATTESTATIONS=$provenance
-run "attested: an SBOM is missing although provenance exists" ok "$SCRIPTS/actions/attest-once/attested.sh"
-expect line "$GITHUB_OUTPUT" attested=false
-expect called "--predicate-type $bom"
+attested_setup
+apply PREDICATE="$bom"
+attestations "$provenance"
+run "attested: an SBOM is missing although provenance exists" ok "$attested_script"
+expect output attested false
+expect call "--predicate-type $bom"
 finish
 
-setup
-export ATTESTATIONS="$provenance $bom"
-run "attested: an attestation that does not verify fails" fail "$SCRIPTS/actions/attest-once/attested.sh"
+attested_setup
+attestations "$provenance" "$bom"
+run "attested: an attestation that does not verify fails" fail "$attested_script"
 expect message "none verifies"
-expect empty "$GITHUB_OUTPUT"
+expect output attested ""
 finish
 
-setup
-export GH_API_ERROR=1
-run "attested: an API error fails, whatever the verification reported" fail "$SCRIPTS/actions/attest-once/attested.sh"
+attested_setup
+listed "HTTP 500"
+run "attested: an API error fails, whatever the verification reported" fail "$attested_script"
 expect message "cannot list the attestations"
-expect empty "$GITHUB_OUTPUT"
+expect output attested ""
 finish
 
-setup
-export ATTESTATIONS="- $provenance"
-run "attested: an attestation without an inline bundle fails" fail "$SCRIPTS/actions/attest-once/attested.sh"
+attested_setup
+attestations - "$provenance"
+run "attested: an attestation without an inline bundle fails" fail "$attested_script"
 expect message "no inline bundle"
-expect empty "$GITHUB_OUTPUT"
+expect output attested ""
 finish
 
-setup
-export ATTESTATIONS=$bom
-run "attested: an attestation of another type does not count" ok "$SCRIPTS/actions/attest-once/attested.sh"
-expect line "$GITHUB_OUTPUT" attested=false
+attested_setup
+attestations "$bom"
+run "attested: an attestation of another type does not count" ok "$attested_script"
+expect output attested false
 finish
-
-summary
