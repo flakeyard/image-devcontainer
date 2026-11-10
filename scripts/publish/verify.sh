@@ -12,16 +12,15 @@
 #   - the platform has provenance and an SBOM from the release workflow. They
 #     are not bound to the commit: a platform digest keeps the attestations of
 #     the release that first published it.
-# Inputs (environment): GH_TOKEN. Needs docker, as on GitHub-hosted runners.
+# Inputs (environment): GH_TOKEN; PUBLISH_LIB, scripts/publish/lib.sh. Needs
+# docker, as on GitHub-hosted runners.
 set -euo pipefail
 shopt -s inherit_errexit
 
 repository=$1 image=$2 index=$3 version=$4 revision=$5 arch=$6 platform=$7
 readonly sbom=https://cyclonedx.org/bom
-fail() {
-  echo "error: $1" >&2
-  exit 1
-}
+# shellcheck source=/dev/null # scripts/publish/lib.sh, from the app
+source "$PUBLISH_LIB"
 
 # The commit of the git tag vVERSION, from the API.
 tag_commit() {
@@ -58,21 +57,12 @@ check_runs() {
   docker run --rm "$image@$index" nix --version
 }
 
-# verify_attestation DIGEST [ARGS...]: an attestation of the release workflow.
-verify_attestation() {
-  local digest=$1
-  shift
-  gh attestation verify "oci://$image@$digest" --repo "$repository" \
-    --signer-workflow "$repository/.github/workflows/release.yaml" \
-    --deny-self-hosted-runners "$@" >/dev/null
-}
-
 check_git_tag
 check_tag
 list=$(crane manifest "$image@$index")
 check_list "$list"
 check_runs
-verify_attestation "$index" --source-digest "$revision"
-verify_attestation "$platform"
-verify_attestation "$platform" --predicate-type "$sbom"
+verify_attestation "$repository" "$image" "$index" --source-digest "$revision"
+verify_attestation "$repository" "$image" "$platform"
+verify_attestation "$repository" "$image" "$platform" --predicate-type "$sbom"
 echo "Verified $image:v$version@$index on $arch with its attestations."

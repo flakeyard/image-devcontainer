@@ -30,8 +30,7 @@ descriptor() {
   case $type in
     "$docker_manifest_type" | "$oci_manifest_type") ;;
     *)
-      echo "error: $repository@$digest is not an image manifest: $type" >&2
-      exit 1
+      fail "$repository@$digest is not an image manifest: $type"
       ;;
   esac
   jq -cn --arg digest "$digest" --arg arch "$arch" --arg type "$type" --argjson size "$size" \

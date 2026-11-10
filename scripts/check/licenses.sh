@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: check-licenses OUTPUT [FLAKE]
+# Usage: check-licenses OUTPUT
 #
 # Generates the SBOM of the image of this system with sbomnix into OUTPUT (a
 # CycloneDX JSON file), completes it and checks it (FY-0032):
@@ -12,18 +12,20 @@
 # the image; NON_REDISTRIBUTABLE, identifiers of licenses that forbid
 # redistribution, one per line, from nixpkgs; KNOWN_LICENSES, a JSON object of
 # component names and SPDX identifiers for components sbomnix cannot match;
-# LICENSES_JQ, the directory of the jq programs of these steps.
+# LICENSES_JQ, the directory of the jq programs of these steps; IMAGE_LIB,
+# scripts/lib/image.sh.
 set -euo pipefail
 shopt -s inherit_errexit
 
 output=$1
-flake=${2:-.}
-system=$(nix eval --raw --impure --expr builtins.currentSystem)
+# shellcheck source=/dev/null # scripts/lib/image.sh, from the app
+source "$IMAGE_LIB"
+system=$(current_system)
 
 # generate_sbom FILE: writes the SBOM of the image as sbomnix makes it.
 generate_sbom() {
   local file=$1
-  sbomnix "$flake#packages.$system.image.closureRoot" --cdx "$file" >&2
+  sbomnix ".#packages.$system.image.closureRoot" --cdx "$file" >&2
 }
 
 # complete_licenses SBOM: prints SBOM, its components without a license

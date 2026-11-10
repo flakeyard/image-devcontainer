@@ -11,7 +11,7 @@ source "$(dirname -- "${BASH_SOURCE[0]}")/../lib.sh"
 setup() {
   work=$(mktemp -d)
   export CALLS=$work/calls STREAM=$work/stream
-  export PATH=$STUBS:$PATH
+  export PATH=$STUBS:$PATH IMAGE_LIB=$SCRIPTS/lib/image.sh
   : >"$CALLS"
   # A stream of the image; with $work/vary, every run differs.
   cat >"$STREAM" <<STREAM

@@ -22,8 +22,7 @@ trap 'rm -f -- "$archive"' EXIT
 # The tested and the pushed digest come from the same code.
 digest=$("$PUBLISH_DIGEST" "$archive" "$flake")
 if [[ $digest != "$tested" ]]; then
-  echo "error: the image has digest $digest, but $tested was tested" >&2
-  exit 1
+  fail "the image has digest $digest, but $tested was tested"
 fi
 crane push "$archive" "$repository@$digest" >&2
 echo "$digest"

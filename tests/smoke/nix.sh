@@ -1,8 +1,7 @@
-# shellcheck shell=bash disable=SC2016,SC2154 # commands run in the container; tests is set by smoke.sh
+# shellcheck shell=bash disable=SC2016,SC2154 # commands run in the container; the variables come from lib.sh
 # Smoke tests of the store, Nix and the image configuration (ADR-0001).
 # Sourced by scripts/smoke.sh after tests/smoke/lib.sh. Inputs (environment):
-# IMAGE; EXPECTED, a directory with nix.conf, env, metadata and nix-version;
-# tests, the directory of the smoke tests.
+# IMAGE; EXPECTED, a directory with nix.conf, env, metadata and nix-version.
 
 # --- the store and trust ---------------------------------------------------------
 
@@ -14,7 +13,7 @@ expect_no_text "written"
 
 test_case "builds run as build users"
 # Build and read the result in the same container.
-run -v "$tests/../fixture:/fixture:ro" -- sh -c 'cat "$(nix-build --no-out-link /fixture/uid.nix)"'
+build_fixture
 expect_build_user
 
 test_case "dev cannot add substituters"
