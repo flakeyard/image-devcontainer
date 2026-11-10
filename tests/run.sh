@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Unit tests of the scripts of .github and static tests of the workflows, in
-# tests/unit/release and tests/unit/workflows, with the harness and the stubs
-# of gh, date and sleep of the shell library in SHELL_LIB and the other stubs
-# in tests/bin. The static tests need mikefarah yq.
+# Unit tests of the scripts of the check apps and of .github, and static tests
+# of the workflows, in tests/unit/check, release and workflows, with the
+# harness and the stubs of gh, date and sleep of the shell library in
+# SHELL_LIB and the other stubs in tests/bin. The static tests need mikefarah
+# yq.
 # Usage: SHELL_LIB=<shell library> tests/run.sh
 # shellcheck source-path=SCRIPTDIR
 set -uo pipefail
@@ -28,7 +29,7 @@ source "$root/tests/lib/checks.sh"
 # shellcheck source=lib/stubs.sh
 source "$root/tests/lib/stubs.sh"
 
-for suite in "$root"/tests/unit/{release,workflows}/*.sh; do
+for suite in "$root"/tests/unit/{check,release,workflows}/*.sh; do
   # shellcheck source=/dev/null
   source "$suite"
 done
