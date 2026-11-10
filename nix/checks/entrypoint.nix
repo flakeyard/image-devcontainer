@@ -1,8 +1,15 @@
 # The entrypoint builds (writeShellApplication runs shellcheck), names the
-# user and home of nix/image/parts/users.nix, and passes its unit tests.
+# user and home of nix/image/parts/users.nix, and passes its unit tests, with
+# the harness of the shell library that test.yaml pins.
 {
   perSystem =
-    { config, pkgs, ... }:
+    {
+      config,
+      lib,
+      pkgs,
+      shellLib,
+      ...
+    }:
     let
       inherit (config.image) parts;
     in
@@ -21,14 +28,21 @@
             ];
             inherit (parts.users) passwd group;
             script = ../../entrypoint/entrypoint.sh;
-            unit = ../../tests/unit;
+            tests = lib.fileset.toSource {
+              root = ../../tests;
+              fileset = lib.fileset.unions [
+                ../../tests/lib/checks.sh
+                ../../tests/unit/entrypoint.sh
+              ];
+            };
             built = parts.entrypoint;
           }
           ''
             grep -qx 'user=${parts.users.user}' "$script"
             grep -qx 'home=${parts.users.home}' "$script"
-            shellcheck -x -e SC1091 "$unit/entrypoint.sh"
-            PASSWD=$passwd GROUP=$group ENTRYPOINT=$script bash "$unit/entrypoint.sh"
+            shellcheck -x -e SC1091 "$tests/unit/entrypoint.sh"
+            PASSWD=$passwd GROUP=$group ENTRYPOINT=$script SHELL_LIB=${shellLib} \
+              bash "$tests/unit/entrypoint.sh"
             touch $out
           '';
     };

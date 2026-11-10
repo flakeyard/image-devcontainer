@@ -222,12 +222,13 @@ The apps that build the image do it through `scripts/lib/image.sh`. The apps
 which the action `attest-once` sources as well. The unit tests of a script are
 at its path under `tests/unit/`; those of the release workflow and its scripts
 are in `tests/unit/release/`, and the static tests of `test.yaml` in
-`tests/unit/workflows/`. [`tests/run.sh`](tests/run.sh) runs these with the
-harness and the stubs of `gh`, `date` and `sleep` of
-[action-shell-lib][action-shell-lib] and the other stubs in `tests/bin/`. The
-repository uses the library only in tests: the job `image` of `test.yaml` pins
-it, and `nix flake check` fetches it at that commit. Alone, `tests/run.sh` needs
-`SHELL_LIB` set to a checkout of the library and mikefarah `yq`.
+`tests/unit/workflows/`. [`tests/run.sh`](tests/run.sh) runs them, and
+`tests/unit/entrypoint.sh` the tests of the entrypoint, with the harness and the
+stubs of `gh`, `date` and `sleep` of [action-shell-lib][action-shell-lib] and
+the other stubs in `tests/bin/`. The repository uses the library only in tests:
+the job `image` of `test.yaml` pins it, and `nix flake check` fetches it at that
+commit. Alone, `tests/run.sh` needs `SHELL_LIB` set to a checkout of the library
+and mikefarah `yq`.
 
 ## Bootstrap
 
