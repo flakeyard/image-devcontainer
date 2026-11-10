@@ -1,6 +1,7 @@
 # The shell library at the commit that the job image of test.yaml pins, for
-# the unit tests: the commit is read from test.yaml, so the repository pins it
-# once (ADR-0001 of action-shell-lib).
+# the unit tests and the app publish-verify: the commit is read from
+# test.yaml, which names it like every other use of the library (ADR-0001 of
+# action-shell-lib).
 {
   perSystem =
     _:

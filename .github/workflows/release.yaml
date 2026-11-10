@@ -118,6 +118,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin <<<"$GH_TOKEN"
+      # github/api.sh for the action attest-once.
+      - id: lib
+        uses: flakeyard/action-shell-lib@4c8422d8a7fdb2b097b349f643efa8d196e0406b # v0.1.2
       - name: Push by digest
         shell: bash
         run: nix run --no-update-lock-file .#publish-platform -- "$IMAGE" "$TESTED"
@@ -126,11 +129,13 @@ jobs:
         with:
           image: ${{ env.IMAGE }}
           digest: ${{ env.TESTED }}
+          shell-lib: ${{ steps.lib.outputs.path }}
       - name: SBOM attestation
         uses: $/.github/actions/attest-once
         with:
           image: ${{ env.IMAGE }}
           digest: ${{ env.TESTED }}
+          shell-lib: ${{ steps.lib.outputs.path }}
           predicate-type: https://cyclonedx.org/bom
           sbom-path: ${{ runner.temp }}/sbom.cdx.json
       - name: Log out
@@ -169,6 +174,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin <<<"$GH_TOKEN"
+      # github/api.sh for the action attest-once.
+      - id: lib
+        uses: flakeyard/action-shell-lib@4c8422d8a7fdb2b097b349f643efa8d196e0406b # v0.1.2
       - id: index
         name: Manifest list
         shell: bash
@@ -186,6 +194,7 @@ jobs:
         with:
           image: ${{ env.IMAGE }}
           digest: ${{ steps.index.outputs.digest }}
+          shell-lib: ${{ steps.lib.outputs.path }}
       - name: Release tag
         shell: bash
         env:

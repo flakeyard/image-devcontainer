@@ -7,15 +7,18 @@
 # The attestation is not bound to a commit: a release that leaves the image
 # unchanged reuses that of the release that first published the digest.
 # Inputs (environment): GH_TOKEN, REPOSITORY (owner/name), IMAGE (registry
-# repository), DIGEST, PREDICATE (empty for provenance).
+# repository), DIGEST, PREDICATE (empty for provenance), SHELL_LIB (the
+# directory of the shell library).
 set -euo pipefail
 shopt -s inherit_errexit
 # The checks of the publish apps, from the same commit as this action.
 # shellcheck source=/dev/null # scripts/publish/lib.sh
 source "${BASH_SOURCE[0]%/*}/../../../scripts/publish/lib.sh"
+# Calls of the GitHub API, from the shell library that the job pins.
+# shellcheck source=/dev/null # github/api.sh of the library
+source "$SHELL_LIB/github/api.sh"
 
 readonly provenance=https://slsa.dev/provenance/v1
-readonly not_found='HTTP 404'
 predicate=${PREDICATE:-$provenance}
 work=$(mktemp -d)
 trap 'rm -rf -- "$work"' EXIT
@@ -31,15 +34,16 @@ verifies() {
 }
 
 # Prints the attestations of the digest as the API lists them; a 404 of the
-# listing itself means none.
+# listing itself means none. fail of lib.sh writes to stderr, so its message
+# is not lost in the command substitution of the caller.
 attestation_list() {
-  local errors=$work/listing
-  if gh api "repos/$REPOSITORY/attestations/$DIGEST" 2>"$errors"; then
-    return 0
-  fi
-  grep -qF -- "$not_found" "$errors" ||
-    fail "cannot list the attestations of $DIGEST: $(cat "$errors")"
-  echo '{"attestations": []}'
+  local status=0
+  api_request GET "repos/$REPOSITORY/attestations/$DIGEST" || status=$?
+  case $status in
+    0) ;;
+    "$NOT_FOUND") echo '{"attestations": []}' ;;
+    *) fail "cannot list the attestations of $DIGEST" ;;
+  esac
 }
 
 # Fails on an attestation whose bundle is not inline, rather than miss it.
