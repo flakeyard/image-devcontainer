@@ -1,4 +1,4 @@
-# Weekly maintenance, not required (FY-0032).
+# Weekly, in the job rebuild of test.yaml (FY-0032).
 { pkgs, ... }:
 {
   description = "Rebuild the newest release and compare";

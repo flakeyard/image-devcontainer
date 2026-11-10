@@ -1,8 +1,8 @@
 # The scripts of the apps and of .github pass shellcheck and their unit
 # tests, whose suites are at the paths of the scripts under tests/unit, and
-# the release workflow passes its static tests in tests/unit/release. The
-# smoke tests and their probes, which need a container engine, pass
-# shellcheck.
+# the workflows pass their static tests in tests/unit/release and
+# tests/unit/workflows. The smoke tests and their probes, which need a
+# container engine, pass shellcheck.
 {
   perSystem =
     { pkgs, ... }:
@@ -41,7 +41,7 @@
             for suite in "$unit"/{check,publish}/*.sh; do
               SCRIPTS=$PWD/scripts STUBS=$PWD/stubs bash "$suite"
             done
-            for suite in "$unit"/release/*.sh; do
+            for suite in "$unit"/{release,workflows}/*.sh; do
               SCRIPTS=$PWD/github STUBS=$PWD/stubs bash "$suite"
             done
             touch $out
