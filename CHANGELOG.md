@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/flakeyard/image-devcontainer/compare/v0.1.3...v0.1.4) (2026-11-10)
+
+
+### Bug Fixes
+
+* list attestations and read the git tag through the shell library ([#81](https://github.com/flakeyard/image-devcontainer/issues/81)) ([2cf75de](https://github.com/flakeyard/image-devcontainer/commit/2cf75deea88bb050a1bd8a67a503918cb6cede0c))
+
 ## [0.1.3](https://github.com/flakeyard/image-devcontainer/compare/v0.1.2...v0.1.3) (2026-11-10)
 
 
