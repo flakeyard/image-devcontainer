@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
-# Usage: check-reproducible [FLAKE]
+# Usage: check-reproducible
 #
 # Checks that the image is reproducible (FY-0032): rebuilds with --rebuild
 # every derivation of the image that is not in a binary cache, then streams
 # the image twice and compares the archives. Run it before anything else
 # builds the image, so that Nix still knows which derivations it builds.
+# Inputs (environment): IMAGE_LIB, scripts/lib/image.sh.
 set -euo pipefail
 
-flake=${1:-.}
-installable=$flake#image
+# shellcheck source=/dev/null # scripts/lib/image.sh, from the app
+source "$IMAGE_LIB"
+installable=.#image
 
 # own_derivations: reads the output of `nix build --dry-run` and prints the
 # derivations it will build.
@@ -30,7 +32,7 @@ if ((${#derivations[@]} > 0)); then
   nix build --no-link --rebuild --keep-going "${derivations[@]/%/^*}"
 fi
 
-stream=$(nix build --no-link --no-update-lock-file --print-out-paths "$installable")
+stream=$(image_stream)
 first=$("$stream" | sha256sum)
 second=$("$stream" | sha256sum)
 if [[ $first != "$second" ]]; then

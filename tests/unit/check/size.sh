@@ -11,7 +11,7 @@ source "$(dirname -- "${BASH_SOURCE[0]}")/../lib.sh"
 setup() {
   work=$(mktemp -d)
   export STREAM=$work/stream SYSTEM=x86_64-linux
-  export PATH=$STUBS:$PATH
+  export PATH=$STUBS:$PATH IMAGE_LIB=$SCRIPTS/lib/image.sh
   # A stream of 3 MiB.
   cat >"$STREAM" <<STREAM
 #!$(command -v bash)

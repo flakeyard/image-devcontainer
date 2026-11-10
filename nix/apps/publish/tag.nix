@@ -5,4 +5,5 @@
     crane
     gnugrep
   ];
+  environment.PUBLISH_LIB = "${../../../scripts/publish/lib.sh}";
 }

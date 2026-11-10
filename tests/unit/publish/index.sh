@@ -9,20 +9,18 @@ export LC_ALL=C
 source "$(dirname -- "${BASH_SOURCE[0]}")/../lib.sh"
 
 repo=ghcr.io/flakeyard/image-devcontainer
-amd64=sha256:$(printf 'a%.0s' {1..64})
-arm64=sha256:$(printf 'b%.0s' {1..64})
+amd64=$(digest_of a)
+arm64=$(digest_of b)
 
 setup() {
   work=$(mktemp -d)
   export CALLS=$work/calls REGISTRY=$work/registry
-  export PATH=$STUBS:$PATH
+  export PATH=$STUBS:$PATH PUBLISH_LIB=$SCRIPTS/publish/lib.sh
   mkdir -p "$REGISTRY/manifests" "$REGISTRY/tags"
   : >"$CALLS"
   unset CRANE_DENIED
   # The platform manifests of a release, pushed by digest.
-  for digest in "$amd64" "$arm64"; do
-    printf '%s' '{"mediaType":"application/vnd.docker.distribution.manifest.v2+json"}' >"$REGISTRY/manifests/$digest"
-  done
+  pushed_platforms "$amd64" "$arm64"
 }
 
 publish() { "$SCRIPTS/publish/index.sh" "$repo" 1.2.3 abc123 "$amd64" "$arm64"; }
@@ -60,7 +58,7 @@ expect calls "put $first"
 finish
 
 setup
-echo "sha256:$(printf 'c%.0s' {1..64})" >"$REGISTRY/tags/v1.2.3"
+digest_of c >"$REGISTRY/tags/v1.2.3"
 run "publish-index: refuses to move a release tag" fail publish
 expect message "release tags are immutable"
 expect calls ""

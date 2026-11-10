@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: check-licenses OUTPUT [FLAKE]
+# Usage: check-licenses OUTPUT
 #
 # Generates the SBOM of the image of this system with sbomnix into OUTPUT (a
 # CycloneDX JSON file), completes it and checks it (FY-0032):
@@ -12,32 +12,34 @@
 # the image; NON_REDISTRIBUTABLE, identifiers of licenses that forbid
 # redistribution, one per line, from nixpkgs; KNOWN_LICENSES, a JSON object of
 # component names and SPDX identifiers for components sbomnix cannot match;
-# COMPLETE_LICENSES_JQ and SBOM_PROBLEMS_JQ, the jq programs of these steps.
+# LICENSES_JQ, the directory of the jq programs of these steps; IMAGE_LIB,
+# scripts/lib/image.sh.
 set -euo pipefail
 shopt -s inherit_errexit
 
 output=$1
-flake=${2:-.}
-system=$(nix eval --raw --impure --expr builtins.currentSystem)
+# shellcheck source=/dev/null # scripts/lib/image.sh, from the app
+source "$IMAGE_LIB"
+system=$(current_system)
 
 # generate_sbom FILE: writes the SBOM of the image as sbomnix makes it.
 generate_sbom() {
   local file=$1
-  sbomnix "$flake#packages.$system.image.closureRoot" --cdx "$file" >&2
+  sbomnix ".#packages.$system.image.closureRoot" --cdx "$file" >&2
 }
 
 # complete_licenses SBOM: prints SBOM, its components without a license
 # completed from KNOWN_LICENSES by name without a trailing version.
 complete_licenses() {
   local sbom=$1
-  jq --slurpfile known "$KNOWN_LICENSES" --from-file "$COMPLETE_LICENSES_JQ" "$sbom"
+  jq -L "$LICENSES_JQ" --slurpfile known "$KNOWN_LICENSES" --from-file "$LICENSES_JQ/complete.jq" "$sbom"
 }
 
 # sbom_problems SBOM: prints the problems of SBOM, one per line.
 sbom_problems() {
   local sbom=$1
-  jq -r --rawfile closure "$CLOSURE" --rawfile deny "$NON_REDISTRIBUTABLE" \
-    --arg root "$CLOSURE_ROOT" --from-file "$SBOM_PROBLEMS_JQ" "$sbom"
+  jq -r -L "$LICENSES_JQ" --rawfile closure "$CLOSURE" --rawfile deny "$NON_REDISTRIBUTABLE" \
+    --arg root "$CLOSURE_ROOT" --from-file "$LICENSES_JQ/problems.jq" "$sbom"
 }
 
 # print_summary SBOM: prints the number of components and store paths.
