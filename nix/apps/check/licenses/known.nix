@@ -11,7 +11,7 @@ let
       lib.toList (package.meta.license or (throw "${package.name} has no meta.license"))
     );
   # The Nix package is a wrapper without a license; its libraries have one.
-  nixLibrary = parts.nix.passthru.libs.nix-util or pkgs.nixVersions.nixComponents_2_35.nix-util;
+  nixLibrary = parts.nix.passthru.libs.nix-util;
   # Libraries of the Nix package, built separately.
   nixComponents = [
     "nix-cmd"
@@ -39,5 +39,5 @@ lib.genAttrs nixComponents (_: ids nixLibrary)
   xgcc = ids pkgs.stdenv.cc.cc;
   # icu has no meta.license in nixpkgs; ICU 74 and later use the Unicode
   # License v3 (its LICENSE file).
-  icu4c = [ (lib.licenses.unicode-30 or { spdxId = "Unicode-3.0"; }).spdxId ];
+  icu4c = [ lib.licenses.unicode-30.spdxId ];
 }

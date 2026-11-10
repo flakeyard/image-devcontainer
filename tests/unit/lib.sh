@@ -140,3 +140,21 @@ summary() {
   echo "passed: $passed, failed: $failed"
   ((failed == 0))
 }
+
+# --- fixtures of the registry ---------------------------------------------------
+
+# digest_of CHARACTER: the sha256 digest of 64 times CHARACTER.
+digest_of() {
+  local character=$1 hex
+  printf -v hex '%64s' ''
+  echo "sha256:${hex// /$character}"
+}
+
+# pushed_platforms DIGEST...: image manifests in $REGISTRY under the DIGESTs,
+# as publish-platform pushes them.
+pushed_platforms() {
+  local digest
+  for digest; do
+    printf '%s' '{"mediaType":"application/vnd.docker.distribution.manifest.v2+json"}' >"$REGISTRY/manifests/$digest"
+  done
+}

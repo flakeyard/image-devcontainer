@@ -19,8 +19,8 @@ rebuild() {
 # it with the platform digests of the stub.
 setup() {
   work=$(mktemp -d)
-  TARBALL_DIGEST=sha256:$(printf 'a%.0s' {1..64})
-  export CALLS=$work/calls REGISTRY=$work/registry SYSTEM=x86_64-linux TARBALL_DIGEST
+  TARBALL_DIGEST=$(digest_of a)
+  export CALLS=$work/calls REGISTRY=$work/registry TARBALL_DIGEST
   export PATH=$STUBS:$PATH
   : >"$CALLS"
   mkdir -p "$REGISTRY/manifests" "$REGISTRY/tags" "$work/repo"
@@ -40,7 +40,7 @@ expect message "v1.0.0 rebuilt for amd64 has the published digest"
 finish
 
 setup
-TARBALL_DIGEST=sha256:$(printf 'b%.0s' {1..64})
+TARBALL_DIGEST=$(digest_of b)
 run "release-rebuild: another digest fails" fail rebuild
 expect message "the registry has sha256:aaaa"
 finish
@@ -94,11 +94,6 @@ finish
 setup
 run "release-rebuild: uses the tools of the release" ok rebuild
 expect called "/source#publish-digest -- "
-finish
-
-setup
-APPS='["platform-digest","smoke"]' run "release-rebuild: a release before the rename has platform-digest" ok rebuild
-expect called "/source#platform-digest -- "
 finish
 
 # worktrees: the number of worktrees of the repository of the test, besides

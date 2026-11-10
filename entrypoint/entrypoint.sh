@@ -17,7 +17,7 @@ ca_file=/etc/ssl/certs/ca-certificates.crt
 # PATH of the command run as dev, and of the Nix processes run as root. Root's
 # is fixed: not the container's, and never dev's profile, which dev controls.
 # The build sets entrypoint_tools to the tools of the entrypoint
-# (nix/entrypoint.nix).
+# (nix/image/parts/entrypoint.nix).
 dev_path=$home/.nix-profile/bin:/bin:/usr/bin
 daemon_path=${entrypoint_tools:+$entrypoint_tools:}/bin:/usr/bin
 # Proxies of the container engine reach the daemon, which downloads.
