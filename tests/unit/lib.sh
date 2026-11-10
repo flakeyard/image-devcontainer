@@ -1,12 +1,11 @@
 # shellcheck shell=bash disable=SC2154 # work comes from the setup of the suite
-# Harness of the unit tests, sourced by every suite. A case is
+# Harness of the unit tests of the entrypoint. A case is
 #
 #   setup; run NAME EXPECTED COMMAND...; expect KIND ARGS...; finish
 #
-# where the suite's setup makes $work, the directory of the case, and exports
-# CALLS and REGISTRY where its stubs use them. The first failure of a case
-# reports it; later expectations of the case are skipped. A suite ends with
-# summary, which gives its exit status.
+# where the suite's setup makes $work, the directory of the case. The first
+# failure of a case reports it; later expectations of the case are skipped. A
+# suite ends with summary, which gives its exit status.
 
 failed=0 passed=0 current=""
 
@@ -61,18 +60,14 @@ outcome() {
 # expect KIND ARGS...: an expectation of the current case:
 #   message TEXT     stdout or stderr contains TEXT
 #   output TEXT      stdout is TEXT
-#   calls TEXT       the stub calls, joined by ';', are TEXT
-#   called TEXT      a stub call contains TEXT
-#   not_called TEXT  no stub call contains TEXT
 #   line FILE LINE   FILE has the line LINE
 #   empty FILE       FILE is empty or missing
-#   tag TAG DIGEST   the tag TAG of the registry points at DIGEST
 expect() {
   local kind=$1
   shift
   still_passing || return 0
   case $kind in
-    message | output | calls | called | not_called | line | empty | tag) "expect_$kind" "$@" ;;
+    message | output | line | empty) "expect_$kind" "$@" ;;
     *) report "unknown expectation '$kind'" ;;
   esac
 }
@@ -87,24 +82,6 @@ expect_output() {
   [[ $(printed) == "$text" ]] || report "printed '$(printed)', expected '$text'; stderr: $(cat -- "$work/err")"
 }
 
-# joined_calls: the stub calls on one line, separated by ';'.
-joined_calls() { paste -sd';' "$CALLS"; }
-
-expect_calls() {
-  local text=$1
-  [[ $(joined_calls) == "$text" ]] || report "calls '$(joined_calls)', expected '$text'"
-}
-
-expect_called() {
-  local text=$1
-  grep -qF -- "$text" "$CALLS" || report "no call with '$text' in: $(cat -- "$CALLS")"
-}
-
-expect_not_called() {
-  local text=$1
-  ! grep -qF -- "$text" "$CALLS" || report "a call with '$text' in: $(cat -- "$CALLS")"
-}
-
 expect_line() {
   local file=$1 line=$2
   grep -qxF -- "$line" "$file" || report "no line '$line' in $file: $(cat -- "$file")"
@@ -113,17 +90,6 @@ expect_line() {
 expect_empty() {
   local file=$1
   [[ ! -s $file ]] || report "$file is not empty: $(cat -- "$file")"
-}
-
-# tagged TAG: the digest the tag TAG of the registry points at.
-tagged() {
-  local tag=$1
-  cat -- "$REGISTRY/tags/$tag" 2>/dev/null
-}
-
-expect_tag() {
-  local tag=$1 digest=$2
-  [[ $(tagged "$tag") == "$digest" ]] || report "tag $tag is '$(tagged "$tag")', expected '$digest'"
 }
 
 # finish: counts the case as passed unless it failed, runs the suite's
@@ -139,22 +105,4 @@ finish() {
 summary() {
   echo "passed: $passed, failed: $failed"
   ((failed == 0))
-}
-
-# --- fixtures of the registry ---------------------------------------------------
-
-# digest_of CHARACTER: the sha256 digest of 64 times CHARACTER.
-digest_of() {
-  local character=$1 hex
-  printf -v hex '%64s' ''
-  echo "sha256:${hex// /$character}"
-}
-
-# pushed_platforms DIGEST...: image manifests in $REGISTRY under the DIGESTs,
-# as publish-platform pushes them.
-pushed_platforms() {
-  local digest
-  for digest; do
-    printf '%s' '{"mediaType":"application/vnd.docker.distribution.manifest.v2+json"}' >"$REGISTRY/manifests/$digest"
-  done
 }
