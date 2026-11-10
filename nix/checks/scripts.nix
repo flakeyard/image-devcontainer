@@ -1,11 +1,17 @@
 # The scripts of the apps and of .github pass shellcheck and their unit
-# tests, whose suites are at the paths of the scripts under tests/unit, and
-# the workflows pass their static tests in tests/unit/release and
-# tests/unit/workflows. The smoke tests and their probes, which need a
+# tests, whose suites are at the paths of the scripts under tests/unit. Those
+# of .github and the static tests of the workflows, in tests/unit/release and
+# tests/unit/workflows, run in tests/run.sh with the harness of the shell
+# library that test.yaml pins. The smoke tests and their probes, which need a
 # container engine, pass shellcheck.
 {
   perSystem =
-    { pkgs, ... }:
+    {
+      lib,
+      pkgs,
+      shellLib,
+      ...
+    }:
     {
       checks.scripts =
         pkgs.runCommand "script-tests"
@@ -16,34 +22,37 @@
               gawk
               git
               gnugrep
+              gnused
               jq
               shellcheck
               yq-go
             ];
-            scripts = ../../scripts;
-            stubs = ../../tests/bin;
-            unit = ../../tests/unit;
-            smoke = ../../tests/smoke;
-            # A store path name cannot start with a period.
-            github = builtins.path {
-              name = "github";
-              path = ../../.github;
+            source = lib.fileset.toSource {
+              root = ../..;
+              fileset = lib.fileset.unions [
+                ../../.github
+                ../../scripts
+                ../../tests/bin
+                ../../tests/lib
+                ../../tests/run.sh
+                ../../tests/unit
+              ];
             };
+            smoke = ../../tests/smoke;
           }
           ''
-            shellcheck "$scripts"/*.sh "$scripts"/*/*.sh "$stubs"/* "$github"/scripts/*.sh "$github"/actions/*/*.sh
-            shellcheck -x "$unit"/lib.sh "$unit"/*/*.sh
+            cp -r "$source" source && cp -r ${shellLib} shell-lib
+            chmod -R u+w source shell-lib
+            cd source
+            shellcheck scripts/*.sh scripts/*/*.sh tests/bin/* .github/scripts/*.sh .github/actions/*/*.sh
+            shellcheck -x tests/run.sh tests/lib/*.sh tests/unit/lib.sh tests/unit/*/*.sh
             shellcheck -x "$smoke"/*.sh "$smoke"/probes/*.sh
             # The sandbox has no /usr/bin/env.
-            cp -r "$scripts" scripts && cp -r "$stubs" stubs && cp -r "$github" github
-            chmod -R u+w scripts stubs github
-            patchShebangs scripts stubs github
-            for suite in "$unit"/{check,publish}/*.sh; do
-              SCRIPTS=$PWD/scripts STUBS=$PWD/stubs bash "$suite"
+            patchShebangs . ../shell-lib
+            for suite in tests/unit/{check,publish}/*.sh; do
+              SCRIPTS=$PWD/scripts STUBS=$PWD/tests/bin bash "$suite"
             done
-            for suite in "$unit"/{release,workflows}/*.sh; do
-              SCRIPTS=$PWD/github STUBS=$PWD/stubs bash "$suite"
-            done
+            SHELL_LIB=$PWD/../shell-lib bash tests/run.sh
             touch $out
           '';
     };

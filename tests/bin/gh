@@ -7,10 +7,8 @@
 #                       fails
 #   api .../commits/tags/T  the commit $TAG_COMMIT of the tag; HTTP 422 when
 #                       unset
-#   api .../attestations/D  attestations of the predicate types in
-#                       $ATTESTATIONS (space-separated; "-" for one without an
-#                       inline bundle); HTTP 404 when unset; $GH_API_ERROR
-#                       makes it fail otherwise
+#   api                 otherwise the gh stub of the shell library in
+#                       $SHELL_LIB, which answers from the fixtures of the test
 # Changes and checks go to $CALLS.
 set -euo pipefail
 case "$1 $2" in
@@ -37,24 +35,7 @@ case "$1 $2" in
     fi
     printf '{"sha": "%s"}\n' "$TAG_COMMIT"
     ;;
-  api\ *)
-    if [[ -n ${GH_API_ERROR-} ]]; then
-      echo "gh: Server Error (HTTP 502)" >&2
-      exit 1
-    fi
-    if [[ -z ${ATTESTATIONS+set} ]]; then
-      echo "gh: Not Found (HTTP 404)" >&2
-      exit 1
-    fi
-    for type in $ATTESTATIONS; do
-      if [[ $type == - ]]; then
-        echo '{"bundle": null, "bundle_url": "https://example.invalid/bundle"}'
-      else
-        payload=$(printf '{"predicateType":"%s"}' "$type" | base64 -w0)
-        printf '{"bundle": {"dsseEnvelope": {"payload": "%s"}}}\n' "$payload"
-      fi
-    done | jq -s '{attestations: .}'
-    ;;
+  api\ *) exec "$SHELL_LIB/internal/testing/bin/gh" "$@" ;;
   *)
     echo "stub gh: unsupported: $*" >&2
     exit 2
