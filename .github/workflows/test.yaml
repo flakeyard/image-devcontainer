@@ -16,7 +16,11 @@ on:
 permissions: {}
 
 concurrency:
-  group: test-${{ github.ref }}
+  # The weekly run has its own group: a push must not cancel it while it
+  # waits, which would skip the rebuild, and it must not hold up a push.
+  group: >-
+    test-${{ github.ref }}-${{ github.event_name == 'schedule'
+    && 'schedule' || 'run' }}
   # A title or description edit must not cancel a long run.
   cancel-in-progress: >-
     ${{ github.event_name == 'pull_request'

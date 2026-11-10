@@ -12,7 +12,8 @@ source "$(dirname -- "${BASH_SOURCE[0]}")/../lib.sh"
 workflow=$(yq -o=json . "$SCRIPTS/workflows/test.yaml") || exit 1
 
 readonly definitions='
-  def scheduled: .if == "${{ github.event_name == '"'schedule'"' }}";
+  def on_schedule: "github.event_name == '"'schedule'"'";
+  def scheduled: .if == "${{ \(on_schedule) }}";
   def scheduled_ids: [.jobs | to_entries[] | select(.value | scheduled) | .key];
   def may_skip: .jobs.check.with["caller-may-skip"] // "[]" | fromjson;
   def runs($app): any(.steps[]?.run // ""; contains(".#\($app) "));
@@ -36,6 +37,12 @@ finish
 setup
 run "test workflow: jobs that run only on a schedule have no name" ok \
   holds '[.jobs[] | select(scheduled and has("name"))] == []'
+finish
+
+# A shared group would let a push cancel the weekly run while it waits.
+setup
+run "test workflow: the run on a schedule has its own concurrency group" ok \
+  holds '.concurrency.group | contains(on_schedule)'
 finish
 
 setup
