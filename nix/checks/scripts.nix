@@ -1,9 +1,9 @@
 # The scripts of the apps and of .github pass shellcheck and their unit
 # tests, whose suites are at the paths of the scripts under tests/unit. Those
-# of .github and the static tests of the workflows, in tests/unit/release and
-# tests/unit/workflows, run in tests/run.sh with the harness of the shell
-# library that test.yaml pins. The smoke tests and their probes, which need a
-# container engine, pass shellcheck.
+# of the check apps and of .github and the static tests of the workflows, in
+# tests/unit/check, release and workflows, run in tests/run.sh with the
+# harness of the shell library that test.yaml pins. The smoke tests and their
+# probes, which need a container engine, pass shellcheck.
 {
   perSystem =
     {
@@ -49,7 +49,7 @@
             shellcheck -x "$smoke"/*.sh "$smoke"/probes/*.sh
             # The sandbox has no /usr/bin/env.
             patchShebangs . ../shell-lib
-            for suite in tests/unit/{check,publish}/*.sh; do
+            for suite in tests/unit/publish/*.sh; do
               SCRIPTS=$PWD/scripts STUBS=$PWD/tests/bin bash "$suite"
             done
             SHELL_LIB=$PWD/../shell-lib bash tests/run.sh

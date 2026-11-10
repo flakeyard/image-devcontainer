@@ -1,114 +1,110 @@
-#!/usr/bin/env bash
-# Unit tests of scripts/check/release-rebuild.sh, with stubs of nix and crane,
-# a git repository and a registry in a directory. Inputs (environment):
-# SCRIPTS, the scripts directory; STUBS, the stubs.
-set -uo pipefail
-export LC_ALL=C
+# shellcheck shell=bash
+# Tests of scripts/check/release-rebuild.sh, with stubs of nix and crane, a git
+# repository and a registry in a directory.
+# shellcheck disable=SC2154 # work and registry come from setup
 
-# shellcheck source-path=SCRIPTDIR source=../lib.sh
-source "$(dirname -- "${BASH_SOURCE[0]}")/../lib.sh"
-
-# rebuild [ARCH [DIR]]: runs check-release-rebuild for ARCH, amd64 by
-# default, in DIR, the repository of the test by default.
+# rebuild NAME EXPECTED [ARCH [DIR]]: test NAME runs check-release-rebuild for
+# ARCH, amd64 by default, in DIR, the repository of the test by default;
+# EXPECTED is ok or fail.
 rebuild() {
-  local arch=${1:-amd64} dir=${2:-$work/repo}
-  (cd "$dir" && "$SCRIPTS/check/release-rebuild.sh" ghcr.io/x/y "$arch")
+  local name=$1 expected=$2 arch=${3:-amd64} dir=${4:-$work/repo}
+  pushd "$dir" >/dev/null || return
+  run "release-rebuild: $name" "$expected" scripts/check/release-rebuild.sh -- ghcr.io/x/y "$arch"
+  popd >/dev/null || return
 }
 
-# setup: a git repository with the tag v1.0.0 and a registry that publishes
-# it with the platform digests of the stub.
-setup() {
-  work=$(mktemp -d)
-  TARBALL_DIGEST=$(digest_of a)
-  export CALLS=$work/calls REGISTRY=$work/registry TARBALL_DIGEST
-  export PATH=$STUBS:$PATH
-  : >"$CALLS"
-  mkdir -p "$REGISTRY/manifests" "$REGISTRY/tags" "$work/repo"
-  git -C "$work/repo" init -q
+# rebuild_setup: a git repository with the tag v1.0.0 and a registry that
+# publishes it with the platform digests of the stub.
+rebuild_setup() {
+  stubbed_setup
   # Independent of the git configuration of whoever runs the tests.
-  export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+  local -x GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+  local digest index
+  digest=$(digest_of a)
+  apply TARBALL_DIGEST="$digest"
+  mkdir "$work/repo"
+  git -C "$work/repo" init -q
   git -C "$work/repo" -c commit.gpgsign=false commit -q --allow-empty -m init
   git -C "$work/repo" -c tag.gpgsign=false tag v1.0.0
-  index=$(printf '{"manifests":[{"digest":"%s","platform":{"architecture":"amd64"}}]}' "$TARBALL_DIGEST")
-  printf '%s' "$index" >"$REGISTRY/manifests/sha256:index"
-  echo sha256:index >"$REGISTRY/tags/v1.0.0"
+  index=$(printf '{"manifests":[{"digest":"%s","platform":{"architecture":"amd64"}}]}' "$digest")
+  printf '%s' "$index" >"$registry/manifests/sha256:index"
+  echo sha256:index >"$registry/tags/v1.0.0"
 }
 
-setup
-run "release-rebuild: the rebuild has the published digest" ok rebuild
+rebuild_setup
+rebuild "the rebuild has the published digest" ok
 expect message "v1.0.0 rebuilt for amd64 has the published digest"
 finish
 
-setup
-TARBALL_DIGEST=$(digest_of b)
-run "release-rebuild: another digest fails" fail rebuild
+rebuild_setup
+apply TARBALL_DIGEST="$(digest_of b)"
+rebuild "another digest fails" fail
 expect message "the registry has sha256:aaaa"
 finish
 
-setup
+rebuild_setup
 git -C "$work/repo" tag -d v1.0.0 >/dev/null
-run "release-rebuild: nothing to do before the first release" ok rebuild
+rebuild "nothing to do before the first release" ok
 expect message "No release"
 finish
 
-setup
-rm -r "$REGISTRY/tags"
-run "release-rebuild: a release missing from the registry fails" fail rebuild
+rebuild_setup
+rm -r "$registry/tags"
+rebuild "a release missing from the registry fails" fail
 expect message "::error::The release v1.0.0 was never published"
 expect message "make a new patch release"
 finish
 
-setup
+rebuild_setup
 git -C "$work/repo" -c tag.gpgsign=false tag v1.1.0
-run "release-rebuild: the newest tag is the release" fail rebuild
+rebuild "the newest tag is the release" fail
 expect message "The release v1.1.0 was never published"
 finish
 
-setup
+rebuild_setup
 git -C "$work/repo" tag -d v1.0.0 >/dev/null
 git -C "$work/repo" -c tag.gpgsign=false tag v1.0.0-rc.1
 git -C "$work/repo" -c tag.gpgsign=false tag v1.0
-run "release-rebuild: other tags are no releases" ok rebuild
+rebuild "other tags are no releases" ok
 expect message "No release"
 finish
 
-setup
+rebuild_setup
 mkdir "$work/plain"
 # git must not find a repository above the directory.
-GIT_CEILING_DIRECTORIES=$work run "release-rebuild: git errors fail" fail rebuild amd64 "$work/plain"
+apply GIT_CEILING_DIRECTORIES="$work"
+rebuild "git errors fail" fail amd64 "$work/plain"
 expect message "not a git repository"
 finish
 
-setup
-run "release-rebuild: no image of the architecture fails" fail rebuild arm64
+rebuild_setup
+rebuild "no image of the architecture fails" fail arm64
 expect message "has no arm64 image"
 finish
 
-setup
-export CRANE_MANIFEST_DENIED=1
-run "release-rebuild: registry errors fail" fail rebuild
+rebuild_setup
+apply CRANE_MANIFEST_DENIED=1
+rebuild "registry errors fail" fail
 expect message "DENIED"
-unset CRANE_MANIFEST_DENIED
 finish
 
-setup
-run "release-rebuild: uses the tools of the release" ok rebuild
-expect called "/source#publish-digest -- "
+rebuild_setup
+rebuild "uses the tools of the release" ok
+expect call "/source#publish-digest -- "
 finish
 
 # worktrees: the number of worktrees of the repository of the test, besides
 # its own.
 worktrees() { git -C "$work/repo" worktree list --porcelain | grep -c '^worktree ' | awk '{ print $1 - 1 }'; }
 
-setup
-run "release-rebuild: removes the worktree of the release" ok rebuild
-if still_passing && [[ $(worktrees) != 0 ]]; then report "worktrees left: $(git -C "$work/repo" worktree list)"; fi
+rebuild_setup
+rebuild "removes the worktree of the release" ok
+if [[ -n $current ]] && [[ $(worktrees) != 0 ]]; then report "worktrees left: $(git -C "$work/repo" worktree list)"; fi
 finish
 
-setup
-RUN_ERROR="error: build failed" run "release-rebuild: a failing rebuild leaves no worktree" fail rebuild
+rebuild_setup
+apply RUN_ERROR="error: build failed"
+rebuild "a failing rebuild leaves no worktree" fail
 expect message "build failed"
-if still_passing && [[ $(worktrees) != 0 ]]; then report "worktrees left: $(git -C "$work/repo" worktree list)"; fi
+if [[ -n $current ]] && [[ $(worktrees) != 0 ]]; then report "worktrees left: $(git -C "$work/repo" worktree list)"; fi
 finish
-
-summary
