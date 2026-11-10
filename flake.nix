@@ -4,7 +4,7 @@
   inputs = {
     nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?ref=nixos-26.05&rev=08d3a97586f6b6343b3b5e799980773629432610&shallow=1";
     flake-parts = {
-      url = "git+https://github.com/hercules-ci/flake-parts?ref=main&rev=024633cd702b10285db5cb19b40ad48d2399ba60&shallow=1";
+      url = "git+https://github.com/hercules-ci/flake-parts?ref=main&rev=ea2630b7470978622c7689a1ff75d2b389175399&shallow=1";
       inputs.nixpkgs-lib.follows = "nixpkgs";
     };
     import-tree.url = "git+https://github.com/vic/import-tree?ref=main&rev=eb1b52eaecc57f7c136d07ae8a93e724dfecac46&shallow=1";

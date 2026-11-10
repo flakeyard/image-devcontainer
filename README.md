@@ -199,7 +199,9 @@ the image after `action-setup-nix` has released it.
 - `nix run .#check-licenses -- sbom.cdx.json` generates the SBOM and checks the
   licenses.
 
-CI runs all of them on both architectures and ends with
+CI runs all of them on both architectures, after
+[action-flake-lock][action-flake-lock] has checked `flake.lock` before any
+evaluation of the flake ([FY-0017][fy-0017]), and ends with
 [workflow-check][workflow-check], which checks the pull request title,
 `renovate.json` and the release behind its preset tag and reports the only
 required check, `check / required` ([FY-0034][fy-0034]). The release workflow
@@ -238,8 +240,11 @@ are released:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0026-stable-nixpkgs.md
 [fy-0032]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0032-publish-images-behind-an-approval.md
+[fy-0017]:
+  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0017-atom-contract.md
 [fy-0022]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0022-bootstrap.md
 [fy-0034]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0034-check-every-repository-with-workflow-check.md
 [workflow-check]: https://github.com/flakeyard/workflow-check
+[action-flake-lock]: https://github.com/flakeyard/action-flake-lock
