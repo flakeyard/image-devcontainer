@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/flakeyard/image-devcontainer/compare/v0.1.1...v0.1.2) (2026-11-10)
+
+
+### Bug Fixes
+
+* **deps:** update flake input flake-parts to ea2630b ([#65](https://github.com/flakeyard/image-devcontainer/issues/65)) ([f40a162](https://github.com/flakeyard/image-devcontainer/commit/f40a1621bd19109da5b3851c783c1bd231f7d389))
+
 ## [0.1.1](https://github.com/flakeyard/image-devcontainer/compare/v0.1.0...v0.1.1) (2026-11-05)
 
 
