@@ -12,8 +12,9 @@
 #   - the platform has provenance and an SBOM from the release workflow. They
 #     are not bound to the commit: a platform digest keeps the attestations of
 #     the release that first published it.
-# Inputs (environment): GH_TOKEN; PUBLISH_LIB, scripts/publish/lib.sh. Needs
-# docker, as on GitHub-hosted runners.
+# Inputs (environment): GH_TOKEN; PUBLISH_LIB, scripts/publish/lib.sh;
+# SHELL_LIB, the directory of the shell library. Needs docker, as on
+# GitHub-hosted runners.
 set -euo pipefail
 shopt -s inherit_errexit
 
@@ -21,10 +22,12 @@ repository=$1 image=$2 index=$3 version=$4 revision=$5 arch=$6 platform=$7
 readonly sbom=https://cyclonedx.org/bom
 # shellcheck source=/dev/null # scripts/publish/lib.sh, from the app
 source "$PUBLISH_LIB"
+# shellcheck source=/dev/null # github/api.sh of the library, from the app
+source "$SHELL_LIB/github/api.sh"
 
 # The commit of the git tag vVERSION, from the API.
 tag_commit() {
-  gh api "repos/$repository/commits/tags/v$version" | jq -r .sha
+  api_get "repos/$repository/commits/tags/v$version" | jq -r .sha
 }
 
 check_git_tag() {

@@ -225,10 +225,12 @@ are in `tests/unit/release/`, and the static tests of `test.yaml` in
 `tests/unit/workflows/`. [`tests/run.sh`](tests/run.sh) runs them, and
 `tests/unit/entrypoint.sh` the tests of the entrypoint, with the harness and the
 stubs of `gh`, `date` and `sleep` of [action-shell-lib][action-shell-lib] and
-the other stubs in `tests/bin/`. The repository uses the library only in tests:
-the job `image` of `test.yaml` pins it, and `nix flake check` fetches it at that
-commit. Alone, `tests/run.sh` needs `SHELL_LIB` set to a checkout of the library
-and mikefarah `yq`.
+the other stubs in `tests/bin/`. The action `attest-once` and the app
+`publish-verify` call the GitHub API through `github/api.sh` of the library. The
+jobs of `release.yaml` that attest pin the library for the action; the job
+`image` of `test.yaml` pins the same commit, at which `nix flake check` and the
+app fetch it. Alone, `tests/run.sh` needs `SHELL_LIB` set to a checkout of the
+library and mikefarah `yq`.
 
 ## Bootstrap
 

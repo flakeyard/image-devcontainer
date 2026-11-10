@@ -97,7 +97,17 @@ finish
 
 verify_setup
 index=$(published)
+git_tag_at "$revision"
+transient_failures repos/flakeyard/image-devcontainer/commits/tags/v1.2.3 1
+attested_at "$revision"
+verify "a transient API error is retried" ok "$amd64"
+expect sleeps "5"
+finish
+
+verify_setup
+index=$(published)
 attested_at "$revision"
 verify "no git tag" fail "$amd64"
 expect message "cannot read the git tag v1.2.3"
+expect message "Not Found (HTTP 404)"
 finish

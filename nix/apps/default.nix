@@ -2,8 +2,8 @@
 # body check/size.nix is the app check-size, which runs scripts/check/size.sh
 # with the Nix of the runner. A directory with default.nix, such as smoke/, is
 # one app, and its other files are parts of its body. A body is a function of
-# config, lib and pkgs that returns the settings of its app for mkApp. The
-# files here are modules; flake.nix imports no body.
+# config, lib, pkgs and shellLib, the shell library, that returns the settings
+# of its app for mkApp. The files here are modules; flake.nix imports no body.
 { lib, ... }:
 let
   # bodiesIn PATH: the bodies under the directory PATH of the apps by their
@@ -42,6 +42,7 @@ in
       config,
       mkApp,
       pkgs,
+      shellLib,
       ...
     }:
     let
@@ -51,7 +52,14 @@ in
         let
           name = appName path;
           script = ../../scripts + "/${path}.sh";
-          settings = import body { inherit config lib pkgs; };
+          settings = import body {
+            inherit
+              config
+              lib
+              pkgs
+              shellLib
+              ;
+          };
         in
         lib.nameValuePair name (mkApp { inherit name script; } settings);
     in

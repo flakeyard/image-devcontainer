@@ -57,6 +57,16 @@ finish
 attested_setup
 run "attested: false when the digest has no attestation" ok "$attested_script"
 expect output attested false
+# The body of the 404 is not read as a list of attestations.
+expect no-message "error"
+finish
+
+attested_setup
+attestations "$bom"
+transient_failures repos/flakeyard/image-devcontainer/attestations/sha256:abc 1
+run "attested: a transient API error is retried" ok "$attested_script"
+expect output attested false
+expect sleeps "5"
 finish
 
 attested_setup
@@ -78,6 +88,7 @@ attested_setup
 listed "HTTP 500"
 run "attested: an API error fails, whatever the verification reported" fail "$attested_script"
 expect message "cannot list the attestations"
+expect message "HTTP 500"
 expect output attested ""
 finish
 
