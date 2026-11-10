@@ -61,7 +61,7 @@ jobs:
           ref: ${{ needs.release.outputs.sha }}
           persist-credentials: false
       # Only cache.nixos.org (FY-0032).
-      - uses: flakeyard/action-setup-nix@feaa363e1aa0007d70c643731c508bb40190ce83 # v0.1.2
+      - uses: flakeyard/action-setup-nix@d9d2d2c4ab70b7829a12d6ad04bc9c1b350a9669 # v0.1.3
       - name: Check the size
         shell: bash
         run: nix run --no-update-lock-file .#check-size -- size-budget
@@ -107,7 +107,7 @@ jobs:
         with:
           ref: ${{ needs.release.outputs.sha }}
           persist-credentials: false
-      - uses: flakeyard/action-setup-nix@feaa363e1aa0007d70c643731c508bb40190ce83 # v0.1.2
+      - uses: flakeyard/action-setup-nix@d9d2d2c4ab70b7829a12d6ad04bc9c1b350a9669 # v0.1.3
       # Before the push: an image whose SBOM fails is never pushed.
       - name: SBOM
         shell: bash
@@ -163,7 +163,7 @@ jobs:
         with:
           ref: ${{ needs.release.outputs.sha }}
           persist-credentials: false
-      - uses: flakeyard/action-setup-nix@feaa363e1aa0007d70c643731c508bb40190ce83 # v0.1.2
+      - uses: flakeyard/action-setup-nix@d9d2d2c4ab70b7829a12d6ad04bc9c1b350a9669 # v0.1.3
       - name: Log in to GHCR
         shell: bash
         env:
@@ -232,7 +232,7 @@ jobs:
         with:
           ref: ${{ needs.release.outputs.sha }}
           persist-credentials: false
-      - uses: flakeyard/action-setup-nix@feaa363e1aa0007d70c643731c508bb40190ce83 # v0.1.2
+      - uses: flakeyard/action-setup-nix@d9d2d2c4ab70b7829a12d6ad04bc9c1b350a9669 # v0.1.3
       - shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
