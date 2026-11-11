@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6](https://github.com/flakeyard/image-devcontainer/compare/v0.1.5...v0.1.6) (2026-11-11)
+
+
+### Bug Fixes
+
+* generate the SBOM from the store path, not the flake ([#95](https://github.com/flakeyard/image-devcontainer/issues/95)) ([c672e10](https://github.com/flakeyard/image-devcontainer/commit/c672e10b66007659e85788487867fa3c9f17289b))
+
 ## [0.1.5](https://github.com/flakeyard/image-devcontainer/compare/v0.1.4...v0.1.5) (2026-11-11)
 
 
