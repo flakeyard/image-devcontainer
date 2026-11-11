@@ -29,7 +29,7 @@ review_by:
 
 This record moves [FY-0005][fy-0005] from [flakeyard/decisions][decisions]
 unchanged in substance. Records there that also govern this repository include
-[FY-0024][fy-0024] (versioning and support), [FY-0026][fy-0026] (the stable
+[FY-0024][fy-0024] (versioning and support), [FY-0036][fy-0036] (the stable
 nixpkgs branch and the order of Nix minor updates) and [FY-0032][fy-0032]
 (publication behind an approval).
 
@@ -250,7 +250,7 @@ permissions of their outputs.
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0005-dev-container-image.md
 [fy-0024]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0024-versioning-and-support.md
-[fy-0026]:
-  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0026-stable-nixpkgs.md
 [fy-0032]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0032-publish-images-behind-an-approval.md
+[fy-0036]:
+  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0036-check-the-end-of-life-of-nixpkgs-in-flake-lock.md
