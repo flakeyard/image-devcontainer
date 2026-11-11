@@ -20,8 +20,24 @@ Pin the image by the digest that the [release notes][releases] name:
 The image carries what Dev Containers tools need in its `devcontainer.metadata`
 label: `remoteUser: dev`, `overrideCommand: false`, `init: true` and
 `updateRemoteUserUID: true`. A project may add
-`"postCreateCommand": "direnv allow"` and named volumes for caches under
-`/home/dev` that should survive recreating the container.
+`"postCreateCommand": "direnv allow"` and named volumes for state under
+`/home/dev` that should survive recreating the container. The supported targets
+are `/home/dev/.cache`, `/home/dev/.local/share` and `/home/dev/.vscode-server`:
+the image has these directories, owned by `dev`, and Docker and Podman give a
+new volume the owner of the directory it is mounted at. A new volume anywhere
+else belongs to root, and `dev` cannot write to it.
+
+A volume keeps the uid it was created with. The entrypoint never changes the
+owner of a mount point, so when `dev` gets another uid than 1000, from `DEV_UID`
+or the owner of the project, it cannot write to a new volume, which belongs to
+uid 1000. Give the volume to that uid once, as root, with a file in it: Docker
+fills an empty volume from the image again at every start.
+
+```sh
+docker run --rm --entrypoint sh -v cache:/home/dev/.cache \
+  ghcr.io/flakeyard/image-devcontainer:v0@sha256:<digest> \
+  -c 'touch /home/dev/.cache/.keep && chown -R 1001:1001 /home/dev/.cache'
+```
 
 Mount the project under `/home/dev` rather than at the default
 `/workspaces/<name>` of Dev Containers tools:
