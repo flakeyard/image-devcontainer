@@ -208,8 +208,9 @@ to the image after `action-setup-nix` has released it.
 - `nix flake check` checks the tools, the users and Nix settings, the entrypoint
   and the scripts with their unit tests (`tests/unit/`), that the image builds,
   and formatting (`nix fmt`).
-- `nix run .#check-reproducible` rebuilds the derivations of the image that are
-  not in a binary cache with `--rebuild` and compares two streams of the image;
+- `nix run .#check-reproducible` rebuilds the derivations of the image that
+  `cache.nixos.org` does not have with `--rebuild`, whatever the local store has
+  built, and compares two streams of the image;
   `nix run .#check-size -- size-budget` compares its size with the budget.
 - `nix run .#smoke -- tests/smoke` loads the image into Docker and runs the
   smoke tests, including VS Code Server and the Dev Containers tools with Docker
