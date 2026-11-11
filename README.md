@@ -180,9 +180,9 @@ lists the license of every package (predicate type `https://cyclonedx.org/bom`).
 Releases follow [semantic versioning][versioning]; `0.y.z` releases are
 pre-releases. A new patch or minor version of Nix is a release of the same
 level, unless the release notes of Nix list incompatible changes. The image
-follows the stable nixpkgs branch in `nixpkgs-eol` and moves to the next one
-before its end of life ([FY-0026][fy-0026]); a new Nix minor version comes to
-the image after `action-setup-nix` has released it.
+follows the stable nixpkgs branch that `flake.lock` pins and moves to the next
+one before its end of life ([FY-0036][fy-0036]); a new Nix minor version comes
+to the image after `action-setup-nix` has released it.
 
 ## Development
 
@@ -210,9 +210,9 @@ attest run in the environment `publish` and wait until the owner approves them.
 `scorecard.yaml` runs OpenSSF Scorecard on `main`. The weekly run of `test.yaml`
 also rebuilds the newest release on both architectures to compare its digests
 with the registry, in the job `rebuild`, which other events skip. To rebuild on
-demand, use Re-run all jobs on the newest scheduled run of `test.yaml`. The
-weekly workflow `maintenance.yaml`, which is not a required check, warns before
-the nixpkgs branch in `nixpkgs-eol` reaches its end of life.
+demand, use Re-run all jobs on the newest scheduled run of `test.yaml`.
+`action-flake-lock` warns from 30 days before the nixpkgs branch of `flake.lock`
+reaches its end of life and fails the weekly run after it.
 
 Every app has a file under `nix/apps/` with its description and tools, and a
 script at the same path under `scripts/`; it is named after the path, so
@@ -247,8 +247,8 @@ are released:
 
 [releases]: https://github.com/flakeyard/image-devcontainer/releases
 [versioning]: https://github.com/flakeyard/.github/blob/main/VERSIONING.md
-[fy-0026]:
-  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0026-stable-nixpkgs.md
+[fy-0036]:
+  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0036-check-the-end-of-life-of-nixpkgs-in-flake-lock.md
 [fy-0032]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0032-publish-images-behind-an-approval.md
 [fy-0017]:
