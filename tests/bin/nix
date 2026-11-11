@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Stub of nix for the unit tests of scripts/. Records calls in $CALLS.
-#   nix build --dry-run ...      prints $DRY_RUN on stderr
+#   nix path-info --derivation   prints $DERIVATION
+#   nix derivation show D...     prints the derivations D of $DERIVATIONS, a
+#                                file in the format of `nix derivation show`
 #   nix build --print-out-paths  prints $STREAM
 #   nix build --rebuild D...     records "rebuild ARGS"; fails with
 #                                $REBUILD_ERROR when it is set
@@ -10,6 +12,12 @@
 set -euo pipefail
 case $1 in
   eval) printf '%s' "$SYSTEM" ;;
+  path-info) echo "$DERIVATION" ;;
+  derivation)
+    shift 2
+    jq --args '.derivations |= with_entries(select(.key | IN($ARGS.positional[])))' \
+      "${@#/nix/store/}" <"$DERIVATIONS"
+    ;;
   run)
     echo "run $*" >>"$CALLS"
     if [[ -n ${RUN_ERROR-} ]]; then
@@ -19,9 +27,7 @@ case $1 in
     echo "$TARBALL_DIGEST"
     ;;
   build)
-    if [[ " $* " == *" --dry-run "* ]]; then
-      printf '%s\n' "$DRY_RUN" >&2
-    elif [[ " $* " == *" --print-out-paths "* ]]; then
+    if [[ " $* " == *" --print-out-paths "* ]]; then
       echo "$STREAM"
     elif [[ " $* " == *" --rebuild "* ]]; then
       echo "rebuild ${*:2}" >>"$CALLS"
