@@ -139,6 +139,33 @@ expect_line "to-stdout"
 expect_line "to-stderr"
 expect_line "root"
 
+# --- volumes -------------------------------------------------------------------
+
+# The volume targets that the README supports, restated as its oracle.
+volume_targets=(.cache .local/share .vscode-server)
+
+# new_volumes TARGET...: docker arguments that mount a new volume at each
+# TARGET under /home/dev. Anonymous volumes start like new named ones, and
+# run --rm removes them.
+new_volumes() {
+  local target
+  for target; do
+    printf '%s\n' --mount "type=volume,target=/home/dev/$target"
+  done
+}
+
+test_case "dev can write to new volumes at the supported targets"
+mapfile -t volumes < <(new_volumes "${volume_targets[@]}")
+run "${volumes[@]}" -- sh -c 'for target; do touch "$HOME/$target/file" && echo "written $target"; done' sh "${volume_targets[@]}"
+for target in "${volume_targets[@]}"; do
+  expect_line "written $target"
+done
+
+test_case "a new volume keeps uid 1000 when dev gets another uid"
+mapfile -t volumes < <(new_volumes .cache)
+run -e DEV_UID=1001 "${volumes[@]}" -- stat -c %u /home/dev/.cache
+expect_line "1000"
+
 # --- capabilities ----------------------------------------------------------------
 
 test_case "works with only CHOWN, DAC_OVERRIDE, FOWNER, SETUID and SETGID"
