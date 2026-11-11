@@ -9,7 +9,8 @@
 #   - no license forbids redistribution.
 # Inputs (environment): CLOSURE, the store paths of the image, one per line;
 # CLOSURE_ROOT, the store path the SBOM is generated from, which is not in
-# the image; NON_REDISTRIBUTABLE, identifiers of licenses that forbid
+# the image; NIXPKGS, the nixpkgs of the image, whose metadata gives the
+# licenses; NON_REDISTRIBUTABLE, identifiers of licenses that forbid
 # redistribution, one per line, from nixpkgs; KNOWN_LICENSES, a JSON object of
 # component names and SPDX identifiers for components sbomnix cannot match;
 # LICENSES_JQ, the directory of the jq programs of these steps; IMAGE_LIB,
@@ -22,10 +23,17 @@ output=$1
 source "$IMAGE_LIB"
 system=$(current_system)
 
-# generate_sbom FILE: writes the SBOM of the image as sbomnix makes it.
+# generate_sbom DIR: writes the SBOM of the image as sbomnix makes it to
+# DIR/sbom.cdx.json. sbomnix runs in DIR, where it also writes its other
+# outputs and its HTTP cache.
+# sbomnix gets the store path and the nixpkgs in NIX_PATH, not the flake: for
+# a flake, sbomnix 1.7.6 to 1.10 fetch its nixpkgs input again without
+# shallow=1, a clone of the whole nixpkgs history. sbomnix 1.10 documents that
+# it skips the nixpkgs metadata for a store path; then no component has a
+# license and the check fails with "unlicensed". Revisit on a sbomnix upgrade.
 generate_sbom() {
-  local file=$1
-  sbomnix ".#packages.$system.image.closureRoot" --cdx "$file" >&2
+  local dir=$1
+  (cd -- "$dir" && NIX_PATH="nixpkgs=$NIXPKGS" sbomnix "$CLOSURE_ROOT" --cdx sbom.cdx.json >&2)
 }
 
 # complete_licenses SBOM: prints SBOM, its components without a license
@@ -58,10 +66,10 @@ fail_on() {
   exit 1
 }
 
-raw=$(mktemp)
-trap 'rm -f -- "$raw"' EXIT
-generate_sbom "$raw"
-complete_licenses "$raw" >"$output"
+work=$(mktemp -d)
+trap 'rm -rf -- "$work"' EXIT
+generate_sbom "$work"
+complete_licenses "$work/sbom.cdx.json" >"$output"
 problems=$(sbom_problems "$output")
 print_summary "$output"
 fail_on "$problems"
