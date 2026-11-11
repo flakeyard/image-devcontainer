@@ -3,7 +3,9 @@
 # runs the Nix daemon supervised, and runs the command as `dev` under tini.
 #
 # Of the environment, it reads DEV_UID and DEV_GID; the Nix daemon gets a
-# fixed environment of its own. The paths below are fixed; the unit tests
+# fixed environment of its own. Bash runs it in privileged mode
+# (nix/image/parts/entrypoint.nix), so BASH_ENV, exported functions and shell
+# options of the environment do not reach it. The paths below are fixed; the unit tests
 # change them after sourcing this file.
 
 user=dev

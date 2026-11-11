@@ -3,8 +3,10 @@
 # entrypoint is sourced, and its files, mount check, owner lookup and chown are
 # replaced by test doubles. The harness is that of the shell library.
 #
-# Inputs (environment): ENTRYPOINT, the script; PASSWD and GROUP, the files of
-# the image; SHELL_LIB, the shell library.
+# The built entrypoint also runs as it is, as a user other than root.
+#
+# Inputs (environment): ENTRYPOINT, the script; BUILT, the built entrypoint;
+# PASSWD and GROUP, the files of the image; SHELL_LIB, the shell library.
 # shellcheck disable=SC2034,SC2329 # variables and functions of the sourced entrypoint
 set -uo pipefail
 export LC_ALL=C
@@ -363,5 +365,24 @@ daemon_log_max_bytes=0
 run_lib "passes the daemon log through when it is not a regular file" ok "" append_bounded /dev/stdout <<<"to-the-container"
 expect stdout "to-the-container"
 finish
+
+# --- the built entrypoint -----------------------------------------------------
+
+# The environment of the container must not change root's bash: bash would
+# source BASH_ENV, import the exported function id, which tells the
+# entrypoint it is root, and trace with SHELLOPTS. The test runs it as a user
+# other than root, as the build does, so that it takes no root actions.
+if (($(id -u) != 0)); then
+  entrypoint_setup
+  code_root=$BUILT
+  printf 'touch %q\n' "$work/sourced" >"$work/bash-env"
+  run "the container's environment does not reach root's bash" ok bin/entrypoint \
+    BASH_ENV="$work/bash-env" 'BASH_FUNC_id%%=() { echo 0; }' SHELLOPTS=xtrace -- printf '%s\n' ran
+  expect stdout ran
+  expect message "started as uid $(id -u) instead of 0"
+  [[ ! -e $work/sourced ]] || report "bash sourced BASH_ENV"
+  ! grep -q '^+' "$work/stderr" || report "bash traced: $(cat -- "$work/stderr")"
+  finish
+fi
 
 conclude
