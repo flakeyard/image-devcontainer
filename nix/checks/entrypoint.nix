@@ -41,7 +41,7 @@
             grep -qx 'user=${parts.users.user}' "$script"
             grep -qx 'home=${parts.users.home}' "$script"
             shellcheck -x -e SC1091 "$tests/unit/entrypoint.sh"
-            PASSWD=$passwd GROUP=$group ENTRYPOINT=$script SHELL_LIB=${shellLib} \
+            PASSWD=$passwd GROUP=$group ENTRYPOINT=$script BUILT=$built SHELL_LIB=${shellLib} \
               bash "$tests/unit/entrypoint.sh"
             touch $out
           '';

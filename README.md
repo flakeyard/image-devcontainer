@@ -94,7 +94,10 @@ it.
   `XDG_CONFIG_HOME` set for the container reach only the commands, never root.
   Only the proxy variables `http_proxy`, `https_proxy`, `all_proxy` and
   `no_proxy`, in lower and upper case, pass to the daemon when set, because it
-  downloads from the binary cache.
+  downloads from the binary cache. The entrypoint runs in the privileged mode of
+  bash, which ignores `BASH_ENV`, functions exported in the environment,
+  `SHELLOPTS`, `BASHOPTS`, `CDPATH` and `GLOBIGNORE`, so that they cannot run
+  code as root before it starts.
 
 - **Capabilities.** The entrypoint and the Nix daemon need `CHOWN`,
   `DAC_OVERRIDE`, `FOWNER`, `SETUID` and `SETGID`, which Docker and Podman grant

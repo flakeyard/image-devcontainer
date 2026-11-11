@@ -121,6 +121,18 @@ run -e passwd_file=/tmp/passwd -e home=/tmp -e user=root -- sh -c 'id -un; echo 
 expect_line "dev"
 expect_line "/home/dev"
 
+test_case "root's bash ignores BASH_ENV, exported functions and SHELLOPTS"
+printf '%s\n' 'touch /tmp/sourced' >"$WORK/bash-env"
+# The function id would tell the entrypoint it is not root, so that it runs
+# the command as root; the command's shell imports it too, so the uids come
+# from /proc.
+run -v "$WORK/bash-env:/bash-env:ro" -e BASH_ENV=/bash-env -e 'BASH_FUNC_id%%=() { echo 1000; }' \
+  -e SHELLOPTS=xtrace -- sh -c 'grep ^Uid: /proc/self/status; ls /tmp/sourced 2>/dev/null || echo clean'
+expect_line $'Uid:\t1000\t1000\t1000\t1000'
+expect_line "clean"
+# A line that only the trace of the entrypoint has.
+expect_no_text "dev_path="
+
 test_case "dev can reopen stdout and stderr"
 run -- sh -c 'echo to-stdout >/dev/stdout; echo to-stderr >/dev/stderr; stat -c %U /dev/null'
 expect_line "to-stdout"
