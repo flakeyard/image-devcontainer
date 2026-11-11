@@ -11,11 +11,11 @@ tests=$(cd -- "$1" && pwd)
 # shellcheck source=/dev/null # scripts/lib/image.sh, from the app
 source "$IMAGE_LIB"
 
-stream=$(image_stream)
-loaded=$("$stream" | docker load)
+IMAGE_STREAM=$(image_stream)
+loaded=$("$IMAGE_STREAM" | docker load)
 IMAGE=${loaded##*: }
 echo "Testing $IMAGE"
-export IMAGE
+export IMAGE IMAGE_STREAM
 
 WORK=$(mktemp -d)
 trap 'sudo rm -rf -- "$WORK"' EXIT
