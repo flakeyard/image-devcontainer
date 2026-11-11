@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/flakeyard/image-devcontainer/compare/v0.1.4...v0.1.5) (2026-11-11)
+
+
+### Bug Fixes
+
+* **deps:** update flakeyard/action-shell-lib action to v0.1.3 ([#83](https://github.com/flakeyard/image-devcontainer/issues/83)) ([9ae8c0f](https://github.com/flakeyard/image-devcontainer/commit/9ae8c0f92918b33d51c4c397cbfc17229552f3c0))
+
 ## [0.1.4](https://github.com/flakeyard/image-devcontainer/compare/v0.1.3...v0.1.4) (2026-11-10)
 
 
