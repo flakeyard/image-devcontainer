@@ -18,6 +18,7 @@ in
     NON_REDISTRIBUTABLE = "${import ./non-redistributable.nix { inherit pkgs; }}";
     CLOSURE = "${image.expected}/closure";
     CLOSURE_ROOT = "${image.closureRoot}";
+    NIXPKGS = "${pkgs.path}";
     LICENSES_JQ = "${../../../../scripts/check/licenses}";
     KNOWN_LICENSES = "${knownLicenses}";
     IMAGE_LIB = "${../../../../scripts/lib/image.sh}";

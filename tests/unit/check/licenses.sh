@@ -6,12 +6,14 @@ a=/nix/store/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-curl-8.0
 b=/nix/store/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb-nix-cmd-2.35.3
 c=/nix/store/cccccccccccccccccccccccccccccccc-zlib-1.3
 closure_root=/nix/store/rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr-image-closure-root
+nixpkgs=/nix/store/nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn-source
 
 # licenses_setup: the closure $a and $b, licenses that forbid redistribution
 # and a known license of nix-cmd.
 licenses_setup() {
   stubbed_setup
   apply SYSTEM=x86_64-linux SBOM="$work/sbom.json" CLOSURE="$work/closure" CLOSURE_ROOT="$closure_root"
+  apply NIXPKGS="$nixpkgs"
   apply NON_REDISTRIBUTABLE="$work/deny" KNOWN_LICENSES="$work/known.json"
   apply LICENSES_JQ="$code_root/scripts/check/licenses" IMAGE_LIB="$code_root/scripts/lib/image.sh"
   printf '%s\n%s\n' "$a" "$b" >"$work/closure"
@@ -44,6 +46,8 @@ if [[ -n $current ]] && ! jq -e '.components[1].licenses[0].license.id == "LGPL-
   report "nix-cmd was not completed: $(cat "$work/out.json")"
 fi
 expect message "2 components for 2 store paths"
+# The store path, not the flake: sbomnix would clone all of nixpkgs for it.
+expect_calls "NIX_PATH=nixpkgs=$nixpkgs $closure_root --cdx sbom.cdx.json"
 finish
 
 licenses_setup
