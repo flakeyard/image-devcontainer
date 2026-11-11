@@ -1,8 +1,17 @@
 # shellcheck shell=bash disable=SC2016,SC2034,SC2154 # container commands; output and fixtures are shared with lib.sh
 # Smoke tests of foreign binaries, project shells and the Dev Containers tools
 # (ADR-0001). Sourced by scripts/smoke.sh after tests/smoke/lib.sh. Inputs
-# (environment): IMAGE; EXPECTED (foreign-libraries); EDITOR_SERVER, an
-# unpacked VS Code Server; WORK.
+# (environment): IMAGE and IMAGE_STREAM, the script that streams it; EXPECTED
+# (foreign-libraries); EDITOR_SERVER, an unpacked VS Code Server; WORK.
+
+# Podman reads this file after the containers.conf files of the runner and its
+# user, which stay untouched.
+podman_conf=$WORK/containers.conf
+printf '[containers]\nuserns = "keep-id:uid=1000,gid=1000"\n' >"$podman_conf"
+# Podman loads the image from its stream while the tests before its own run.
+podman_loaded=$WORK/podman-load.log
+"$IMAGE_STREAM" 2>/dev/null | CONTAINERS_CONF_OVERRIDE=$podman_conf podman load >"$podman_loaded" 2>&1 &
+podman_load=$!
 
 # --- foreign binaries -------------------------------------------------------------
 
@@ -115,12 +124,9 @@ expect_line "written"
 [[ $host_owner == "$(id -u)" ]] || fail "the file belongs to $host_owner on the host"
 
 test_case "the Dev Containers tools start the image with rootless Podman"
-# Podman reads this file after the containers.conf files of the runner and its
-# user, which stay untouched.
-podman_conf=$WORK/containers.conf
-printf '[containers]\nuserns = "keep-id:uid=1000,gid=1000"\n' >"$podman_conf"
-docker save "$IMAGE" | CONTAINERS_CONF_OVERRIDE=$podman_conf podman load
-CONTAINERS_CONF_OVERRIDE=$podman_conf devcontainer_up podman "docker.io/library/$IMAGE"
+wait "$podman_load" || fail "podman load failed: $(tail -n 5 "$podman_loaded")"
+podman_image=$(sed -n 's/^Loaded image: //p' "$podman_loaded")
+CONTAINERS_CONF_OVERRIDE=$podman_conf devcontainer_up podman "$podman_image"
 expect_line "dev"
 expect_line "nix-ok"
 expect_line "written"

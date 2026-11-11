@@ -21,20 +21,52 @@ only_documented_caps=(--cap-drop ALL "${documented_caps[@]/#/--cap-add=}")
 # The uid of a build user.
 build_uid='300[0-9][0-9]'
 
-# suite FILE...: runs the tests of the files. errexit is off in them: a command
-# that would end the script under errexit fails the current test instead, and
-# the suite goes on.
+# suite FILE...: runs the files of tests at the same time, each in a subshell
+# with its own output, then prints the outputs in the order of the files and
+# the sum of their counts. The files share no state but the image and the
+# scratch directory, where each uses paths of its own.
 suite() {
-  local file
+  local files=("$@") results index pids=()
+  results=$(mktemp -d)
+  for index in "${!files[@]}"; do
+    run_file "${files[index]}" "$results/$index" >"$results/$index.log" 2>&1 &
+    pids+=("$!")
+  done
+  for index in "${!files[@]}"; do
+    wait "${pids[index]}" || true
+    report_file "${files[index]}" "$results/$index"
+  done
+  rm -rf -- "$results"
+  summary
+}
+
+# run_file FILE COUNTS: runs the tests of FILE and writes the numbers of
+# passed and failed tests to COUNTS. errexit is off in them: a command that
+# would end the script under errexit fails the current test instead, and the
+# file goes on.
+run_file() {
+  local file=$1 counts=$2
   set +e
   trap 'failed_command "$?" "$BASH_COMMAND"' ERR
-  for file; do
-    # shellcheck disable=SC1090 # the tests come from the argument
-    source "$file"
-  done
+  # shellcheck disable=SC1090 # the tests come from the argument
+  source "$file"
   trap - ERR
-  set -e
-  summary
+  finish
+  printf '%s %s\n' "$passed" "$failed" >"$counts"
+}
+
+# report_file FILE RESULT: prints the output of the tests of FILE from
+# RESULT.log and adds the counts of RESULT to those of the suite. A file
+# that ended before it wrote its counts fails.
+report_file() {
+  local file=$1 result=$2 file_passed file_failed
+  printf '== %s\n' "${file##*/}"
+  cat -- "$result.log"
+  if ! read -r file_passed file_failed 2>/dev/null <"$result"; then
+    printf 'FAIL %s: ended before its last test\n' "${file##*/}"
+    file_passed=0 file_failed=1
+  fi
+  passed=$((passed + file_passed)) failed=$((failed + file_failed))
 }
 
 # failed_command STATUS COMMAND: fails the test with the first line of COMMAND.
