@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.7](https://github.com/flakeyard/image-devcontainer/compare/v0.1.6...v0.1.7) (2026-11-11)
+
+
+### Bug Fixes
+
+* run the entrypoint in bash's privileged mode ([#97](https://github.com/flakeyard/image-devcontainer/issues/97)) ([762c34e](https://github.com/flakeyard/image-devcontainer/commit/762c34e6dde0a84a7ade06f2103801331f2f9692))
+
 ## [0.1.6](https://github.com/flakeyard/image-devcontainer/compare/v0.1.5...v0.1.6) (2026-11-11)
 
 
