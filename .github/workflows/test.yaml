@@ -44,7 +44,7 @@ jobs:
       - uses: flakeyard/action-setup-nix@0a6360ba8fee1bb4da86d28ec4a1d204aa047be3 # v0.1.4
       # Before any evaluation of the flake (FY-0017).
       - name: Check flake.lock
-        uses: flakeyard/action-flake-lock@2bbe114da213f15d7afe49480952ee00dc6360c0 # v0.2.0
+        uses: flakeyard/action-flake-lock@a3d4a8f9233ad1ff08300e5e9f695d3b64675c40 # v0.2.1
       # First, while Nix still knows which derivations it builds itself.
       - name: Check reproducibility
         shell: bash
