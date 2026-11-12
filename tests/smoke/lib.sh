@@ -141,10 +141,7 @@ poll() {
 start() { docker run -d "$@" "$IMAGE"; }
 
 # ready ID: the command of the container runs and its Nix daemon answers;
-# output holds the uid of the command. The daemon answers before the
-# entrypoint execs tini, which then starts the command. The kernel drops a
-# SIGTERM that reaches PID 1 during that exec, before tini handles signals:
-# a container stopped then waits 10 s for the SIGKILL of docker stop.
+# output holds the uid of the command.
 ready() {
   local id=$1
   command_uid "$id" && docker exec -u dev "$id" nix store info >/dev/null 2>&1

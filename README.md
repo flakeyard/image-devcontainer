@@ -76,7 +76,10 @@ it.
 ## Behaviour
 
 - **User.** Commands run as `dev`, with the home `/home/dev`. The container
-  starts as root; the entrypoint then:
+  starts as root, and the image starts `tini` first, which handles signals from
+  the start, forwards them to the process group of its child and reaps orphaned
+  processes, also under the init process of the engine (`init: true`). It runs
+  the entrypoint, which:
   1. gives `dev` the uid and gid of `DEV_UID` and `DEV_GID` when they are set,
      otherwise of the owner of the working directory when it is a mount point
      not owned by root, and the files of `dev` on the home directory's own file
@@ -85,9 +88,13 @@ it.
   2. starts the Nix daemon, restarts it when it exits, and waits until it
      answers; with a read-only `/nix`, it says so and runs the command without
      the daemon. The daemon logs to `/var/log/nix-daemon.log`, which moves to
-     `/var/log/nix-daemon.log.old` past 10 MiB;
-  3. runs the command as `dev` under `tini`, which reaps orphaned processes and
-     forwards signals.
+     `/var/log/nix-daemon.log.old` past 10 MiB. It runs in a process group of
+     its own, without the terminal as its input, so that the signals of the
+     command and of its terminal do not reach it. It gets no `SIGTERM` on
+     `docker stop`: the kernel kills it with the container, which its SQLite
+     database in WAL mode survives;
+  3. runs the command as `dev` in its own place, so that the command gets the
+     signals that `tini` forwards.
 
   `DEV_UID` sets the uid of `dev` and, unless `DEV_GID` is also set, its gid;
   `DEV_GID` alone is ignored. Without `DEV_UID`, the owner of a mounted working

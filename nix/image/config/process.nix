@@ -1,5 +1,5 @@
-# The process of the container: it starts as root to run the Nix daemon,
-# then switches to dev.
+# The process of the container: tini, which starts the entrypoint as root to
+# run the Nix daemon; the entrypoint then switches to dev.
 {
   perSystem =
     {
@@ -18,7 +18,17 @@
       };
       config.image.config.process = {
         User = "0:0";
-        Entrypoint = [ (lib.getExe entrypoint) ];
+        # tini handles signals from the start: a SIGTERM that reaches PID 1
+        # before it has a handler is lost. -s: it reaps orphans also when it
+        # is not PID 1, under the init of the engine (`init: true`). -g: it
+        # forwards signals to the group of the command, as a terminal does.
+        Entrypoint = [
+          (lib.getExe pkgs.tini)
+          "-s"
+          "-g"
+          "--"
+          (lib.getExe entrypoint)
+        ];
         Cmd = [
           "${pkgs.coreutils}/bin/sleep"
           "infinity"

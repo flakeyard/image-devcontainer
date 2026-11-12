@@ -1,6 +1,7 @@
 # shellcheck shell=bash
-# Entrypoint of the image (ADR-0001): adapts `dev` to the owner of the project,
-# runs the Nix daemon supervised, and runs the command as `dev` under tini.
+# Entrypoint of the image (ADR-0001), started by tini, the first process of
+# the container: adapts `dev` to the owner of the project, runs the Nix daemon
+# supervised, and runs the command as `dev` in its place.
 #
 # Of the environment, it reads DEV_UID and DEV_GID; the Nix daemon gets a
 # fixed environment of its own. Bash runs it in privileged mode
@@ -287,9 +288,16 @@ as_root() {
 # a few quick exits in a row.
 supervise() {
   local exits=0 started
+  # It runs in the background of the terminal of the command, if any, and
+  # writes there: with `stty tostop`, a write would stop it. The daemon gets
+  # the signals back, for its builds.
+  trap '' TTOU TTIN
   while ((exits < max_quick_exits)); do
     started=$SECONDS
-    as_root nix-daemon 2>&1 | append_bounded "$daemon_log" || true
+    {
+      trap - TTOU TTIN
+      as_root nix-daemon 2>&1
+    } | append_bounded "$daemon_log" || true
     if ((SECONDS - started >= quick_exit_seconds)); then exits=0; fi
     exits=$((exits + 1))
     log "nix-daemon exited, restarting (see $daemon_log)"
@@ -333,7 +341,14 @@ start_daemon() {
     log "cannot write $daemon_log; the Nix daemon logs to the container log"
     daemon_log=/proc/$$/fd/2
   fi
-  supervise &
+  # In a process group of its own: tini forwards signals to the group of the
+  # entrypoint, which becomes that of the command, and a terminal sends its
+  # signals, such as SIGTSTP, to it. Without the terminal as its input. The
+  # daemon gets no SIGTERM on docker stop: the kernel kills it with the
+  # container, which its SQLite database in WAL mode survives.
+  set -m
+  supervise </dev/null &
+  set +m
   wait_for_daemon
 }
 
@@ -364,7 +379,6 @@ runnable() {
 
 main() {
   if [[ $(id -u) != 0 ]]; then run_unprivileged "$@"; fi
-  stop_on_signals
   local identity uid gid
   identity=$(wanted_identity)
   read -r uid gid <<<"$identity"
@@ -381,14 +395,6 @@ main() {
   exec_as_dev "$uid" "$gid" "$@"
 }
 
-# stop_on_signals: ends the entrypoint on SIGTERM and SIGINT until tini takes
-# over. As PID 1 without a handler, bash ignores them, so a container stopped
-# right after it starts would wait for SIGKILL.
-stop_on_signals() {
-  trap 'exit 143' TERM
-  trap 'exit 130' INT
-}
-
 # run_unprivileged COMMAND...: runs the command as it is, without the daemon.
 run_unprivileged() {
   log "started as uid $(id -u) instead of 0: the Nix daemon is not running."
@@ -396,15 +402,15 @@ run_unprivileged() {
   exec "$@"
 }
 
-# exec_as_dev UID GID COMMAND...: runs the command as `dev` under tini.
+# exec_as_dev UID GID COMMAND...: runs the command as `dev` in place of the
+# entrypoint, so that it gets the signals tini forwards.
 exec_as_dev() {
-  local uid=$1 gid=$2 tini setpriv
+  local uid=$1 gid=$2 setpriv
   shift 2
   # Resolved while PATH is still root's; then dev's PATH for the command.
-  tini=$(command -v tini)
   setpriv=$(command -v setpriv)
   export HOME=$home USER=$user LOGNAME=$user PATH=$dev_path
-  exec "$tini" -s -g -- "$setpriv" --reuid="$uid" --regid="$gid" --init-groups -- "$@"
+  exec "$setpriv" --reuid="$uid" --regid="$gid" --init-groups -- "$@"
 }
 
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
