@@ -22,6 +22,7 @@
 #define _GNU_SOURCE
 
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,12 +56,26 @@ static size_t count(char *const *list)
     return length;
 }
 
+/* complain: reports why WHAT failed. */
+static void complain(const char *what)
+{
+    fprintf(stderr, "environ: %s: %s\n", what, strerror(errno));
+}
+
 /* failed: reports why WHAT failed; returns the status a shell would. */
 static int failed(const char *what)
 {
     int status = (errno == ENOENT || errno == ENOTDIR) ? cannot_find : cannot_run;
-    fprintf(stderr, "environ: %s: %s\n", what, strerror(errno));
+    complain(what);
     return status;
+}
+
+/* misused: reports why the argument WHAT is wrong; returns the status of
+ * misuse. */
+static int misused(const char *what)
+{
+    complain(what);
+    return misuse;
 }
 
 /* write_all: writes SIZE bytes of DATA to FD; 0, or -1 on failure. */
@@ -78,11 +93,29 @@ static int write_all(int fd, const char *data, size_t size)
     return 0;
 }
 
+/* above_streams: FD, or a copy of it above the standard streams in its
+ * place, since the engine may start the container with one of them closed and
+ * the entrypoint refuses one; -1 when FD is -1 or on failure. */
+static int above_streams(int fd)
+{
+    int moved, error;
+
+    if (fd < 0 || fd > STDERR_FILENO)
+        return fd;
+    /* Without FD_CLOEXEC, as FD, so that it stays open in PROGRAM. */
+    moved = fcntl(fd, F_DUPFD, STDERR_FILENO + 1);
+    error = errno;
+    close(fd);
+    errno = error;
+    return moved;
+}
+
 /* environment_file: a memory file with the variables of the environment,
- * each ended by a NUL, at its start; -1 on failure. */
+ * each ended by a NUL, at its start, above the standard streams; -1 on
+ * failure. */
 static int environment_file(void)
 {
-    int fd = memfd_create("environ", 0);
+    int fd = above_streams(memfd_create("environ", 0));
     if (fd < 0)
         return -1;
     for (char **entry = environ; *entry != NULL; entry++)
@@ -275,6 +308,9 @@ static int from_fd(char **args)
         return misuse;
     }
     data = read_all(fd, &size);
+    /* A descriptor that is not open for reading is a wrong argument too. */
+    if (data == NULL && errno == EBADF)
+        return misused(args[0]);
     if (data == NULL)
         return failed(args[0]);
     close(fd);

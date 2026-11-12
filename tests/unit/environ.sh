@@ -30,16 +30,29 @@ program() {
 # $work/environment, which the tests open as descriptor 3.
 entries() { printf '%s\0' "$@" >"$work/environment"; }
 
-# from_fd ARG...: runs environ from-fd 3 ARG... with only the variables of
+# from_fd FD ARG...: runs environ from-fd FD ARG... with only the variables of
 # $work/environment, open as descriptor 3; sets status, and writes stdout and
 # stderr to $work/stdout and $work/stderr.
 from_fd() {
   status=0
-  env -i "$code_root/bin/environ" from-fd 3 "$@" 3<"$work/environment" >"$work/stdout" 2>"$work/stderr" ||
+  env -i "$code_root/bin/environ" from-fd "$@" 3<"$work/environment" >"$work/stdout" 2>"$work/stderr" ||
     status=$?
 }
 
-# expect_status STATUS: the last from_fd exited with STATUS.
+# to_fd_without STREAM ARG...: runs environ to-fd ARG... with the variables of
+# the harness and the standard stream STREAM closed; sets status, and writes
+# stderr to $work/stderr unless STREAM is 2.
+to_fd_without() {
+  local stream=$1
+  shift
+  status=0
+  (
+    exec 2>"$work/stderr" {stream}>&-
+    env -i "${env_vars[@]}" "$code_root/bin/environ" to-fd "$@"
+  ) || status=$?
+}
+
+# expect_status STATUS: the last from_fd or to_fd_without exited with STATUS.
 expect_status() {
   local expected=$1
   [[ -z $current || $status == "$expected" ]] || report "status $status, expected $expected: $(cat -- "$work/stderr")"
@@ -57,6 +70,23 @@ run "to-fd passes the environment through a descriptor" ok bin/environ \
   A=1 "B=two words" -- to-fd "$work/arguments" first
 expect stdout "$(printf '%s\n' first "${env_vars[@]}" A=1 "B=two words" unset)"
 finish
+
+# The engine may start the container with a standard stream closed, which
+# the next descriptor would take.
+for stream in 0 1 2; do
+  setup
+  current="to-fd passes a descriptor above the standard streams with $stream closed"
+  # Writes to $work/stdout the entries that the descriptor of its first
+  # argument reads, after that descriptor if it is a standard stream.
+  program entries-of "#!$bash_path
+exec >\"$work/stdout\"
+((\$1 > 2)) || printf '%s\n' \"a standard stream: \$1\"
+$(command -v tr) '\\0' '\\n' <&\"\$1\""
+  to_fd_without "$stream" "$work/entries-of"
+  expect_status 0
+  expect stdout "$(printf '%s\n' "${env_vars[@]}")"
+  finish
+done
 
 setup
 program arguments "#!$bash_path"
@@ -81,7 +111,7 @@ setup
 current="from-fd runs a file without #! with the shell, from the PATH of the variables"
 entries "PATH=/nowhere:$work" A=1
 program script 'echo "ran $0 $1 $A"'
-from_fd script word
+from_fd 3 script word
 expect_status 0
 expect stdout "ran $work/script word 1"
 finish
@@ -91,7 +121,7 @@ current="from-fd fails with 126 for a file it finds but cannot run"
 entries "PATH=/nowhere:$work"
 program script "#!$bash_path"
 chmod -x "$work/script"
-from_fd script
+from_fd 3 script
 expect_status 126
 expect message "environ: script: Permission denied"
 finish
@@ -99,7 +129,7 @@ finish
 setup
 current="from-fd fails with 127 for a command it does not find"
 entries PATH=/nowhere
-from_fd env
+from_fd 3 env
 expect_status 127
 expect message "environ: env: No such file or directory"
 finish
@@ -114,8 +144,11 @@ for arguments in "x env" "0 env" "2 env" "-3 env" "+3 env" "99999999999999999999
 done
 
 setup
-run "from-fd fails on a closed descriptor" fail bin/environ -- from-fd 99 env
-expect message "environ: 99: Bad file descriptor"
+current="from-fd fails with 2 on a closed descriptor"
+entries A=1
+from_fd 9 env 9<&-
+expect_status 2
+expect message "environ: 9: Bad file descriptor"
 finish
 
 setup
