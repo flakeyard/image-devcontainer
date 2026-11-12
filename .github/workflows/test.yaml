@@ -44,7 +44,7 @@ jobs:
       - uses: flakeyard/action-setup-nix@6718901a8eee1c62fd9ebddb8c8a11082c4e6495 # v0.1.5
       # Before any evaluation of the flake (FY-0017).
       - name: Check flake.lock
-        uses: flakeyard/action-flake-lock@a3d4a8f9233ad1ff08300e5e9f695d3b64675c40 # v0.2.1
+        uses: flakeyard/action-flake-lock@c71e2fa9e35478ea672d589e61bfcad52b29dfff # v0.2.2
       - name: Check reproducibility
         shell: bash
         run: nix run --no-update-lock-file .#check-reproducible
