@@ -3,11 +3,13 @@
 # the container: adapts `dev` to the owner of the project, runs the Nix daemon
 # supervised, and runs the command as `dev` in its place.
 #
-# Of the environment, it reads DEV_UID and DEV_GID; the Nix daemon gets a
-# fixed environment of its own. Bash runs it in privileged mode
-# (nix/image/parts/entrypoint.nix), so BASH_ENV, exported functions and shell
-# options of the environment do not reach it. The paths below are fixed; the unit tests
-# change them after sourcing this file.
+# It starts with an empty environment: environ (entrypoint/environ.c) passes
+# the variables of the container in its arguments, before the command. Of
+# them, it reads only the settings below; the command of dev gets them all,
+# and the Nix daemon a fixed environment of its own. Bash runs it in
+# privileged mode (nix/image/parts/entrypoint.nix), so that BASH_ENV, exported
+# functions and shell options would not reach it either. The paths below are
+# fixed; the unit tests change them after sourcing this file.
 
 user=dev
 home=/home/dev
@@ -25,6 +27,11 @@ dev_path=$home/.nix-profile/bin:/bin:/usr/bin
 daemon_path=${entrypoint_tools:+$entrypoint_tools:}/bin:/usr/bin
 # Proxies of the container engine reach the daemon, which downloads.
 proxy_vars=(http_proxy https_proxy all_proxy no_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY)
+# The variables of the container that the entrypoint reads, as variables of
+# its shell.
+settings=(DEV_UID DEV_GID "${proxy_vars[@]}")
+# The variables of the container, NAME=VALUE, from the arguments.
+container_environment=()
 
 # The daemon has this long to answer, checked this often (seconds).
 daemon_timeout=10
@@ -377,7 +384,11 @@ runnable() {
   decimal "$uid" >/dev/null && decimal "$gid" >/dev/null && ((uid != 0 && gid != 0))
 }
 
+# main COUNT VARIABLE... COMMAND...: COUNT variables of the container, as
+# environ to-args passes them, then the command.
 main() {
+  read_environment "$@" || exit 1
+  shift $((${#container_environment[@]} + 1))
   if [[ $(id -u) != 0 ]]; then run_unprivileged "$@"; fi
   local identity uid gid
   identity=$(wanted_identity)
@@ -395,22 +406,68 @@ main() {
   exec_as_dev "$uid" "$gid" "$@"
 }
 
-# run_unprivileged COMMAND...: runs the command as it is, without the daemon.
+# read_environment COUNT VARIABLE... COMMAND...: keeps the COUNT variables
+# in container_environment, and sets the settings among them.
+read_environment() {
+  local count=${1-} variable
+  # The number, the variables and at least the command.
+  if ! count=$(decimal "$count") || ((count + 2 > $#)); then
+    log "expected the number of variables, the variables and the command; start the image with its entrypoint"
+    return 1
+  fi
+  container_environment=("${@:2:count}")
+  for variable in "${container_environment[@]}"; do
+    if is_setting "$variable"; then printf -v "${variable%%=*}" '%s' "${variable#*=}"; fi
+  done
+}
+
+# is_setting NAME=VALUE: NAME is one of the settings.
+is_setting() {
+  local variable=$1
+  [[ $variable == *=* ]] && is_one_of "${variable%%=*}" "${settings[@]}"
+}
+
+# is_one_of WORD LIST...: WORD is in LIST.
+is_one_of() {
+  local word=$1 item
+  shift
+  for item; do
+    if [[ $item == "$word" ]]; then return 0; fi
+  done
+  return 1
+}
+
+# dev_environment: prints the environment of the command of dev,
+# NUL-separated: that of the container, with HOME, USER, LOGNAME and PATH of
+# its own in place of those.
+dev_environment() {
+  local own=(HOME="$home" USER="$user" LOGNAME="$user" PATH="$dev_path") variable
+  for variable in "${container_environment[@]}"; do
+    if ! is_one_of "${variable%%=*}" "${own[@]%%=*}"; then printf '%s\0' "$variable"; fi
+  done
+  printf '%s\0' "${own[@]}"
+}
+
+# run_unprivileged COMMAND...: runs the command as it is, with the environment
+# of the container, without the daemon.
 run_unprivileged() {
   log "started as uid $(id -u) instead of 0: the Nix daemon is not running."
   log "start the container as root (the default); it switches to '$user' itself."
-  exec "$@"
+  exec environ from-args "${#container_environment[@]}" "${container_environment[@]}" "$@"
 }
 
 # exec_as_dev UID GID COMMAND...: runs the command as `dev` in place of the
-# entrypoint, so that it gets the signals tini forwards.
+# entrypoint, so that it gets the signals tini forwards. environ gives it the
+# environment only after setpriv has dropped root.
 exec_as_dev() {
-  local uid=$1 gid=$2 setpriv
+  local uid=$1 gid=$2 setpriv environ variables
   shift 2
-  # Resolved while PATH is still root's; then dev's PATH for the command.
+  # Resolved with root's PATH; the command is found in dev's.
   setpriv=$(command -v setpriv)
-  export HOME=$home USER=$user LOGNAME=$user PATH=$dev_path
-  exec "$setpriv" --reuid="$uid" --regid="$gid" --init-groups -- "$@"
+  environ=$(command -v environ)
+  mapfile -d '' -t variables < <(dev_environment)
+  exec "$setpriv" --reuid="$uid" --regid="$gid" --init-groups -- \
+    "$environ" from-args "${#variables[@]}" "${variables[@]}" "$@"
 }
 
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then

@@ -57,6 +57,10 @@ Prototypes with real tools established:
 - A first process that hands over to the init process with `exec` loses a
   `SIGTERM` that arrives during the `exec`: the kernel drops a signal to PID 1
   that has no handler, and the container takes ten seconds to stop.
+- The dynamic loader of glibc reads `LD_PRELOAD`, `LD_LIBRARY_PATH`, `LD_AUDIT`,
+  `GCONV_PATH` and similar variables of the environment in every dynamically
+  linked program, those of root included, before its first line; no option of a
+  shell can stop it.
 - The developer's uid on the host varies. Dev Containers tools adapt the
   container user to it when building a derived image; a plain `docker run` does
   not.
@@ -100,6 +104,11 @@ reaps orphaned processes. It runs the entrypoint, which:
 The Nix daemon and its supervisor are outside the process group to which `tini`
 forwards signals, and are killed with the container on `docker stop`, which the
 SQLite database of the store in WAL mode survives.
+
+`tini` is linked statically and starts the entrypoint through a static program
+that moves the variables of the container into the arguments of the entrypoint,
+so that no program of root starts with them. The entrypoint reads only
+`DEV_UID`, `DEV_GID` and the proxy variables of them; the command gets them all.
 
 Started without root, it warns that Nix is not available and runs the command.
 
@@ -182,6 +191,11 @@ permissions of their outputs.
     forwards signals.
 - That init process MUST be the first program the image starts and MUST run the
   entrypoint, so that no signal arrives before it handles them.
+- The variables of the container MUST NOT be in the environment of any program
+  of root that the image starts: the programs before the entrypoint MUST be
+  linked statically, and the entrypoint MUST start with an empty environment. Of
+  the variables, the entrypoint MUST read only `DEV_UID`, `DEV_GID` and the
+  proxy variables, and the command MUST get them all.
 - Started without uid 0, the entrypoint MUST print a specific warning and still
   run the command.
 - Settings the image requires from `devcontainer.json` MUST be carried in its

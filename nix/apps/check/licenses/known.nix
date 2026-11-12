@@ -28,12 +28,16 @@ lib.genAttrs nixComponents (_: ids nixLibrary)
 // {
   # Our own derivations: the entrypoint and the links that keep paths alive.
   entrypoint = [ lib.licenses.mit.spdxId ];
+  # Built with musl, and named after its platform.
+  ${parts.environ.name} = [ lib.licenses.mit.spdxId ];
   image-roots = [ lib.licenses.mit.spdxId ];
   # Links to the client of OpenSSH.
   openssh-client = ids pkgs.openssh;
   # Links to bash and env made by dockerTools.
   bin-sh = ids pkgs.bashInteractive;
   usr-bin-env = ids pkgs.coreutils;
+  # tini built with musl, whose metadata sbomnix does not match.
+  ${parts.tini.pname} = ids parts.tini;
   # Outputs of glibc and gcc under other names.
   getent-glibc = ids pkgs.glibc;
   xgcc = ids pkgs.stdenv.cc.cc;
