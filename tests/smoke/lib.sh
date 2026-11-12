@@ -11,7 +11,8 @@ probes=$(dirname -- "${BASH_SOURCE[0]}")/probes
 # The fixtures of tests/fixture, as an absolute path that docker can mount.
 # shellcheck disable=SC2034 # used by the tests
 fixtures=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../fixture" && pwd)
-# Seconds the Nix daemon of a new container has to answer.
+# Seconds a new container has to get ready: its command runs and its Nix
+# daemon answers.
 daemon_timeout=20
 # The capabilities the README documents as required.
 documented_caps=(CHOWN DAC_OVERRIDE FOWNER SETUID SETGID)
@@ -139,19 +140,34 @@ poll() {
 # start DOCKER_ARGS...: starts a detached container; prints its id.
 start() { docker run -d "$@" "$IMAGE"; }
 
-# ready ID: the Nix daemon in the container answers.
-ready() { docker exec -u dev "$1" nix store info >/dev/null 2>&1; }
+# ready ID: the command of the container runs and its Nix daemon answers;
+# output holds the uid of the command. The daemon answers before the
+# entrypoint execs tini, which then starts the command. The kernel drops a
+# SIGTERM that reaches PID 1 during that exec, before tini handles signals:
+# a container stopped then waits 10 s for the SIGKILL of docker stop.
+ready() {
+  local id=$1
+  command_uid "$id" && docker exec -u dev "$id" nix store info >/dev/null 2>&1
+}
+
+# command_uid ID: output is the uid of the command of the container.
+command_uid() {
+  local id=$1
+  output=$(docker exec -i "$id" sh -s <"$probes/command-uid.sh" 2>/dev/null)
+  # Processes may end while the loop reads /proc: wait for the uid itself.
+  [[ $output =~ ^[0-9]+$ ]]
+}
 
 # start_ready VARIABLE DOCKER_ARGS...: starts a detached container, sets
-# VARIABLE to its id, and fails the test unless its Nix daemon answers. A
-# variable rather than stdout, because fail does not count in a subshell.
+# VARIABLE to its id, and fails the test unless it is ready. A variable rather
+# than stdout, because fail does not count in a subshell.
 start_ready() {
   local variable=$1 started
   shift
   printf -v "$variable" '%s' ""
   started=$(start "$@") || return
   printf -v "$variable" '%s' "$started"
-  poll "$daemon_timeout" ready "$started" || fail "the daemon did not answer"
+  poll "$daemon_timeout" ready "$started" || fail "the command or the daemon did not start"
 }
 
 # remove ID: removes the container, if one was started.

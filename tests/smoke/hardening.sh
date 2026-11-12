@@ -3,14 +3,6 @@
 # audit. Sourced by scripts/smoke.sh after tests/smoke/lib.sh. Inputs
 # (environment): IMAGE, WORK.
 
-# command_uid ID: output is the uid of the command of the container.
-command_uid() {
-  local id=$1
-  output=$(docker exec -i "$id" sh -s <"$probes/command-uid.sh" 2>/dev/null)
-  # Processes may end while the loop reads /proc: wait for the uid itself.
-  [[ $output =~ ^[0-9]+$ ]]
-}
-
 test_case "root never runs programs from dev's profile"
 start_ready id
 docker exec -i -u dev "$id" sh -s <"$probes/plant-profile.sh"
@@ -38,9 +30,8 @@ output=$(
 expect_line "1000"
 expect_text "expected decimal uid and gid up to 4294967294"
 docker restart "$id" >/dev/null
-poll "$daemon_timeout" ready "$id" || fail "the daemon did not answer after a restart"
+poll "$daemon_timeout" ready "$id" || fail "the command or the daemon did not start after a restart"
 # The command of the container, sleep, runs as dev after the restart too.
-poll 20 command_uid "$id" || fail "the command did not start after the restart"
 expect_line "1000"
 remove "$id"
 
