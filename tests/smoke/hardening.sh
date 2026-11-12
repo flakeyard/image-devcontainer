@@ -35,6 +35,27 @@ poll "$daemon_timeout" ready "$id" || fail "the command or the daemon did not st
 expect_line "1000"
 remove "$id"
 
+test_case "only the command reads LD_PRELOAD, and it gets the container's variables"
+# A library that does not exist: the loader of glibc reports it in every
+# program that reads LD_PRELOAD, where a library would run.
+run -e LD_PRELOAD=/no-such-library.so -e GCONV_PATH=/tmp -- sh -c 'echo "$LD_PRELOAD $GCONV_PATH"'
+expect_line "/no-such-library.so /tmp"
+[[ $(grep -c "no-such-library.so' from LD_PRELOAD" <<<"$output") == 1 ]] || fail "more programs than the command read it"
+
+test_case "no command line has the variables of the container"
+# A value that only the environment of the container has. The probe gets it
+# in its environment: docker exec runs on the runner.
+secret=secret-$RANDOM$RANDOM
+id=$(start -e SECRET_TOKEN="$secret")
+output=$(docker exec -i -e PROBE_VALUE="$secret" "$id" sh -s <"$probes/cmdline-secret.sh" 2>&1)
+expect_line scanned
+expect_no_text /proc/
+poll "$daemon_timeout" ready "$id" || fail "the command or the daemon did not start"
+output=$(docker exec -i -e PROBE_VALUE="$secret" "$id" sh -s <"$probes/cmdline-secret.sh" 2>&1)
+expect_line scanned
+expect_no_text /proc/
+remove "$id"
+
 test_case "dev cannot change the files that decide trust"
 run -i -- sh -s <"$probes/trust-files.sh"
 expect_line "checked"

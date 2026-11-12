@@ -5,13 +5,19 @@
   perSystem =
     { config, pkgs, ... }:
     let
-      inherit (config.image.parts) nix nix-direnv openssh-client;
+      inherit (config.image.parts)
+        nix
+        nix-direnv
+        openssh-client
+        tini
+        ;
     in
     {
       image.parts.tools = [
         nix
         nix-direnv
         openssh-client
+        tini
       ]
       ++ (with pkgs; [
         direnv
@@ -37,7 +43,6 @@
         cacert
         tzdata
         iana-etc
-        tini
       ]);
     };
 }

@@ -3,11 +3,13 @@
 # entrypoint is sourced, and its files, mount check, owner lookup and chown are
 # replaced by test doubles. The harness is that of the shell library.
 #
-# The built entrypoint also runs as it is, as a user other than root.
+# The built entrypoint also runs as the image starts it, through environ, as a
+# user other than root.
 #
 # Inputs (environment): ENTRYPOINT, the script; BUILT, the built entrypoint;
-# PASSWD and GROUP, the files of the image; SHELL_LIB, the shell library.
-# shellcheck disable=SC2034,SC2329 # variables and functions of the sourced entrypoint
+# ENVIRON, the built environ; PASSWD and GROUP, the files of the image;
+# SHELL_LIB, the shell library.
+# shellcheck disable=SC2034,SC2154,SC2329 # variables and functions of the sourced entrypoint
 set -uo pipefail
 export LC_ALL=C
 
@@ -294,6 +296,36 @@ for identity in "0 1000" "1000 0" "4294967296 1000" "x 1000" "1000 1000"; do
   finish
 done
 
+# --- the environment of the container -----------------------------------------
+
+# read_settings ENTRY...: passes the ENTRYs, each ended by a NUL, to
+# read_environment through a descriptor, as environ does; prints the settings
+# it sets, the variable NIX_CONFIG, and the number of variables it keeps.
+read_settings() {
+  local fd
+  printf '%s\0' "$@" >"$work/environment"
+  exec {fd}<"$work/environment"
+  read_environment "$fd" sleep || return
+  printf '%s\n' "${DEV_UID-unset}" "${DEV_GID-unset}" "${https_proxy-unset}" "${NIX_CONFIG-unset}" \
+    "${#container_environment[@]}"
+}
+
+entrypoint_setup
+run_lib "sets the settings of the container's variables, and keeps all" ok "" read_settings \
+  DEV_UID=1001 https_proxy=http://proxy:3128 NIX_CONFIG=x DEV_GID ""
+expect stdout "$(printf '%s\n' 1001 unset http://proxy:3128 unset 5)"
+finish
+
+# Not a number, a standard stream, too large, nothing, a closed descriptor,
+# and no command.
+for arguments in "sleep infinity" "1 sleep" "0 sleep" "99999999999999999999 sleep" "" "99 sleep" "99"; do
+  entrypoint_setup
+  # shellcheck disable=SC2086 # the words of the case
+  run_lib "rejects the arguments '$arguments'" fail "" read_environment $arguments
+  expect message "expected the descriptor of the variables of the container, and the command"
+  finish
+done
+
 # --- supervise ----------------------------------------------------------------
 
 entrypoint_setup
@@ -368,20 +400,35 @@ finish
 
 # --- the built entrypoint -----------------------------------------------------
 
+# The tests run it as a user other than root, as the build does, so that it
+# takes no root actions; the image starts it through environ.
+code_root=${ENVIRON:?the tests need ENVIRON, the built environ}
+# A library that does not exist: glibc reports it for every program that
+# reads LD_PRELOAD, here the command alone.
+missing_library=/no-such-library.so
+
 # The environment of the container must not change root's bash: bash would
 # source BASH_ENV, import the exported function id, which tells the
-# entrypoint it is root, and trace with SHELLOPTS. The test runs it as a user
-# other than root, as the build does, so that it takes no root actions.
+# entrypoint it is root, and trace with SHELLOPTS.
 if (($(id -u) != 0)); then
   entrypoint_setup
-  code_root=$BUILT
   printf 'touch %q\n' "$work/sourced" >"$work/bash-env"
-  run "the container's environment does not reach root's bash" ok bin/entrypoint \
-    BASH_ENV="$work/bash-env" 'BASH_FUNC_id%%=() { echo 0; }' SHELLOPTS=xtrace -- printf '%s\n' ran
+  run "the container's environment does not reach root's bash" ok bin/environ \
+    BASH_ENV="$work/bash-env" 'BASH_FUNC_id%%=() { echo 0; }' SHELLOPTS=xtrace \
+    -- to-fd "$BUILT/bin/entrypoint" printf '%s\n' ran
   expect stdout ran
   expect message "started as uid $(id -u) instead of 0"
   [[ ! -e $work/sourced ]] || report "bash sourced BASH_ENV"
   ! grep -q '^+' "$work/stderr" || report "bash traced: $(cat -- "$work/stderr")"
+  finish
+
+  entrypoint_setup
+  run "only the command reads LD_PRELOAD, and gets the container's variables" ok bin/environ \
+    LD_PRELOAD="$missing_library" GCONV_PATH=/tmp -- to-fd "$BUILT/bin/entrypoint" env
+  expect_line "$work/stdout" "LD_PRELOAD=$missing_library"
+  expect_line "$work/stdout" GCONV_PATH=/tmp
+  [[ $(grep -c "$missing_library" "$work/stderr") == 1 ]] ||
+    report "programs that read LD_PRELOAD: $(cat -- "$work/stderr")"
   finish
 fi
 

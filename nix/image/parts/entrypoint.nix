@@ -8,9 +8,10 @@
       ...
     }:
     let
-      inherit (config.image.parts) nix;
+      inherit (config.image.parts) nix environ;
       runtimeInputs = [
         nix
+        environ
       ]
       ++ (with pkgs; [
         coreutils

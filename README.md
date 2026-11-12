@@ -117,10 +117,24 @@ it.
   `XDG_CONFIG_HOME` set for the container reach only the commands, never root.
   Only the proxy variables `http_proxy`, `https_proxy`, `all_proxy` and
   `no_proxy`, in lower and upper case, pass to the daemon when set, because it
-  downloads from the binary cache. The entrypoint runs in the privileged mode of
-  bash, which ignores `BASH_ENV`, functions exported in the environment,
-  `SHELLOPTS`, `BASHOPTS`, `CDPATH` and `GLOBIGNORE`, so that they cannot run
-  code as root before it starts.
+  downloads from the binary cache.
+
+  The dynamic loader of glibc reads `LD_PRELOAD`, `LD_LIBRARY_PATH`, `LD_AUDIT`,
+  `GCONV_PATH` and the like in every program before its first line, so no
+  program of root starts with the variables of the container. `tini` is linked
+  statically, and starts the entrypoint through `environ`, a small static
+  program of this repository, which passes the variables to the entrypoint
+  through a file descriptor and leaves it an empty environment. Of them, the
+  entrypoint reads only `DEV_UID`, `DEV_GID` and the proxy variables; the
+  command of `dev` gets them all, with `HOME`, `USER`, `LOGNAME` and `PATH` of
+  its own, from `environ` again once root is dropped. The variables are never in
+  the arguments of a process, which every process of the container can read in
+  `/proc`. A command that is an executable file without `#!` runs with
+  `/bin/sh`. The entrypoint runs in the privileged mode of bash, which ignores
+  `BASH_ENV`, functions exported in the environment, `SHELLOPTS`, `BASHOPTS`,
+  `CDPATH` and `GLOBIGNORE`. Dev Containers tools start the image through a
+  `/bin/sh` of root of their own, which reads the variables of `containerEnv`
+  before `tini` starts.
 
 - **Capabilities.** The entrypoint and the Nix daemon need `CHOWN`,
   `DAC_OVERRIDE`, `FOWNER`, `SETUID` and `SETGID`, which Docker and Podman grant
@@ -250,14 +264,14 @@ which the action `attest-once` sources as well. The unit tests of a script are
 at its path under `tests/unit/`; those of the release workflow and its scripts
 are in `tests/unit/release/`, and the static tests of `test.yaml` in
 `tests/unit/workflows/`. [`tests/run.sh`](tests/run.sh) runs them, and
-`tests/unit/entrypoint.sh` the tests of the entrypoint, with the harness and the
-stubs of `gh`, `date` and `sleep` of [action-shell-lib][action-shell-lib] and
-the other stubs in `tests/bin/`. The action `attest-once` and the app
-`publish-verify` call the GitHub API through `github/api.sh` of the library. The
-jobs of `release.yaml` that attest pin the library for the action; the job
-`image` of `test.yaml` pins the same commit, at which `nix flake check` and the
-app fetch it. Alone, `tests/run.sh` needs `SHELL_LIB` set to a checkout of the
-library and mikefarah `yq`.
+`tests/unit/entrypoint.sh` and `tests/unit/environ.sh` those of the entrypoint
+and `environ`, with the harness and the stubs of `gh`, `date` and `sleep` of
+[action-shell-lib][action-shell-lib] and the other stubs in `tests/bin/`. The
+action `attest-once` and the app `publish-verify` call the GitHub API through
+`github/api.sh` of the library. The jobs of `release.yaml` that attest pin the
+library for the action; the job `image` of `test.yaml` pins the same commit, at
+which `nix flake check` and the app fetch it. Alone, `tests/run.sh` needs
+`SHELL_LIB` set to a checkout of the library and mikefarah `yq`.
 
 ## Bootstrap
 
