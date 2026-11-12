@@ -2,12 +2,18 @@
 # Stub of nix-store for the unit tests of scripts/.
 #   nix-store --store URL --check-validity --print-invalid P...
 #       prints the Ps that are words of $UNCACHED; fails with $CACHE_ERROR
-#       when it is set
+#       when it is set, and as nix-store does on a P without a hash and a name
 set -euo pipefail
 if [[ -n ${CACHE_ERROR-} ]]; then
   echo "$CACHE_ERROR" >&2
   exit 1
 fi
+for path; do
+  if [[ $path == /* && ${path##*/} != ?*-?* ]]; then
+    echo "error: '${path##*/}' is too short to be a valid store path" >&2
+    exit 1
+  fi
+done
 for path; do
   if [[ $path == /* && " $UNCACHED " == *" $path "* ]]; then
     printf '%s\n' "$path"

@@ -5,8 +5,10 @@
 
 # reproducible_setup: a stream of the image, which differs on every run with
 # $work/vary, and the derivations of the image: the stream needs a layer and
-# glibc, which needs a bootstrap tool. The cache lacks the stream, the layer
-# and the bootstrap tool, which is not needed, because the cache has glibc.
+# glibc, which needs a bootstrap tool; the layer needs a source, a
+# fixed-output derivation, which has no path. The cache lacks the stream, the
+# layer and the bootstrap tool, which is not needed, because the cache has
+# glibc.
 reproducible_setup() {
   stubbed_setup
   apply STREAM="$work/stream" IMAGE_LIB="$code_root/scripts/lib/image.sh" \
@@ -28,7 +30,11 @@ STREAM
     },
     "bbbb-layer.drv": {
       "outputs": { "out": { "path": "bbbb-layer" } },
-      "inputs": { "drvs": { "cccc-glibc.drv": {} } }
+      "inputs": { "drvs": { "cccc-glibc.drv": {}, "ffff-source.drv": {} } }
+    },
+    "ffff-source.drv": {
+      "outputs": { "out": { "hash": "sha256-AAAA", "method": "nar" } },
+      "inputs": { "drvs": {} }
     },
     "cccc-glibc.drv": {
       "outputs": { "out": { "path": "cccc-glibc" }, "dev": { "path": "cccc-glibc-dev" } },
