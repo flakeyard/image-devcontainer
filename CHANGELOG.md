@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.8](https://github.com/flakeyard/image-devcontainer/compare/v0.1.7...v0.1.8) (2026-11-11)
+
+
+### Bug Fixes
+
+* **deps:** update flakeyard/action-shell-lib action to v0.1.4 ([#99](https://github.com/flakeyard/image-devcontainer/issues/99)) ([a3fb570](https://github.com/flakeyard/image-devcontainer/commit/a3fb57087d3b68b62fc9c1eb5ec20285babc5b12))
+* give dev the targets of named volumes under its home ([#101](https://github.com/flakeyard/image-devcontainer/issues/101)) ([ad3e58f](https://github.com/flakeyard/image-devcontainer/commit/ad3e58f8911d354b94f963319fe55ee2ab820913))
+* rebuild what cache.nixos.org lacks, not what the local store lacks ([#102](https://github.com/flakeyard/image-devcontainer/issues/102)) ([b04eee3](https://github.com/flakeyard/image-devcontainer/commit/b04eee3859130c18f840efdc2cefa6fc5b133e72))
+
 ## [0.1.7](https://github.com/flakeyard/image-devcontainer/compare/v0.1.6...v0.1.7) (2026-11-11)
 
 
