@@ -107,6 +107,20 @@ output=$(docker logs "$id" 2>&1)
 expect_text "nix-daemon exited, restarting"
 remove "$id"
 
+test_case "restarts the Nix daemon under a terminal that stops background writes"
+start_ready id -t
+# tini has the terminal of the container as its input.
+docker exec "$id" sh -c 'stty tostop </proc/1/fd/0'
+docker exec -i "$id" sh -s <"$probes/kill-daemon.sh"
+sleep 1
+poll "$daemon_timeout" ready "$id" || fail "the daemon did not come back"
+# The inputs of the supervisor, /dev/null, and of its pipeline, a pipe: the
+# processes left that still run the entrypoint.
+output=$(docker exec "$id" sh -c 'for pid in $(pgrep -x entrypoint); do readlink "/proc/$pid/fd/0"; done')
+expect_line /dev/null
+! grep -qE '^/dev/(pts|console|tty)' <<<"$output" || fail "the supervisor reads from a terminal"
+remove "$id"
+
 # --- adapting dev ----------------------------------------------------------------
 
 test_case "DEV_UID and DEV_GID"

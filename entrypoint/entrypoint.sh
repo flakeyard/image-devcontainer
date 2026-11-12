@@ -288,9 +288,16 @@ as_root() {
 # a few quick exits in a row.
 supervise() {
   local exits=0 started
+  # It runs in the background of the terminal of the command, if any, and
+  # writes there: with `stty tostop`, a write would stop it. The daemon gets
+  # the signals back, for its builds.
+  trap '' TTOU TTIN
   while ((exits < max_quick_exits)); do
     started=$SECONDS
-    as_root nix-daemon 2>&1 | append_bounded "$daemon_log" || true
+    {
+      trap - TTOU TTIN
+      as_root nix-daemon 2>&1
+    } | append_bounded "$daemon_log" || true
     if ((SECONDS - started >= quick_exit_seconds)); then exits=0; fi
     exits=$((exits + 1))
     log "nix-daemon exited, restarting (see $daemon_log)"
@@ -336,9 +343,11 @@ start_daemon() {
   fi
   # In a process group of its own: tini forwards signals to the group of the
   # entrypoint, which becomes that of the command, and a terminal sends its
-  # signals, such as SIGTSTP, to it. The daemon ends with the container.
+  # signals, such as SIGTSTP, to it. Without the terminal as its input. The
+  # daemon gets no SIGTERM on docker stop: the kernel kills it with the
+  # container, which its SQLite database in WAL mode survives.
   set -m
-  supervise &
+  supervise </dev/null &
   set +m
   wait_for_daemon
 }

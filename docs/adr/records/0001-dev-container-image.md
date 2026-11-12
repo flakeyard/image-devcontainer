@@ -97,6 +97,10 @@ reaps orphaned processes. It runs the entrypoint, which:
 2. starts the Nix daemon, restarts it when it exits, and waits until it answers;
 3. runs the command as `dev` in its own place, under `tini`.
 
+The Nix daemon and its supervisor are outside the process group to which `tini`
+forwards signals, and are killed with the container on `docker stop`, which the
+SQLite database of the store in WAL mode survives.
+
 Started without root, it warns that Nix is not available and runs the command.
 
 ### Nix

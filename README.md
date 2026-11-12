@@ -89,8 +89,10 @@ it.
      answers; with a read-only `/nix`, it says so and runs the command without
      the daemon. The daemon logs to `/var/log/nix-daemon.log`, which moves to
      `/var/log/nix-daemon.log.old` past 10 MiB. It runs in a process group of
-     its own, so that the signals of the command and of its terminal do not
-     reach it, and ends with the container;
+     its own, without the terminal as its input, so that the signals of the
+     command and of its terminal do not reach it. It gets no `SIGTERM` on
+     `docker stop`: the kernel kills it with the container, which its SQLite
+     database in WAL mode survives;
   3. runs the command as `dev` in its own place, so that the command gets the
      signals that `tini` forwards.
 
