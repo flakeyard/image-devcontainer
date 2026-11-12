@@ -226,6 +226,14 @@ to the image after `action-setup-nix` has released it.
 
 ## Development
 
+Open the repository in its dev container,
+[`.devcontainer/devcontainer.json`](.devcontainer/devcontainer.json), with
+"Reopen in Container" in VS Code or `devcontainer up --workspace-folder .`. It
+runs the previous release of the image. The commands below run in it as in CI,
+except `nix run .#smoke`, which needs Docker, Podman and sudo; tools that the
+image does not have come from nixpkgs, such as `nix run nixpkgs#actionlint`. Nix
+on the host works as well.
+
 - `nix flake check` checks the tools, the users and Nix settings, the entrypoint
   and the scripts with their unit tests (`tests/unit/`), that the image builds,
   and formatting (`nix fmt`).
