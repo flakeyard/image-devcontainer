@@ -1,4 +1,9 @@
-{ config, pkgs, ... }:
+{
+  config,
+  pkgs,
+  root,
+  ...
+}:
 {
   description = "Run the smoke tests of the image with docker";
   runtimeInputs = with pkgs; [
@@ -13,6 +18,6 @@
   environment = {
     EXPECTED = "${config.packages.image.expected}";
     EDITOR_SERVER = "${import ./editor-server.nix { inherit pkgs; }}";
-    IMAGE_LIB = "${../../../scripts/lib/image.sh}";
+    IMAGE_LIB = "${root + "/scripts/lib/image.sh"}";
   };
 }

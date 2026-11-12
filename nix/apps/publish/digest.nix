@@ -1,6 +1,6 @@
-{ pkgs, ... }:
+{ pkgs, root, ... }:
 {
   description = "Stream the image and print its platform digest";
   runtimeInputs = [ pkgs.crane ];
-  environment.IMAGE_LIB = "${../../../scripts/lib/image.sh}";
+  environment.IMAGE_LIB = "${root + "/scripts/lib/image.sh"}";
 }

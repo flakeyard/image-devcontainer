@@ -1,4 +1,9 @@
-{ pkgs, shellLib, ... }:
+{
+  pkgs,
+  root,
+  shellLib,
+  ...
+}:
 {
   description = "Check the published image of a release";
   runtimeInputs = with pkgs; [
@@ -7,6 +12,6 @@
     gnugrep
     jq
   ];
-  environment.PUBLISH_LIB = "${../../../scripts/publish/lib.sh}";
+  environment.PUBLISH_LIB = "${root + "/scripts/publish/lib.sh"}";
   environment.SHELL_LIB = "${shellLib}";
 }
