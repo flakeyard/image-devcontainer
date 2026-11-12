@@ -18,7 +18,6 @@
         gawk
         gnused
         util-linuxMinimal
-        tini
       ]);
       shebang = "#!${pkgs.runtimeShell}\n";
       # Root's bash runs in privileged mode (-p): it ignores BASH_ENV, the

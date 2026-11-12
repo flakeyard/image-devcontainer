@@ -3,6 +3,10 @@
 # after tests/smoke/lib.sh. Inputs (environment): IMAGE, WORK (a scratch
 # directory on the runner).
 
+# Seconds a container has to end after SIGTERM, well below the 10 s after
+# which docker stop sends SIGKILL.
+stop_timeout=5
+
 # no_zombies ID: no process of the container is a zombie; output holds their
 # number and the command line of PID 1.
 no_zombies() {
@@ -53,7 +57,36 @@ test_case "stops within 5 seconds"
 start_ready id
 started=$SECONDS
 docker stop "$id" >/dev/null
-((SECONDS - started <= 5)) || fail "docker stop took $((SECONDS - started)) s"
+((SECONDS - started <= stop_timeout)) || fail "docker stop took $((SECONDS - started)) s"
+remove "$id"
+
+# stops ID: the container ends within stop_timeout seconds.
+stops() {
+  local id=$1
+  timeout "$stop_timeout" docker wait "$id" >/dev/null
+}
+
+test_case "stops on SIGTERM right after it starts"
+id=$(start)
+docker kill -s TERM "$id" >/dev/null
+stops "$id" || fail "still running $stop_timeout s after SIGTERM"
+remove "$id"
+
+# Before tini was PID 1, the entrypoint exec'd it here, and the kernel
+# dropped a SIGTERM that reached PID 1 during that exec.
+test_case "stops on SIGTERM while the entrypoint becomes the command"
+for round in 1 2 3; do
+  id=$(start)
+  output=$(docker exec -i "$id" sh -s <"$probes/term-at-handover.sh" 2>&1)
+  stops "$id" || fail "round $round: still running $stop_timeout s after SIGTERM to $output"
+  remove "$id"
+done
+
+test_case "the Nix daemon is not in the process group of the command"
+start_ready id
+# The groups of the child of tini, the command, and of the daemon.
+output=$(docker exec "$id" sh -c 'ps -o pgid= -p "$(cut -d " " -f 1 /proc/1/task/1/children)"; ps -o pgid= -C nix-daemon')
+[[ $(sort -u <<<"$output" | wc -l) == 2 ]] || fail "the same group, or none"
 remove "$id"
 
 test_case "starts again"

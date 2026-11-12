@@ -54,6 +54,9 @@ Prototypes with real tools established:
   path runs them.
 - A container whose first process is a long-running command without signal
   handling takes ten seconds to stop and accumulates zombie processes.
+- A first process that hands over to the init process with `exec` loses a
+  `SIGTERM` that arrives during the `exec`: the kernel drops a signal to PID 1
+  that has no handler, and the container takes ten seconds to stop.
 - The developer's uid on the host varies. Dev Containers tools adapt the
   container user to it when building a derived image; a plain `docker run` does
   not.
@@ -84,14 +87,15 @@ set by the project's `devcontainer.json`.
 
 ### Start-up
 
-The container starts as root. The entrypoint:
+The container starts as root, and the image starts `tini` first: it handles
+signals from the start, forwards them to the process group of its child and
+reaps orphaned processes. It runs the entrypoint, which:
 
 1. adapts the `dev` user to the owner of the project: to `DEV_UID` and `DEV_GID`
    when given, otherwise to the owner of the working directory when it is a
    mount point not owned by root;
 2. starts the Nix daemon, restarts it when it exits, and waits until it answers;
-3. hands over to `tini`, which runs the command as `dev`, reaps orphaned
-   processes and forwards signals.
+3. runs the command as `dev` in its own place, under `tini`.
 
 Started without root, it warns that Nix is not available and runs the command.
 
@@ -172,6 +176,8 @@ permissions of their outputs.
   - run the Nix daemon supervised and report when it does not answer;
   - run the command as `dev` under an init process that reaps children and
     forwards signals.
+- That init process MUST be the first program the image starts and MUST run the
+  entrypoint, so that no signal arrives before it handles them.
 - Started without uid 0, the entrypoint MUST print a specific warning and still
   run the command.
 - Settings the image requires from `devcontainer.json` MUST be carried in its
