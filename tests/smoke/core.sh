@@ -72,12 +72,25 @@ docker kill -s TERM "$id" >/dev/null
 stops "$id" || fail "still running $stop_timeout s after SIGTERM"
 remove "$id"
 
+# The exit status of a process killed by SIGKILL.
+killed_status=137
+
+# term_at_handover ID: sends SIGTERM to PID 1 of the container the moment the
+# entrypoint becomes the command; output holds the name of the child then.
+# The probe runs in the container, so the kernel kills it with the container
+# when that stops before the probe ends: it fails on other statuses only.
+term_at_handover() {
+  local id=$1 status=0
+  output=$(docker exec -i "$id" sh -s <"$probes/term-at-handover.sh" 2>&1) || status=$?
+  ((status == 0 || status == killed_status))
+}
+
 # Before tini was PID 1, the entrypoint exec'd it here, and the kernel
 # dropped a SIGTERM that reached PID 1 during that exec.
 test_case "stops on SIGTERM while the entrypoint becomes the command"
 for round in 1 2 3; do
   id=$(start)
-  output=$(docker exec -i "$id" sh -s <"$probes/term-at-handover.sh" 2>&1)
+  term_at_handover "$id" || fail "round $round: the probe failed"
   stops "$id" || fail "round $round: still running $stop_timeout s after SIGTERM to $output"
   remove "$id"
 done
