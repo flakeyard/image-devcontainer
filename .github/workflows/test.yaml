@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: flakeyard/action-setup-nix@0a6360ba8fee1bb4da86d28ec4a1d204aa047be3 # v0.1.4
+      - uses: flakeyard/action-setup-nix@6718901a8eee1c62fd9ebddb8c8a11082c4e6495 # v0.1.5
       # Before any evaluation of the flake (FY-0017).
       - name: Check flake.lock
         uses: flakeyard/action-flake-lock@a3d4a8f9233ad1ff08300e5e9f695d3b64675c40 # v0.2.1
@@ -75,7 +75,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: flakeyard/action-setup-nix@0a6360ba8fee1bb4da86d28ec4a1d204aa047be3 # v0.1.4
+      - uses: flakeyard/action-setup-nix@6718901a8eee1c62fd9ebddb8c8a11082c4e6495 # v0.1.5
       - name: Generate the SBOM and check the licenses
         shell: bash
         run: nix run --no-update-lock-file .#check-licenses -- "$RUNNER_TEMP/sbom.cdx.json"
@@ -102,7 +102,7 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: false
-      - uses: flakeyard/action-setup-nix@0a6360ba8fee1bb4da86d28ec4a1d204aa047be3 # v0.1.4
+      - uses: flakeyard/action-setup-nix@6718901a8eee1c62fd9ebddb8c8a11082c4e6495 # v0.1.5
       - name: Rebuild the newest release
         shell: bash
         env:
