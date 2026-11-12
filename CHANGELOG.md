@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.9](https://github.com/flakeyard/image-devcontainer/compare/v0.1.8...v0.1.9) (2026-11-12)
+
+
+### Bug Fixes
+
+* keep the variables of the container from the programs of root ([#113](https://github.com/flakeyard/image-devcontainer/issues/113)) ([f68120b](https://github.com/flakeyard/image-devcontainer/commit/f68120b98beaf08644de557cfdc05b6674fc5a40))
+* start tini first so that no SIGTERM is lost at start-up ([#112](https://github.com/flakeyard/image-devcontainer/issues/112)) ([a87411f](https://github.com/flakeyard/image-devcontainer/commit/a87411fd1186141ab2c5345726aceaff00c0f703))
+
 ## [0.1.8](https://github.com/flakeyard/image-devcontainer/compare/v0.1.7...v0.1.8) (2026-11-11)
 
 
