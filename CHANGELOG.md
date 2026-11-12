@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.10](https://github.com/flakeyard/image-devcontainer/compare/v0.1.9...v0.1.10) (2026-11-12)
+
+
+### Bug Fixes
+
+* pass the environment above the standard streams ([#121](https://github.com/flakeyard/image-devcontainer/issues/121)) ([24a7424](https://github.com/flakeyard/image-devcontainer/commit/24a7424ad7918deddb2ff369512946b7a1a57419))
+
 ## [0.1.9](https://github.com/flakeyard/image-devcontainer/compare/v0.1.8...v0.1.9) (2026-11-12)
 
 
