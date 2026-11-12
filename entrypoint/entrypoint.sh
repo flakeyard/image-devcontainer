@@ -4,9 +4,10 @@
 # supervised, and runs the command as `dev` in its place.
 #
 # It starts with an empty environment: environ (entrypoint/environ.c) passes
-# the variables of the container in its arguments, before the command. Of
-# them, it reads only the settings below; the command of dev gets them all,
-# and the Nix daemon a fixed environment of its own. Bash runs it in
+# the variables of the container through a file descriptor, never in
+# arguments, which every process may read in /proc. Of them, it reads only
+# the settings below; the command of dev gets them all, and the Nix daemon a
+# fixed environment of its own. Bash runs it in
 # privileged mode (nix/image/parts/entrypoint.nix), so that BASH_ENV, exported
 # functions and shell options would not reach it either. The paths below are
 # fixed; the unit tests change them after sourcing this file.
@@ -30,8 +31,10 @@ proxy_vars=(http_proxy https_proxy all_proxy no_proxy HTTP_PROXY HTTPS_PROXY ALL
 # The variables of the container that the entrypoint reads, as variables of
 # its shell.
 settings=(DEV_UID DEV_GID "${proxy_vars[@]}")
-# The variables of the container, NAME=VALUE, from the arguments.
+# The variables of the container, NAME=VALUE, and the descriptor that reads
+# them.
 container_environment=()
+environment_fd=""
 
 # The daemon has this long to answer, checked this often (seconds).
 daemon_timeout=10
@@ -350,11 +353,12 @@ start_daemon() {
   fi
   # In a process group of its own: tini forwards signals to the group of the
   # entrypoint, which becomes that of the command, and a terminal sends its
-  # signals, such as SIGTSTP, to it. Without the terminal as its input. The
-  # daemon gets no SIGTERM on docker stop: the kernel kills it with the
-  # container, which its SQLite database in WAL mode survives.
+  # signals, such as SIGTSTP, to it. Without the terminal as its input, nor
+  # the descriptor of the variables of the container. The daemon gets no
+  # SIGTERM on docker stop: the kernel kills it with the container, which its
+  # SQLite database in WAL mode survives.
   set -m
-  supervise </dev/null &
+  supervise </dev/null {environment_fd}<&- &
   set +m
   wait_for_daemon
 }
@@ -384,11 +388,11 @@ runnable() {
   decimal "$uid" >/dev/null && decimal "$gid" >/dev/null && ((uid != 0 && gid != 0))
 }
 
-# main COUNT VARIABLE... COMMAND...: COUNT variables of the container, as
-# environ to-args passes them, then the command.
+# main FD COMMAND...: the descriptor that reads the variables of the
+# container, as environ to-fd passes it, then the command.
 main() {
   read_environment "$@" || exit 1
-  shift $((${#container_environment[@]} + 1))
+  shift
   if [[ $(id -u) != 0 ]]; then run_unprivileged "$@"; fi
   local identity uid gid
   identity=$(wanted_identity)
@@ -406,16 +410,16 @@ main() {
   exec_as_dev "$uid" "$gid" "$@"
 }
 
-# read_environment COUNT VARIABLE... COMMAND...: keeps the COUNT variables
-# in container_environment, and sets the settings among them.
+# read_environment FD COMMAND...: keeps the variables that FD reads, each
+# ended by a NUL, in container_environment, and sets the settings among them.
+# FD is not a standard stream.
 read_environment() {
-  local count=${1-} variable
-  # The number, the variables and at least the command.
-  if ! count=$(decimal "$count") || ((count + 2 > $#)); then
-    log "expected the number of variables, the variables and the command; start the image with its entrypoint"
+  local fd=${1-} variable
+  if ! fd=$(decimal "$fd") || ((fd <= 2 || $# < 2)) || ! mapfile -d '' -t -u "$fd" container_environment; then
+    log "expected the descriptor of the variables of the container, and the command; start the image with its entrypoint"
     return 1
   fi
-  container_environment=("${@:2:count}")
+  environment_fd=$fd
   for variable in "${container_environment[@]}"; do
     if is_setting "$variable"; then printf -v "${variable%%=*}" '%s' "${variable#*=}"; fi
   done
@@ -437,37 +441,30 @@ is_one_of() {
   return 1
 }
 
-# dev_environment: prints the environment of the command of dev,
-# NUL-separated: that of the container, with HOME, USER, LOGNAME and PATH of
-# its own in place of those.
-dev_environment() {
-  local own=(HOME="$home" USER="$user" LOGNAME="$user" PATH="$dev_path") variable
-  for variable in "${container_environment[@]}"; do
-    if ! is_one_of "${variable%%=*}" "${own[@]%%=*}"; then printf '%s\0' "$variable"; fi
-  done
-  printf '%s\0' "${own[@]}"
-}
-
 # run_unprivileged COMMAND...: runs the command as it is, with the environment
 # of the container, without the daemon.
 run_unprivileged() {
+  local env environ
   log "started as uid $(id -u) instead of 0: the Nix daemon is not running."
   log "start the container as root (the default); it switches to '$user' itself."
-  exec environ from-args "${#container_environment[@]}" "${container_environment[@]}" "$@"
+  env=$(command -v env)
+  environ=$(command -v environ)
+  exec "$env" -i "$environ" from-fd "$environment_fd" "$@"
 }
 
 # exec_as_dev UID GID COMMAND...: runs the command as `dev` in place of the
 # entrypoint, so that it gets the signals tini forwards. environ gives it the
-# environment only after setpriv has dropped root.
+# environment of the container, with HOME, USER, LOGNAME and PATH of dev in
+# place of those, only after setpriv has dropped root.
 exec_as_dev() {
-  local uid=$1 gid=$2 setpriv environ variables
+  local uid=$1 gid=$2 env setpriv environ
   shift 2
   # Resolved with root's PATH; the command is found in dev's.
+  env=$(command -v env)
   setpriv=$(command -v setpriv)
   environ=$(command -v environ)
-  mapfile -d '' -t variables < <(dev_environment)
-  exec "$setpriv" --reuid="$uid" --regid="$gid" --init-groups -- \
-    "$environ" from-args "${#variables[@]}" "${variables[@]}" "$@"
+  exec "$env" -i HOME="$home" USER="$user" LOGNAME="$user" PATH="$dev_path" \
+    "$setpriv" --reuid="$uid" --regid="$gid" --init-groups -- "$environ" from-fd "$environment_fd" "$@"
 }
 
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then

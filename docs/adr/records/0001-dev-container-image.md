@@ -106,9 +106,9 @@ forwards signals, and are killed with the container on `docker stop`, which the
 SQLite database of the store in WAL mode survives.
 
 `tini` is linked statically and starts the entrypoint through a static program
-that moves the variables of the container into the arguments of the entrypoint,
-so that no program of root starts with them. The entrypoint reads only
-`DEV_UID`, `DEV_GID` and the proxy variables of them; the command gets them all.
+that passes the variables of the container to it through a file descriptor, so
+that no program of root starts with them. The entrypoint reads only `DEV_UID`,
+`DEV_GID` and the proxy variables of them; the command gets them all.
 
 Started without root, it warns that Nix is not available and runs the command.
 
@@ -195,7 +195,9 @@ permissions of their outputs.
   of root that the image starts: the programs before the entrypoint MUST be
   linked statically, and the entrypoint MUST start with an empty environment. Of
   the variables, the entrypoint MUST read only `DEV_UID`, `DEV_GID` and the
-  proxy variables, and the command MUST get them all.
+  proxy variables, and the command MUST get them all. They MUST NOT be in the
+  arguments of any process, which `/proc` shows to every process of the
+  container.
 - Started without uid 0, the entrypoint MUST print a specific warning and still
   run the command.
 - Settings the image requires from `devcontainer.json` MUST be carried in its

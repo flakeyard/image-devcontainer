@@ -9,7 +9,7 @@
 # Inputs (environment): ENTRYPOINT, the script; BUILT, the built entrypoint;
 # ENVIRON, the built environ; PASSWD and GROUP, the files of the image;
 # SHELL_LIB, the shell library.
-# shellcheck disable=SC2034,SC2329 # variables and functions of the sourced entrypoint
+# shellcheck disable=SC2034,SC2154,SC2329 # variables and functions of the sourced entrypoint
 set -uo pipefail
 export LC_ALL=C
 
@@ -298,37 +298,33 @@ done
 
 # --- the environment of the container -----------------------------------------
 
-# read_settings COUNT VARIABLE... COMMAND...: prints the settings that
-# read_environment sets, the variable NIX_CONFIG, and the number of variables
-# it keeps.
+# read_settings ENTRY...: passes the ENTRYs, each ended by a NUL, to
+# read_environment through a descriptor, as environ does; prints the settings
+# it sets, the variable NIX_CONFIG, and the number of variables it keeps.
 read_settings() {
-  read_environment "$@" || return
+  local fd
+  printf '%s\0' "$@" >"$work/environment"
+  exec {fd}<"$work/environment"
+  read_environment "$fd" sleep || return
   printf '%s\n' "${DEV_UID-unset}" "${DEV_GID-unset}" "${https_proxy-unset}" "${NIX_CONFIG-unset}" \
     "${#container_environment[@]}"
 }
 
 entrypoint_setup
 run_lib "sets the settings of the container's variables, and keeps all" ok "" read_settings \
-  4 DEV_UID=1001 https_proxy=http://proxy:3128 NIX_CONFIG=x DEV_GID -- sleep
-expect stdout "$(printf '%s\n' 1001 unset http://proxy:3128 unset 4)"
+  DEV_UID=1001 https_proxy=http://proxy:3128 NIX_CONFIG=x DEV_GID ""
+expect stdout "$(printf '%s\n' 1001 unset http://proxy:3128 unset 5)"
 finish
 
-for arguments in "sleep infinity" "2 A=1 B=2" "-1 sleep" ""; do
+# Not a number, a standard stream, too large, nothing, a closed descriptor,
+# and no command.
+for arguments in "sleep infinity" "1 sleep" "0 sleep" "99999999999999999999 sleep" "" "99 sleep" "99"; do
   entrypoint_setup
   # shellcheck disable=SC2086 # the words of the case
   run_lib "rejects the arguments '$arguments'" fail "" read_environment $arguments
-  expect message "expected the number of variables, the variables and the command"
+  expect message "expected the descriptor of the variables of the container, and the command"
   finish
 done
-
-entrypoint_setup
-current="dev gets the container's variables, with its own HOME, USER, LOGNAME and PATH"
-container_environment=(A=1 HOME=/root "PATH=/evil" LD_PRELOAD=/lib.so "USER=x=y")
-out=$(dev_environment | tr '\0' '|')
-# dev's PATH, restated as the oracle of the README.
-[[ $out == "A=1|LD_PRELOAD=/lib.so|HOME=$home|USER=dev|LOGNAME=dev|PATH=/home/dev/.nix-profile/bin:/bin:/usr/bin|" ]] ||
-  report "environment: $out"
-finish
 
 # --- supervise ----------------------------------------------------------------
 
@@ -419,7 +415,7 @@ if (($(id -u) != 0)); then
   printf 'touch %q\n' "$work/sourced" >"$work/bash-env"
   run "the container's environment does not reach root's bash" ok bin/environ \
     BASH_ENV="$work/bash-env" 'BASH_FUNC_id%%=() { echo 0; }' SHELLOPTS=xtrace \
-    -- to-args "$BUILT/bin/entrypoint" printf '%s\n' ran
+    -- to-fd "$BUILT/bin/entrypoint" printf '%s\n' ran
   expect stdout ran
   expect message "started as uid $(id -u) instead of 0"
   [[ ! -e $work/sourced ]] || report "bash sourced BASH_ENV"
@@ -428,7 +424,7 @@ if (($(id -u) != 0)); then
 
   entrypoint_setup
   run "only the command reads LD_PRELOAD, and gets the container's variables" ok bin/environ \
-    LD_PRELOAD="$missing_library" GCONV_PATH=/tmp -- to-args "$BUILT/bin/entrypoint" env
+    LD_PRELOAD="$missing_library" GCONV_PATH=/tmp -- to-fd "$BUILT/bin/entrypoint" env
   expect_line "$work/stdout" "LD_PRELOAD=$missing_library"
   expect_line "$work/stdout" GCONV_PATH=/tmp
   [[ $(grep -c "$missing_library" "$work/stderr") == 1 ]] ||

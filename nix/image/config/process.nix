@@ -28,14 +28,14 @@
         # is not PID 1, under the init of the engine (`init: true`). -g: it
         # forwards signals to the group of the command, as a terminal does.
         # environ starts the entrypoint with an empty environment and passes
-        # that of the container in the arguments, for the command of dev.
+        # that of the container through a descriptor, for the command of dev.
         Entrypoint = [
           (lib.getExe tini)
           "-s"
           "-g"
           "--"
           (lib.getExe environ)
-          "to-args"
+          "to-fd"
           (lib.getExe entrypoint)
         ];
         Cmd = [

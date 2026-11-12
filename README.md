@@ -123,13 +123,14 @@ it.
   `GCONV_PATH` and the like in every program before its first line, so no
   program of root starts with the variables of the container. `tini` is linked
   statically, and starts the entrypoint through `environ`, a small static
-  program of this repository, which moves the variables into the arguments of
-  the entrypoint and leaves it an empty environment. Of them, the entrypoint
-  reads only `DEV_UID`, `DEV_GID` and the proxy variables; the command of `dev`
-  gets them all, with `HOME`, `USER`, `LOGNAME` and `PATH` of its own, from
-  `environ` again once root is dropped. Until then, the variables are in the
-  arguments of the entrypoint, which every process of the container can read in
-  `/proc`. The entrypoint runs in the privileged mode of bash, which ignores
+  program of this repository, which passes the variables to the entrypoint
+  through a file descriptor and leaves it an empty environment. Of them, the
+  entrypoint reads only `DEV_UID`, `DEV_GID` and the proxy variables; the
+  command of `dev` gets them all, with `HOME`, `USER`, `LOGNAME` and `PATH` of
+  its own, from `environ` again once root is dropped. The variables are never in
+  the arguments of a process, which every process of the container can read in
+  `/proc`. A command that is an executable file without `#!` runs with
+  `/bin/sh`. The entrypoint runs in the privileged mode of bash, which ignores
   `BASH_ENV`, functions exported in the environment, `SHELLOPTS`, `BASHOPTS`,
   `CDPATH` and `GLOBIGNORE`. Dev Containers tools start the image through a
   `/bin/sh` of root of their own, which reads the variables of `containerEnv`
