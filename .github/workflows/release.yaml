@@ -4,7 +4,9 @@
 # no secrets: nothing reaches the registry before the owner approves it.
 name: release
 
-on:
+# No concurrency group for the run: cancelling it would cancel a release. The
+# jobs that publish queue in their own groups.
+on: # zizmor: ignore[concurrency-limits]
   push:
     branches: [main, "release/v*"]
 
@@ -100,8 +102,10 @@ jobs:
       id-token: write # sign attestations
       attestations: write # store attestations
       artifact-metadata: write # link attestations to the package
+    # The tested digests; the apps take the one of the platform.
     env:
-      TESTED: ${{ needs.build-test.outputs[format('digest-{0}', matrix.arch)] }}
+      TESTED_AMD64: ${{ needs.build-test.outputs.digest-amd64 }}
+      TESTED_ARM64: ${{ needs.build-test.outputs.digest-arm64 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -121,20 +125,25 @@ jobs:
       # github/api.sh for the action attest-once.
       - id: lib
         uses: flakeyard/action-shell-lib@d2f4905ffa8bcea6bb6be2928d90db9037d5bdef # v0.3.0
-      - name: Push by digest
+      - id: push
+        name: Push by digest
         shell: bash
-        run: nix run --no-update-lock-file .#publish-platform -- "$IMAGE" "$TESTED"
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          digest=$(nix run --no-update-lock-file .#publish-platform -- "$IMAGE" "$ARCH")
+          echo "digest=$digest" >>"$GITHUB_OUTPUT"
       - name: Provenance
         uses: $/.github/actions/attest-once
         with:
           image: ${{ env.IMAGE }}
-          digest: ${{ env.TESTED }}
+          digest: ${{ steps.push.outputs.digest }}
           shell-lib: ${{ steps.lib.outputs.path }}
       - name: SBOM attestation
         uses: $/.github/actions/attest-once
         with:
           image: ${{ env.IMAGE }}
-          digest: ${{ env.TESTED }}
+          digest: ${{ steps.push.outputs.digest }}
           shell-lib: ${{ steps.lib.outputs.path }}
           predicate-type: https://cyclonedx.org/bom
           sbom-path: ${{ runner.temp }}/sbom.cdx.json
@@ -234,8 +243,10 @@ jobs:
       contents: read
       packages: read # pull the image
       attestations: read # verify its attestations
+    # The tested digests; the apps take the one of the platform.
     env:
-      TESTED: ${{ needs.build-test.outputs[format('digest-{0}', matrix.arch)] }}
+      TESTED_AMD64: ${{ needs.build-test.outputs.digest-amd64 }}
+      TESTED_ARM64: ${{ needs.build-test.outputs.digest-arm64 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -252,4 +263,4 @@ jobs:
           ARCH: ${{ matrix.arch }}
         run: |
           nix run --no-update-lock-file .#publish-verify -- \
-            "$REPOSITORY" "$IMAGE" "$INDEX" "$VERSION" "$REVISION" "$ARCH" "$TESTED"
+            "$REPOSITORY" "$IMAGE" "$INDEX" "$VERSION" "$REVISION" "$ARCH"
