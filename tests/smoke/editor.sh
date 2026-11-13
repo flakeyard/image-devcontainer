@@ -50,8 +50,8 @@ needed_libraries() {
     echo "$root/node is no ELF file" >&2
     return 1
   }
-  find "$root" -type f \( -name node -o -name '*.node' -o -name '*.so*' \) | without "$not_served" |
-    while read -r elf; do
+  find "$root" -type f \( -name node -o -name '*.node' -o -name '*.so*' \) | without "$not_served" \
+    | while read -r elf; do
       file_type=$(elf_type "$elf") || exit
       [[ $file_type == "$node_type" ]] || continue
       readelf -d -- "$elf" | sed -n "s|.*(NEEDED).*\\[\\(.*\\)\\]|\\1 ${elf##*/}|p" || exit
@@ -126,8 +126,8 @@ devcontainer_up() {
   mkdir -p "$workspace/.devcontainer"
   printf '{ "image": "%s" }\n' "$2" >"$workspace/.devcontainer/devcontainer.json"
   output=$(
-    devcontainer up --docker-path "$1" --workspace-folder "$workspace" &&
-      devcontainer exec --docker-path "$1" --workspace-folder "$workspace" \
+    devcontainer up --docker-path "$1" --workspace-folder "$workspace" \
+      && devcontainer exec --docker-path "$1" --workspace-folder "$workspace" \
         sh -c 'id -un; nix store info >/dev/null && echo nix-ok; touch created && echo written'
   ) 2>&1
   host_owner=$(stat -c %u "$workspace/created" 2>/dev/null || echo none)

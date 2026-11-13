@@ -61,6 +61,6 @@ if verifies; then
   exit 0
 fi
 existing=$(count_of_predicate)
-((existing == 0)) ||
-  fail "$DIGEST has $existing $predicate attestations, but none verifies: $(cat "$work/verify")"
+((existing == 0)) \
+  || fail "$DIGEST has $existing $predicate attestations, but none verifies: $(cat "$work/verify")"
 set_output false

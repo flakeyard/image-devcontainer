@@ -182,13 +182,13 @@ sed -i "s/^dev:x:1000:1000:/dev:x:$(id -u):$(id -g):/" "$work/etc/passwd"
 sed -i "s/^dev:x:1000:/dev:x:$(id -g):/" "$work/etc/group"
 run_lib "changes passwd, group and the files under home" ok "" set_identity 1002 1003
 if [[ -n $current ]]; then
-  [[ $(grep -A1 -x 'owner 1002' "$work/chowned" | tail -n +2) == *"$work/home"* ]] ||
-    report "files not given to uid 1002: $(paste -sd' ' "$work/chowned")"
+  [[ $(grep -A1 -x 'owner 1002' "$work/chowned" | tail -n +2) == *"$work/home"* ]] \
+    || report "files not given to uid 1002: $(paste -sd' ' "$work/chowned")"
   grep -qx 'owner :1003' "$work/chowned" || report "group not changed apart: $(paste -sd' ' "$work/chowned")"
-  grep -qx "$work/home/.config/file" "$work/chowned" ||
-    report "files given away: $(paste -sd' ' "$work/chowned")"
-  [[ $(field "$work/etc/passwd" dev 3):$(field "$work/etc/passwd" dev 4) == 1002:1003 ]] ||
-    report "passwd: $(grep '^dev:' "$work/etc/passwd")"
+  grep -qx "$work/home/.config/file" "$work/chowned" \
+    || report "files given away: $(paste -sd' ' "$work/chowned")"
+  [[ $(field "$work/etc/passwd" dev 3):$(field "$work/etc/passwd" dev 4) == 1002:1003 ]] \
+    || report "passwd: $(grep '^dev:' "$work/etc/passwd")"
   [[ $(field "$work/etc/group" dev 3) == 1003 ]] || report "group: $(grep '^dev:' "$work/etc/group")"
 fi
 expect message "user 'dev' is now 1002:1003"
@@ -222,8 +222,8 @@ entrypoint_setup
 MOUNT=1
 run_lib "a mounted home keeps the owner of its files" ok "" set_identity 1002 1003
 [[ ! -e $work/chowned ]] || report "files changed owner: $(paste -sd' ' "$work/chowned")"
-[[ $(field "$work/etc/passwd" dev 3):$(field "$work/etc/group" dev 3) == 1002:1003 ]] ||
-  report "passwd or group not changed"
+[[ $(field "$work/etc/passwd" dev 3):$(field "$work/etc/group" dev 3) == 1002:1003 ]] \
+  || report "passwd or group not changed"
 expect message "$work/home is a mount point: its files keep their owner"
 expect message "user 'dev' is now 1002:1003"
 finish
@@ -273,8 +273,8 @@ mounted "$work/home/.gitconfig" >>"$mountinfo"
 run_lib "gives the files under home to dev, but not mount points" ok "" set_identity 1002 1003
 if [[ -n $current ]]; then
   grep -qx "$work/home/.config/file" "$work/chowned" || report "files not given: $(paste -sd' ' "$work/chowned")"
-  ! grep -qx -e "$work/home/project" -e "$work/home/.gitconfig" "$work/chowned" ||
-    report "mount points given away: $(paste -sd' ' "$work/chowned")"
+  ! grep -qx -e "$work/home/project" -e "$work/home/.gitconfig" "$work/chowned" \
+    || report "mount points given away: $(paste -sd' ' "$work/chowned")"
 fi
 finish
 
@@ -427,8 +427,8 @@ if (($(id -u) != 0)); then
     LD_PRELOAD="$missing_library" GCONV_PATH=/tmp -- to-fd "$BUILT/bin/entrypoint" env
   expect_line "$work/stdout" "LD_PRELOAD=$missing_library"
   expect_line "$work/stdout" GCONV_PATH=/tmp
-  [[ $(grep -c "$missing_library" "$work/stderr") == 1 ]] ||
-    report "programs that read LD_PRELOAD: $(cat -- "$work/stderr")"
+  [[ $(grep -c "$missing_library" "$work/stderr") == 1 ]] \
+    || report "programs that read LD_PRELOAD: $(cat -- "$work/stderr")"
   finish
 fi
 

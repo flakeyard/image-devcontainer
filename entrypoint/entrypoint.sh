@@ -336,9 +336,9 @@ too_large() {
 # file system, root passes `-w` but cannot write.
 writable() {
   local dir=$1 probe
-  mkdir -p -- "$dir" 2>/dev/null &&
-    probe=$(mktemp -p "$dir" .entrypoint.XXXXXX 2>/dev/null) &&
-    rm -f -- "$probe"
+  mkdir -p -- "$dir" 2>/dev/null \
+    && probe=$(mktemp -p "$dir" .entrypoint.XXXXXX 2>/dev/null) \
+    && rm -f -- "$probe"
 }
 
 # start_daemon: starts the supervised daemon and waits until it answers.

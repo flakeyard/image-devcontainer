@@ -47,12 +47,12 @@ check_tag() {
 # check_list LIST: the platforms, the annotations and the tested digest.
 check_list() {
   local list=$1 listed
-  jq -e '[.manifests[].platform.architecture] | sort == ["amd64", "arm64"]' <<<"$list" >/dev/null ||
-    fail "the list does not have exactly amd64 and arm64: $list"
+  jq -e '[.manifests[].platform.architecture] | sort == ["amd64", "arm64"]' <<<"$list" >/dev/null \
+    || fail "the list does not have exactly amd64 and arm64: $list"
   jq -e --arg v "$version" --arg r "$revision" '
     .annotations["org.opencontainers.image.version"] == $v
-      and .annotations["org.opencontainers.image.revision"] == $r' <<<"$list" >/dev/null ||
-    fail "the annotations of the list are not $version and $revision"
+      and .annotations["org.opencontainers.image.revision"] == $r' <<<"$list" >/dev/null \
+    || fail "the annotations of the list are not $version and $revision"
   listed=$(jq -r --arg arch "$arch" '.manifests[] | select(.platform.architecture == $arch) | .digest' <<<"$list")
   [[ $listed == "$platform" ]] || fail "the list names $listed for $arch, $platform was tested"
 }
