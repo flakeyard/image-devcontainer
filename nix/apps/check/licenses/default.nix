@@ -1,4 +1,9 @@
-{ config, pkgs, ... }:
+{
+  config,
+  pkgs,
+  root,
+  ...
+}:
 let
   inherit (config.packages) image;
   inherit (config.image) parts;
@@ -19,8 +24,8 @@ in
     CLOSURE = "${image.expected}/closure";
     CLOSURE_ROOT = "${image.closureRoot}";
     NIXPKGS = "${pkgs.path}";
-    LICENSES_JQ = "${../../../../scripts/check/licenses}";
+    LICENSES_JQ = "${root + "/scripts/check/licenses"}";
     KNOWN_LICENSES = "${knownLicenses}";
-    IMAGE_LIB = "${../../../../scripts/lib/image.sh}";
+    IMAGE_LIB = "${root + "/scripts/lib/image.sh"}";
   };
 }

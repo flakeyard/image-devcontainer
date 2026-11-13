@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, root, ... }:
 {
   description = "Publish the manifest list and its release tag";
   runtimeInputs = with pkgs; [
@@ -7,5 +7,5 @@
     jq
     regclient
   ];
-  environment.PUBLISH_LIB = "${../../../scripts/publish/lib.sh}";
+  environment.PUBLISH_LIB = "${root + "/scripts/publish/lib.sh"}";
 }

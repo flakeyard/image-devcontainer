@@ -1,27 +1,29 @@
 #!/usr/bin/env bash
-# Usage: publish-verify REPOSITORY IMAGE INDEX VERSION REVISION ARCH PLATFORM
+# Usage: publish-verify REPOSITORY IMAGE INDEX VERSION REVISION ARCH
 #
 # Checks the published image of a release on a runner of ARCH (FY-0032):
 #   - the git tag vVERSION is at REVISION;
 #   - vVERSION points at the manifest list INDEX, which has exactly the two
-#     platforms, the version and the commit as annotations, and PLATFORM, the
-#     tested digest, for ARCH;
+#     platforms, the version and the commit as annotations, and the tested
+#     digest for ARCH;
 #   - the image pulled by INDEX runs;
 #   - the list has provenance from the release workflow at the commit of the
 #     git tag, which only an approved release creates;
 #   - the platform has provenance and an SBOM from the release workflow. They
 #     are not bound to the commit: a platform digest keeps the attestations of
 #     the release that first published it.
-# Inputs (environment): GH_TOKEN; PUBLISH_LIB, scripts/publish/lib.sh;
+# Inputs (environment): GH_TOKEN; TESTED_AMD64 and TESTED_ARM64, the tested
+# digests; PUBLISH_LIB, scripts/publish/lib.sh;
 # SHELL_LIB, the directory of the shell library. Needs docker, as on
 # GitHub-hosted runners.
 set -euo pipefail
 shopt -s inherit_errexit
 
-repository=$1 image=$2 index=$3 version=$4 revision=$5 arch=$6 platform=$7
+repository=$1 image=$2 index=$3 version=$4 revision=$5 arch=$6
 readonly sbom=https://cyclonedx.org/bom
 # shellcheck source=/dev/null # scripts/publish/lib.sh, from the app
 source "$PUBLISH_LIB"
+platform=$(tested_digest "$arch")
 # shellcheck source=/dev/null # github/api.sh of the library, from the app
 source "$SHELL_LIB/github/api.sh"
 

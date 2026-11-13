@@ -30,6 +30,19 @@ require_digest() {
   exit 2
 }
 
+# tested_digest ARCH: the tested digest of ARCH, from TESTED_AMD64 or
+# TESTED_ARM64. Exits for another architecture or a malformed digest.
+tested_digest() {
+  local arch=$1 digest
+  case $arch in
+    amd64) digest=${TESTED_AMD64-} ;;
+    arm64) digest=${TESTED_ARM64-} ;;
+    *) fail "no tested digest for the architecture '$arch'" ;;
+  esac
+  require_digest "$digest"
+  echo "$digest"
+}
+
 # tag_state TAG: the digest TAG points at, or "absent" when the registry
 # says it does not know TAG. Exits on any other error.
 tag_state() {
