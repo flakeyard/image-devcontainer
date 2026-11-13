@@ -29,8 +29,8 @@ expect_no_text "ssh-server"
 
 test_case "/usr/bin/bash is the file of /bin/bash and /bin/sh"
 run -- readlink -f /bin/bash /usr/bin/bash /bin/sh
-[[ $(wc -l <<<"$output") == 3 && $(sort -u <<<"$output" | wc -l) == 1 && $output == /nix/store/*/bin/bash* ]] ||
-  fail "not one bash"
+[[ $(wc -l <<<"$output") == 3 && $(sort -u <<<"$output" | wc -l) == 1 && $output == /nix/store/*/bin/bash* ]] \
+  || fail "not one bash"
 
 test_case "dev runs /usr/bin/bash with uid 1000 and other uids"
 run -- /usr/bin/bash -c 'echo "ran as $(id -u)"'
