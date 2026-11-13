@@ -27,6 +27,30 @@ expect_line "done"
 expect_no_text "missing"
 expect_no_text "ssh-server"
 
+test_case "/usr/bin/bash is the file of /bin/bash and /bin/sh"
+run -- readlink -f /bin/bash /usr/bin/bash /bin/sh
+[[ $(wc -l <<<"$output") == 3 && $(sort -u <<<"$output" | wc -l) == 1 && $output == /nix/store/*/bin/bash* ]] ||
+  fail "not one bash"
+
+test_case "dev runs /usr/bin/bash with uid 1000 and other uids"
+run -- /usr/bin/bash -c 'echo "ran as $(id -u)"'
+expect_line "ran as 1000"
+run -e DEV_UID=1001 -- /usr/bin/bash -c 'echo "ran as $(id -u)"'
+expect_line "ran as 1001"
+run --user 4321 -- /usr/bin/bash -c 'echo "ran as $(id -u)"'
+expect_line "ran as 4321"
+
+test_case "/usr/bin/bash -p ignores BASH_ENV and exported functions, and plain bash does not"
+printf '%s\n' 'echo sourced' >"$WORK/usr-bin-bash-env"
+bash_env=(-v "$WORK/usr-bin-bash-env:/bash-env:ro" -e BASH_ENV=/bash-env -e 'BASH_FUNC_probe%%=() { echo imported; }')
+run "${bash_env[@]}" -- /usr/bin/bash -p -c 'probe 2>/dev/null || echo clean'
+expect_line "clean"
+expect_no_text "sourced"
+expect_no_text "imported"
+run "${bash_env[@]}" -- /usr/bin/bash -c probe
+expect_line "sourced"
+expect_line "imported"
+
 test_case "the image root has no entries named after store paths"
 run -- ls -A /
 ! grep -qE '^[0-9a-z]{32}-' <<<"$output" || fail "store path names in /: $output"
