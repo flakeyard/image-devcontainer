@@ -33,9 +33,10 @@ lib.genAttrs nixComponents (_: ids nixLibrary)
   image-roots = [ lib.licenses.mit.spdxId ];
   # Links to the client of OpenSSH.
   openssh-client = ids pkgs.openssh;
-  # Links to bash and env made by dockerTools.
+  # Links to bash and env made by dockerTools, and the link /usr/bin/bash.
   bin-sh = ids pkgs.bashInteractive;
   usr-bin-env = ids pkgs.coreutils;
+  usr-bin-bash = ids pkgs.bashInteractive;
   # tini built with musl, whose metadata sbomnix does not match.
   ${parts.tini.pname} = ids parts.tini;
   # Outputs of glibc and gcc under other names.

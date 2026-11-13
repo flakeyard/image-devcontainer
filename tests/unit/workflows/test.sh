@@ -19,8 +19,8 @@ if require_yq .github/workflows/test.yaml; then
     "$TEST_DEFINITIONS"'.jobs.check.needs as $needs | may_skip as $skip | scheduled_ids
     | length > 0 and all(.[]; IN($needs[]) and IN($skip[]))'
   # caller-may-skip matches the names of the jobs without matrix values.
-  yaml_check "$test_workflow" "test workflow: jobs that run only on a schedule have no name" \
-    "$TEST_DEFINITIONS"'[.jobs[] | select(scheduled and has("name"))] == []'
+  yaml_check "$test_workflow" "test workflow: jobs that run only on a schedule are named after their id" \
+    "$TEST_DEFINITIONS"'[.jobs | to_entries[] | select((.value | scheduled) and .value.name != .key)] == []'
   # A shared group would let a push cancel the weekly run while it waits.
   yaml_check "$test_workflow" "test workflow: the run on a schedule has its own concurrency group" \
     "$TEST_DEFINITIONS"'.concurrency.group | contains(on_schedule)'
