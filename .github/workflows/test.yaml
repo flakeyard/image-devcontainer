@@ -80,9 +80,10 @@ jobs:
         shell: bash
         run: nix run --no-update-lock-file .#check-licenses -- "$RUNNER_TEMP/sbom.cdx.json"
 
-  # Weekly only: it depends on the registry, so other events skip it. No name,
-  # so that caller-may-skip matches the job id (workflow-check ADR-0003).
+  # Weekly only: it depends on the registry, so other events skip it. Named
+  # after its id, so that caller-may-skip matches it (workflow-check ADR-0003).
   rebuild:
+    name: rebuild
     if: ${{ github.event_name == 'schedule' }}
     strategy:
       fail-fast: false
