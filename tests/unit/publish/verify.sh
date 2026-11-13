@@ -29,8 +29,9 @@ published() {
 # tested digest PLATFORM for amd64; EXPECTED is ok or fail.
 verify() {
   local name=$1 expected=$2 platform=$3
-  run "publish-verify: $name" "$expected" scripts/publish/verify.sh -- \
-    flakeyard/image-devcontainer "$repo" "$index" 1.2.3 "$revision" amd64 "$platform"
+  run "publish-verify: $name" "$expected" scripts/publish/verify.sh \
+    TESTED_AMD64="$platform" TESTED_ARM64="$arm64" -- \
+    flakeyard/image-devcontainer "$repo" "$index" 1.2.3 "$revision" amd64
 }
 
 # git_tag_at COMMIT: the API has the git tag v1.2.3 at COMMIT.

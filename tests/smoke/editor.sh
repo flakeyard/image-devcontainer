@@ -30,13 +30,31 @@ without() {
   grep -vE -- "$pattern" || (($? == 1))
 }
 
+# elf_type FILE: the class and machine of FILE from its ELF header; nothing
+# when FILE is no ELF file, such as the Windows DLLs of some extensions.
+elf_type() {
+  local file=$1
+  # tr drops the NUL bytes that bash cannot hold; the magic has none.
+  [[ $(head -c 4 -- "$file" | tr -d '\0') == $'\x7fELF' ]] || return 0
+  readelf -h -- "$file" | sed -n 's/^ *\(Class\|Machine\): *//p'
+}
+
 # needed_libraries ROOT: prints "LIBRARY BINARY" for each library an ELF file
 # under ROOT needs, apart from glibc's and the files the image does not serve.
+# Only ELF files of the class and machine of ROOT/node count, whatever order
+# find lists them in; readelf failing on one of them fails the function.
 needed_libraries() {
-  local root=$1 elf
+  local root=$1 node_type elf file_type
+  node_type=$(elf_type "$root/node") || return
+  [[ -n $node_type ]] || {
+    echo "$root/node is no ELF file" >&2
+    return 1
+  }
   find "$root" -type f \( -name node -o -name '*.node' -o -name '*.so*' \) | without "$not_served" \
     | while read -r elf; do
-      readelf -d "$elf" 2>/dev/null | sed -n "s|.*(NEEDED).*\\[\\(.*\\)\\]|\\1 ${elf##*/}|p"
+      file_type=$(elf_type "$elf") || exit
+      [[ $file_type == "$node_type" ]] || continue
+      readelf -d -- "$elf" | sed -n "s|.*(NEEDED).*\\[\\(.*\\)\\]|\\1 ${elf##*/}|p" || exit
     done | without "$glibc_libraries"
 }
 

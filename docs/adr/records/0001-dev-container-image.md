@@ -71,6 +71,10 @@ Prototypes with real tools established:
   gets its own entry in `/etc/passwd`, so the image cannot adapt `dev` to a host
   uid other than 1000; `keep-id:uid=1000,gid=1000` maps the host user to `dev`
   instead.
+- GitHub-hosted runners have bash at `/usr/bin/bash` as well as `/bin/bash`.
+  Scripts written for them call it there, such as the steps and tests of
+  [action-shell-lib][action-shell-lib], and fail in an image that has only
+  `/bin/bash`.
 
 ## Decision
 
@@ -84,10 +88,12 @@ The image contains Nix (the C++ implementation), direnv, nix-direnv, bash and
 the tools a shell needs before a project shell exists: coreutils, findutils,
 diffutils, grep, sed, awk, tar, gzip, xz, bzip2, zstd, less, procps, which,
 util-linux, getent, curl, git, the OpenSSH client, CA certificates, time zones
-and service names. It does not contain compilers, language servers, debuggers,
-profilers, editors, other shells or support for Dev Containers features;
-debuggers and profilers come from project shells, and capabilities they need are
-set by the project's `devcontainer.json`.
+and service names. bash is `/bin/bash`, `/bin/sh` and `/usr/bin/bash`, the path
+of GitHub-hosted runners, all links to the same file; `env` is `/usr/bin/env`.
+It does not contain compilers, language servers, debuggers, profilers, editors,
+other shells or support for Dev Containers features; debuggers and profilers
+come from project shells, and capabilities they need are set by the project's
+`devcontainer.json`.
 
 ### Start-up
 
@@ -219,6 +225,8 @@ permissions of their outputs.
   profilers, editors, shells other than bash, or support for Dev Containers
   features. Project tools MUST come from the project's `flake.lock` through
   direnv and nix-direnv.
+- `/bin/sh`, `/bin/bash` and `/usr/bin/bash` MUST be the bash of the tools, not
+  a second one, and `/usr/bin/env` MUST be the `env` of coreutils.
 - Foreign binaries MUST be supported through nix-ld at the standard loader path
   of each architecture. The library set MUST be derived from the binaries it
   serves and enforced by the smoke test.
@@ -233,7 +241,8 @@ permissions of their outputs.
   release, is: the user name `dev` and its home `/home/dev`; the meaning of
   `DEV_UID` and `DEV_GID`; the behaviour of the entrypoint; the environment
   variables it sets; the `nix.conf` settings and `/etc/nix/local.conf`; the
-  `devcontainer.metadata` defaults; the list of tools by name; the Nix
+  `devcontainer.metadata` defaults; the list of tools by name; the paths
+  `/bin/sh`, `/bin/bash`, `/usr/bin/bash` and `/usr/bin/env`; the Nix
   implementation and its minor version; supported platforms and engines;
   required capabilities. Versions of other tools MUST NOT be treated as API.
 
@@ -272,6 +281,7 @@ permissions of their outputs.
   needs a new image for every lock update.
 
 [decisions]: https://github.com/flakeyard/decisions
+[action-shell-lib]: https://github.com/flakeyard/action-shell-lib
 [fy-0005]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0005-dev-container-image.md
 [fy-0024]:

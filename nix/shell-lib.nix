@@ -4,10 +4,10 @@
 # action-shell-lib).
 {
   perSystem =
-    _:
+    { root, ... }:
     let
       pin = builtins.match ".*uses: flakeyard/action-shell-lib@([0-9a-f]{40}) .*" (
-        builtins.readFile ../.github/workflows/test.yaml
+        builtins.readFile (root + "/.github/workflows/test.yaml")
       );
     in
     {

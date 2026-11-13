@@ -4,12 +4,12 @@
 # it and reads LD_PRELOAD and the like.
 {
   perSystem =
-    { pkgs, ... }:
+    { pkgs, root, ... }:
     {
       image.parts.environ =
         pkgs.pkgsStatic.runCommandCC "environ"
           {
-            src = ../../../entrypoint/environ.c;
+            src = root + "/entrypoint/environ.c";
             meta.mainProgram = "environ";
           }
           ''

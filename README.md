@@ -153,8 +153,10 @@ it.
 - **Tools.** `nix`, `direnv`, `nix-direnv`, `bash`, coreutils, findutils,
   diffutils, `grep`, `sed`, `awk`, `tar`, `gzip`, `xz`, `bzip2`, `zstd`, `less`,
   procps, `which`, util-linux, `getent`, `curl`, `git`, the OpenSSH client
-  without its server, CA certificates, time zones and service names. Interactive
-  and login shells load the direnv hook.
+  without its server, CA certificates, time zones and service names. bash is
+  `/bin/bash`, `/bin/sh` and `/usr/bin/bash`, where GitHub-hosted runners have
+  it, so that scripts written for them run here; `env` is `/usr/bin/env`.
+  Interactive and login shells load the direnv hook.
 - **Foreign binaries.** Editor servers built for other distributions run through
   nix-ld at the standard loader path, with `libstdc++` and `libgcc_s` besides
   glibc, as VS Code Server needs.
@@ -169,7 +171,8 @@ An incompatible change of any of these is a major release
 - the behaviour of the entrypoint and the environment variables of the image;
 - the settings of `/etc/nix/nix.conf` and `/etc/nix/local.conf`;
 - the defaults in the `devcontainer.metadata` label;
-- the tools above, by name;
+- the tools above, by name, and the paths `/bin/sh`, `/bin/bash`,
+  `/usr/bin/bash` and `/usr/bin/env`;
 - the Nix implementation and its minor version;
 - the platforms `linux/amd64` and `linux/arm64`, the engines Docker, Dev
   Containers tools and rootless Podman, and the capabilities above.
@@ -225,6 +228,14 @@ one before its end of life ([FY-0036][fy-0036]); a new Nix minor version comes
 to the image after `action-setup-nix` has released it.
 
 ## Development
+
+Open the repository in its dev container,
+[`.devcontainer/devcontainer.json`](.devcontainer/devcontainer.json), with
+"Reopen in Container" in VS Code or `devcontainer up --workspace-folder .`. It
+runs the previous release of the image. The commands below run in it as in CI,
+except `nix run .#smoke`, which needs Docker, Podman and sudo; tools that the
+image does not have come from nixpkgs, such as `nix run nixpkgs#actionlint`. Nix
+on the host works as well.
 
 - `nix flake check` checks the tools, the users and Nix settings, the entrypoint
   and the scripts with their unit tests (`tests/unit/`), that the image builds,

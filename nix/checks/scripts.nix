@@ -9,6 +9,7 @@
     {
       lib,
       pkgs,
+      root,
       shellLib,
       ...
     }:
@@ -28,17 +29,17 @@
               yq-go
             ];
             source = lib.fileset.toSource {
-              root = ../..;
+              inherit root;
               fileset = lib.fileset.unions [
-                ../../.github
-                ../../scripts
-                ../../tests/bin
-                ../../tests/lib
-                ../../tests/run.sh
-                ../../tests/unit
+                (root + "/.github")
+                (root + "/scripts")
+                (root + "/tests/bin")
+                (root + "/tests/lib")
+                (root + "/tests/run.sh")
+                (root + "/tests/unit")
               ];
             };
-            smoke = ../../tests/smoke;
+            smoke = root + "/tests/smoke";
           }
           ''
             cp -r "$source" source && cp -r ${shellLib} shell-lib
