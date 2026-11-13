@@ -77,8 +77,8 @@ index_setup
 publish "descriptor sizes are the bytes of the manifests" ok
 if [[ -n $current ]]; then
   size=$(wc -c <"$registry/manifests/$amd64")
-  jq -e --argjson s "$size" '.manifests[0].size == $s' "$registry/manifests/$(<"$work/stdout")" >/dev/null ||
-    report "size is not $size"
+  jq -e --argjson s "$size" '.manifests[0].size == $s' "$registry/manifests/$(<"$work/stdout")" >/dev/null \
+    || report "size is not $size"
 fi
 finish
 

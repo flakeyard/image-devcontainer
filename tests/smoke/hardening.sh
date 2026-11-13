@@ -86,8 +86,8 @@ sudo chown -R 1000:1000 "$WORK/home/old"
 run -v "$WORK/home:/home/dev" -- id -u
 expect_line "1004"
 expect_text "/home/dev is a mount point: its files keep their owner"
-[[ $(stat -c %u:%g "$WORK/home/old" "$WORK/home/old/file" | sort -u) == 1000:1000 ]] ||
-  fail "files of the old uid changed owner: $(stat -c '%n %u:%g' "$WORK/home/old" "$WORK/home/old/file")"
+[[ $(stat -c %u:%g "$WORK/home/old" "$WORK/home/old/file" | sort -u) == 1000:1000 ]] \
+  || fail "files of the old uid changed owner: $(stat -c '%n %u:%g' "$WORK/home/old" "$WORK/home/old/file")"
 
 test_case "the daemon gets the proxies but not the settings of the container"
 # Nothing listens at the proxy; the daemon only has to start.

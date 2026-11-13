@@ -29,8 +29,8 @@ expect_no_text "ssh-server"
 
 test_case "/usr/bin/bash is the file of /bin/bash and /bin/sh"
 run -- readlink -f /bin/bash /usr/bin/bash /bin/sh
-[[ $(wc -l <<<"$output") == 3 && $(sort -u <<<"$output" | wc -l) == 1 && $output == /nix/store/*/bin/bash* ]] ||
-  fail "not one bash"
+[[ $(wc -l <<<"$output") == 3 && $(sort -u <<<"$output" | wc -l) == 1 && $output == /nix/store/*/bin/bash* ]] \
+  || fail "not one bash"
 
 test_case "dev runs /usr/bin/bash with uid 1000 and other uids"
 run -- /usr/bin/bash -c 'echo "ran as $(id -u)"'
@@ -184,8 +184,8 @@ touch "$WORK/host/file" "$WORK/gitconfig"
 sudo chown -R 1000:1000 "$WORK/host" "$WORK/gitconfig"
 run -e DEV_UID=1003 -v "$WORK/host:/home/dev/host" -v "$WORK/gitconfig:/home/dev/.gitconfig" -- id -u
 expect_line "1003"
-[[ $(stat -c %u:%g "$WORK/host" "$WORK/host/file" "$WORK/gitconfig" | sort -u) == 1000:1000 ]] ||
-  fail "host files changed owner: $(stat -c '%n %u:%g' "$WORK/host" "$WORK/host/file" "$WORK/gitconfig")"
+[[ $(stat -c %u:%g "$WORK/host" "$WORK/host/file" "$WORK/gitconfig" | sort -u) == 1000:1000 ]] \
+  || fail "host files changed owner: $(stat -c '%n %u:%g' "$WORK/host" "$WORK/host/file" "$WORK/gitconfig")"
 
 test_case "does not adopt a working directory that is not a mount point"
 run -w /tmp -- id -u
