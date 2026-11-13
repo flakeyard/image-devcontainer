@@ -234,12 +234,13 @@ Open the repository in its dev container,
 "Reopen in Container" in VS Code or `devcontainer up --workspace-folder .`. It
 runs the previous release of the image. The commands below run in it as in CI,
 except `nix run .#smoke`, which needs Docker, Podman and sudo; tools that the
-image does not have come from nixpkgs, such as `nix run nixpkgs#actionlint`. Nix
-on the host works as well.
+image does not have come from nixpkgs, such as `nix run nixpkgs#typos`. Nix on
+the host works as well.
 
 - `nix flake check` checks the tools, the users and Nix settings, the entrypoint
   and the scripts with their unit tests (`tests/unit/`), that the image builds,
-  and formatting (`nix fmt`).
+  formatting (`nix fmt`), and the workflows and actions with actionlint and
+  zizmor of [atom-workflows][atom-workflows] (`checks.workflows`).
 - `nix run .#check-reproducible` rebuilds the derivations of the image that
   `cache.nixos.org` does not have with `--rebuild`, whatever the local store has
   built, and compares two streams of the image;
@@ -289,9 +290,8 @@ which `nix flake check` and the app fetch it. Alone, `tests/run.sh` needs
 This repository is bootstrapped under [FY-0022][fy-0022]. Until their providers
 are released:
 
-- actionlint, zizmor, shellcheck, shfmt, statix, deadnix, Prettier,
-  markdownlint, typos and `reuse lint` run locally before every pull request
-  (provider: `workflow-check` and the atoms).
+- shellcheck, shfmt, statix, deadnix, Prettier, markdownlint, typos and
+  `reuse lint` run locally before every pull request (provider: the atoms).
 
 ## License
 
@@ -310,5 +310,6 @@ are released:
 [fy-0034]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0034-check-every-repository-with-workflow-check.md
 [workflow-check]: https://github.com/flakeyard/workflow-check
+[atom-workflows]: https://github.com/flakeyard/atom-workflows
 [action-flake-lock]: https://github.com/flakeyard/action-flake-lock
 [action-shell-lib]: https://github.com/flakeyard/action-shell-lib

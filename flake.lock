@@ -1,5 +1,44 @@
 {
   "nodes": {
+    "atom-workflows": {
+      "inputs": {
+        "git-hooks": [
+          "git-hooks"
+        ]
+      },
+      "locked": {
+        "lastModified": 1794581276,
+        "narHash": "sha256-smUhZc8g6pucmqG53Q+ht7wY7cguvOnB2kk1SXu21jA=",
+        "ref": "v0",
+        "rev": "648f7c488e6284f185c69bc22d9a8b5d971c3ce2",
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/flakeyard/atom-workflows"
+      },
+      "original": {
+        "ref": "v0",
+        "rev": "648f7c488e6284f185c69bc22d9a8b5d971c3ce2",
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/flakeyard/atom-workflows"
+      }
+    },
+    "flake-compat": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1767039857,
+        "narHash": "sha256-vNpUSpF5Nuw8xvDLj2KCwwksIbjua2LZCqhV1LNRDns=",
+        "owner": "NixOS",
+        "repo": "flake-compat",
+        "rev": "5edf11c44bc78a0d334f6334cdaf7d60d732daab",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "flake-compat",
+        "type": "github"
+      }
+    },
     "flake-parts": {
       "inputs": {
         "nixpkgs-lib": [
@@ -21,6 +60,30 @@
         "shallow": true,
         "type": "git",
         "url": "https://github.com/hercules-ci/flake-parts"
+      }
+    },
+    "git-hooks": {
+      "inputs": {
+        "flake-compat": "flake-compat",
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1793686154,
+        "narHash": "sha256-Zb/0L3soxrkfcrywpfp0J++0WFLB3tzh0Xtx9up+VNc=",
+        "ref": "master",
+        "rev": "204b6977e00caac19e2313015a598543ca7be150",
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/cachix/git-hooks.nix"
+      },
+      "original": {
+        "ref": "master",
+        "rev": "204b6977e00caac19e2313015a598543ca7be150",
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/cachix/git-hooks.nix"
       }
     },
     "import-tree": {
@@ -61,7 +124,9 @@
     },
     "root": {
       "inputs": {
+        "atom-workflows": "atom-workflows",
         "flake-parts": "flake-parts",
+        "git-hooks": "git-hooks",
         "import-tree": "import-tree",
         "nixpkgs": "nixpkgs"
       }
