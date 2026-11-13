@@ -124,7 +124,7 @@ jobs:
         run: docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin <<<"$GH_TOKEN"
       # github/api.sh for the action attest-once.
       - id: lib
-        uses: flakeyard/action-shell-lib@d2f4905ffa8bcea6bb6be2928d90db9037d5bdef # v0.3.0
+        uses: flakeyard/action-shell-lib@5c59164109499a225af9b75488caf142802add84 # v0.3.1
       - id: push
         name: Push by digest
         shell: bash
@@ -185,7 +185,7 @@ jobs:
         run: docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin <<<"$GH_TOKEN"
       # github/api.sh for the action attest-once.
       - id: lib
-        uses: flakeyard/action-shell-lib@d2f4905ffa8bcea6bb6be2928d90db9037d5bdef # v0.3.0
+        uses: flakeyard/action-shell-lib@5c59164109499a225af9b75488caf142802add84 # v0.3.1
       - id: index
         name: Manifest list
         shell: bash
