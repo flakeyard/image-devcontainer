@@ -5,6 +5,7 @@
       config,
       lib,
       pkgs,
+      root,
       ...
     }:
     let
@@ -46,7 +47,7 @@
           text = ''
             entrypoint_tools=${lib.makeBinPath runtimeInputs}
           ''
-          + builtins.readFile ../../../entrypoint/entrypoint.sh;
+          + builtins.readFile (root + "/entrypoint/entrypoint.sh");
         }).overrideAttrs
           privileged;
     };
