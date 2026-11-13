@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/flakeyard/image-devcontainer/compare/v0.1.10...v0.2.0) (2026-11-13)
+
+
+### Features
+
+* provide bash at /usr/bin/bash, as GitHub-hosted runners do ([#129](https://github.com/flakeyard/image-devcontainer/issues/129)) ([f5d1a27](https://github.com/flakeyard/image-devcontainer/commit/f5d1a270be1b169da6e3cec9769f714c3e83f36f))
+
 ## [0.1.10](https://github.com/flakeyard/image-devcontainer/compare/v0.1.9...v0.1.10) (2026-11-12)
 
 
