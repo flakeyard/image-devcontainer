@@ -1,12 +1,12 @@
 # Every Nix file is formatted as `nix fmt` formats it.
 {
   perSystem =
-    { pkgs, ... }:
+    { pkgs, root, ... }:
     let
       inherit (pkgs) lib;
       nixFiles = lib.fileset.toSource {
-        root = ../..;
-        fileset = lib.fileset.fileFilter (file: file.hasExt "nix") ../..;
+        inherit root;
+        fileset = lib.fileset.fileFilter (file: file.hasExt "nix") root;
       };
     in
     {

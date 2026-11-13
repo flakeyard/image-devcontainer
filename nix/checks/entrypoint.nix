@@ -7,6 +7,7 @@
       config,
       lib,
       pkgs,
+      root,
       shellLib,
       ...
     }:
@@ -28,13 +29,13 @@
             ];
             inherit (parts.users) passwd group;
             inherit (parts) environ;
-            script = ../../entrypoint/entrypoint.sh;
+            script = root + "/entrypoint/entrypoint.sh";
             tests = lib.fileset.toSource {
-              root = ../../tests;
+              root = root + "/tests";
               fileset = lib.fileset.unions [
-                ../../tests/lib/checks.sh
-                ../../tests/unit/entrypoint.sh
-                ../../tests/unit/environ.sh
+                (root + "/tests/lib/checks.sh")
+                (root + "/tests/unit/entrypoint.sh")
+                (root + "/tests/unit/environ.sh")
               ];
             };
             built = parts.entrypoint;
