@@ -160,8 +160,8 @@ touch "$WORK/host/file" "$WORK/gitconfig"
 sudo chown -R 1000:1000 "$WORK/host" "$WORK/gitconfig"
 run -e DEV_UID=1003 -v "$WORK/host:/home/dev/host" -v "$WORK/gitconfig:/home/dev/.gitconfig" -- id -u
 expect_line "1003"
-[[ $(stat -c %u:%g "$WORK/host" "$WORK/host/file" "$WORK/gitconfig" | sort -u) == 1000:1000 ]] ||
-  fail "host files changed owner: $(stat -c '%n %u:%g' "$WORK/host" "$WORK/host/file" "$WORK/gitconfig")"
+[[ $(stat -c %u:%g "$WORK/host" "$WORK/host/file" "$WORK/gitconfig" | sort -u) == 1000:1000 ]] \
+  || fail "host files changed owner: $(stat -c '%n %u:%g' "$WORK/host" "$WORK/host/file" "$WORK/gitconfig")"
 
 test_case "does not adopt a working directory that is not a mount point"
 run -w /tmp -- id -u

@@ -34,8 +34,8 @@ without() {
 # under ROOT needs, apart from glibc's and the files the image does not serve.
 needed_libraries() {
   local root=$1 elf
-  find "$root" -type f \( -name node -o -name '*.node' -o -name '*.so*' \) | without "$not_served" |
-    while read -r elf; do
+  find "$root" -type f \( -name node -o -name '*.node' -o -name '*.so*' \) | without "$not_served" \
+    | while read -r elf; do
       readelf -d "$elf" 2>/dev/null | sed -n "s|.*(NEEDED).*\\[\\(.*\\)\\]|\\1 ${elf##*/}|p"
     done | without "$glibc_libraries"
 }
@@ -108,8 +108,8 @@ devcontainer_up() {
   mkdir -p "$workspace/.devcontainer"
   printf '{ "image": "%s" }\n' "$2" >"$workspace/.devcontainer/devcontainer.json"
   output=$(
-    devcontainer up --docker-path "$1" --workspace-folder "$workspace" &&
-      devcontainer exec --docker-path "$1" --workspace-folder "$workspace" \
+    devcontainer up --docker-path "$1" --workspace-folder "$workspace" \
+      && devcontainer exec --docker-path "$1" --workspace-folder "$workspace" \
         sh -c 'id -un; nix store info >/dev/null && echo nix-ok; touch created && echo written'
   ) 2>&1
   host_owner=$(stat -c %u "$workspace/created" 2>/dev/null || echo none)

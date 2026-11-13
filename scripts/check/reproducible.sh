@@ -62,8 +62,8 @@ input_derivations() {
   local shown=$1 derivations
   lines derivations "$2"
   jq -r --arg dir "$store_dir" '.derivations | to_entries[] | select(.key | IN($ARGS.positional[]))
-    | .value.inputs.drvs | keys[] | "\($dir)/\(.)"' --args "${derivations[@]#"$store_dir"/}" <<<"$shown" |
-    sort -u
+    | .value.inputs.drvs | keys[] | "\($dir)/\(.)"' --args "${derivations[@]#"$store_dir"/}" <<<"$shown" \
+    | sort -u
 }
 
 # unvisited VISITED...: prints the lines of stdin that are not a VISITED.

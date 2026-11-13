@@ -35,8 +35,8 @@ entries() { printf '%s\0' "$@" >"$work/environment"; }
 # stderr to $work/stdout and $work/stderr.
 from_fd() {
   status=0
-  env -i "$code_root/bin/environ" from-fd "$@" 3<"$work/environment" >"$work/stdout" 2>"$work/stderr" ||
-    status=$?
+  env -i "$code_root/bin/environ" from-fd "$@" 3<"$work/environment" >"$work/stdout" 2>"$work/stderr" \
+    || status=$?
 }
 
 # to_fd_without STREAM ARG...: runs environ to-fd ARG... with the variables of

@@ -36,8 +36,8 @@ output=$(docker inspect "$IMAGE" --format '{{range .Config.Env}}{{println .}}{{e
 
 test_case "the labels and the creation date do not change per commit"
 output=$(docker inspect "$IMAGE" --format '{{json .Config.Labels}} {{.Created}}')
-[[ $(docker inspect "$IMAGE" --format '{{index .Config.Labels "devcontainer.metadata"}}') == "$(<"$EXPECTED/metadata")" ]] ||
-  fail "devcontainer.metadata differs"
+[[ $(docker inspect "$IMAGE" --format '{{index .Config.Labels "devcontainer.metadata"}}') == "$(<"$EXPECTED/metadata")" ]] \
+  || fail "devcontainer.metadata differs"
 expect_no_text "image.version"
 expect_no_text "image.revision"
 expect_text "1970-01-01T00:00:01Z"
@@ -70,5 +70,5 @@ test_case "the store holds exactly the closure the SBOM describes"
 run -- sh -c 'for p in /nix/store/*; do echo "$p"; done'
 actual=$(grep '^/nix/store/' <<<"$output" | sort)
 closure=$(sort "$EXPECTED/closure")
-[[ $actual == "$closure" ]] ||
-  fail "differs: $(diff <(echo "$closure") <(echo "$actual") | grep '^[<>]' | head -n 5 | paste -sd' ')"
+[[ $actual == "$closure" ]] \
+  || fail "differs: $(diff <(echo "$closure") <(echo "$actual") | grep '^[<>]' | head -n 5 | paste -sd' ')"
