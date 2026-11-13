@@ -128,3 +128,5 @@ jobs:
       # before the smoke tests.
       flake: ""
       renovate-presets: '["flakeyard/renovate-config"]'
+      # The default configurations of the atoms apply (FY-0037).
+      forbid-tool-configs: true
