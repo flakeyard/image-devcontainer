@@ -232,10 +232,18 @@ to the image after `action-setup-nix` has released it.
 Open the repository in its dev container,
 [`.devcontainer/devcontainer.json`](.devcontainer/devcontainer.json), with
 "Reopen in Container" in VS Code or `devcontainer up --workspace-folder .`. It
-runs the previous release of the image. The commands below run in it as in CI,
-except `nix run .#smoke`, which needs Docker, Podman and sudo; tools that the
-image does not have come from nixpkgs, such as `nix run nixpkgs#typos`. Nix on
-the host works as well.
+runs the previous release of the image. `direnv` loads the development shell of
+[`flake.nix`](flake.nix) through [`.envrc`](.envrc) ([FY-0012][fy-0012]):
+[atom-workspace][atom-workspace] joins the tools of the atoms and `jq` and
+mikefarah `yq` for `tests/run.sh`, and installs the git hooks each time the
+shell starts. The container runs `direnv allow` when it is created; run it once
+in every other worktree, and run `direnv block` before you check out a branch
+you do not trust, since entering the directory runs that branch's shell hook.
+Commit inside the container, whose Nix store has the tools of the hooks. The
+commands below run in it as in CI, except `nix run .#smoke`, which needs Docker,
+Podman and sudo; tools that the shell does not have come from nixpkgs, such as
+`nix run nixpkgs#typos`. Nix on the host works as well: `direnv allow` or
+`nix develop` gives the same shell.
 
 - `nix flake check` checks the tools, the users and Nix settings, the entrypoint
   and the scripts with their unit tests (`tests/unit/`), that the image builds,
@@ -283,7 +291,8 @@ action `attest-once` and the app `publish-verify` call the GitHub API through
 `github/api.sh` of the library. The jobs of `release.yaml` that attest pin the
 library for the action; the job `image` of `test.yaml` pins the same commit, at
 which `nix flake check` and the app fetch it. Alone, `tests/run.sh` needs
-`SHELL_LIB` set to a checkout of the library and mikefarah `yq`.
+`SHELL_LIB` set to a checkout of the library, and mikefarah `yq` and `jq`, which
+the development shell has.
 
 ## Bootstrap
 
@@ -313,3 +322,6 @@ are released:
 [atom-workflows]: https://github.com/flakeyard/atom-workflows
 [action-flake-lock]: https://github.com/flakeyard/action-flake-lock
 [action-shell-lib]: https://github.com/flakeyard/action-shell-lib
+[atom-workspace]: https://github.com/flakeyard/atom-workspace
+[fy-0012]:
+  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0012-develop-in-container.md
