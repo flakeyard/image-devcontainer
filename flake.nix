@@ -15,6 +15,7 @@
       url = "git+https://github.com/flakeyard/atom-workflows?ref=v0&rev=82957679afb098f2c36fbcc1ccdf5d52f3286ba4&shallow=1";
       inputs.git-hooks.follows = "git-hooks";
     };
+    atom-workspace.url = "git+https://github.com/flakeyard/atom-workspace?ref=v0&rev=272033a287fba41c0ebf6799ea6d43018d786a3e&shallow=1";
     import-tree.url = "git+https://github.com/vic/import-tree?ref=main&rev=eb1b52eaecc57f7c136d07ae8a93e724dfecac46&shallow=1";
   };
 
@@ -32,13 +33,12 @@
       ];
       imports = [
         inputs.atom-workflows.flakeModules.default
+        inputs.atom-workspace.flakeModules.default
         # Every file under nix/ is a flake-parts module, except the bodies of
         # apps in the directories of nix/apps/, which nix/apps/default.nix loads.
         (inputs.import-tree.matchNot "/apps/[^/]+/.*" ./nix)
       ];
       _module.args.root = root;
       perSystem._module.args.root = root;
-      # Until this repository adopts atom-workspace (FY-0038).
-      perSystem.pre-commit.check.enable = false;
     };
 }
