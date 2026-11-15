@@ -16,8 +16,10 @@ source "${testing}/checks.sh"
 
 code_root=${ENVIRON:?the tests need ENVIRON, the built environ}
 # The tools of the tests, for the PATH that from-fd searches.
-tools=$(dirname -- "$(command -v env)")
+env_path=$(command -v env)
+tools=$(dirname -- "${env_path}")
 bash_path=$(command -v bash)
+tr_path=$(command -v tr)
 
 # program NAME TEXT: writes the executable file $work/NAME with TEXT.
 program() {
@@ -55,7 +57,7 @@ to_fd_without() {
 # expect_status STATUS: the last from_fd or to_fd_without exited with STATUS.
 expect_status() {
   local expected=$1
-  [[ -z ${current} || ${status} == "${expected}" ]] || report "status ${status}, expected ${expected}: $(cat -- "${work}/stderr")"
+  [[ -z ${current} || ${status} == "${expected}" ]] || report "status ${status}, expected ${expected}: $(<"${work}/stderr")"
 }
 
 setup
@@ -64,7 +66,7 @@ setup
 # PATH: tr is named by its path.
 program arguments "#!${bash_path}
 printf '%s\n' \"\${@:2}\"
-$(command -v tr) '\\0' '\\n' <&\"\$1\"
+${tr_path} '\\0' '\\n' <&\"\$1\"
 printf '%s\n' \"\${HOME-unset}\""
 run "to-fd passes the environment through a descriptor" ok bin/environ \
   A=1 "B=two words" -- to-fd "${work}/arguments" first
@@ -81,7 +83,7 @@ for stream in 0 1 2; do
   program entries-of "#!${bash_path}
 exec >\"${work}/stdout\"
 ((\$1 > 2)) || printf '%s\n' \"a standard stream: \$1\"
-$(command -v tr) '\\0' '\\n' <&\"\$1\""
+${tr_path} '\\0' '\\n' <&\"\$1\""
   to_fd_without "${stream}" "${work}/entries-of"
   expect_status 0
   expect stdout "$(printf '%s\n' "${env_vars[@]}")"

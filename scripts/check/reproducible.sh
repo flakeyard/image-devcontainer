@@ -43,11 +43,12 @@ uncached_derivations() {
 # Fixed-output derivations, such as sources, have no path there; their hash
 # fixes their output, so they need no rebuild.
 missing_derivations() {
-  local shown=$1 pairs outputs lacking
+  local shown=$1 pairs outputs output_paths lacking
   # "DERIVATION OUTPUT" for each output with a path, as store paths.
   pairs=$(jq -r --arg dir "${store_dir}" '.derivations | to_entries[]
     | "\($dir)/\(.key) \($dir)/\(.value.outputs[].path // empty)"' <<<"${shown}")
-  lines outputs "$(cut -d' ' -f2 <<<"${pairs}")"
+  output_paths=$(cut -d' ' -f2 <<<"${pairs}")
+  lines outputs "${output_paths}"
   lacking=$(uncached "${outputs[@]}")
   awk 'FILENAME == ARGV[1] { lacking[$1]; next } $2 in lacking && !seen[$1]++ { print $1 }' \
     <(printf '%s\n' "${lacking}") - <<<"${pairs}"

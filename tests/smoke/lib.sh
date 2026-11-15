@@ -83,9 +83,14 @@ test_case() {
 }
 
 fail() {
+  local last lines
   [[ -n ${current} ]] || return 0
   printf 'FAIL %s: %s\n' "${current}" "$1"
-  [[ -z ${output} ]] || printf '%s\n' "${output}" | sed 's/^/    /' | tail -n 20
+  if [[ -n ${output} ]]; then
+    last=$(tail -n 20 <<<"${output}")
+    mapfile -t lines <<<"${last}"
+    printf '    %s\n' "${lines[@]}"
+  fi
   failed=$((failed + 1))
   current=""
 }

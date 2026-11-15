@@ -3,6 +3,9 @@
 # a fake image stream.
 # shellcheck disable=SC2154 # work comes from setup
 
+# The bash of the stubs.
+bash_path=$(command -v bash)
+
 # reproducible_setup: a stream of the image, which differs on every run with
 # $work/vary, and the derivations of the image: the stream needs a layer and
 # glibc, which needs a bootstrap tool; the layer needs a source, a
@@ -15,7 +18,7 @@ reproducible_setup() {
     DERIVATION=/nix/store/aaaa-stream.drv DERIVATIONS="${work}/derivations.json" \
     UNCACHED="/nix/store/aaaa-stream /nix/store/bbbb-layer /nix/store/eeee-bootstrap"
   cat >"${work}/stream" <<STREAM
-#!$(command -v bash)
+#!${bash_path}
 echo image
 if [[ -e ${work}/vary ]]; then echo "\$SRANDOM"; fi
 STREAM

@@ -15,7 +15,7 @@ expect_calls() {
 expect_line() {
   local file=$1 line=$2
   [[ -n ${current} ]] || return 0
-  grep -qxF -- "${line}" "${file}" || report "no line '${line}' in ${file}: $(cat -- "${file}")"
+  grep -qxF -- "${line}" "${file}" || report "no line '${line}' in ${file}: $(<"${file}")"
 }
 
 # expect_tag TAG DIGEST: the tag TAG of the registry points at DIGEST.

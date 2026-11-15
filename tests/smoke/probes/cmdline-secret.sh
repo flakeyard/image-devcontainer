@@ -4,14 +4,19 @@
 # command, and once after.
 handed_over() {
   child=$(cut -d ' ' -f 1 /proc/1/task/1/children 2>/dev/null)
-  [ -n "${child}" ] && [ "$(cat "/proc/${child}/comm" 2>/dev/null)" != entrypoint ]
+  [ -n "${child}" ] || return 1
+  comm=$(cat "/proc/${child}/comm" 2>/dev/null)
+  [ "${comm}" != entrypoint ]
 }
 
 scan() {
   for cmdline in /proc/[0-9]*/cmdline; do
     # Processes may end while the loop reads /proc.
-    case $({ tr '\0' ' ' <"${cmdline}"; } 2>/dev/null) in
+    words=$({ tr '\0' ' ' <"${cmdline}"; } 2>/dev/null)
+    case ${words} in
       *"${PROBE_VALUE}"*) echo "${cmdline}" ;;
+      # Command lines without the value are what the probe expects.
+      *) ;;
     esac
   done
 }

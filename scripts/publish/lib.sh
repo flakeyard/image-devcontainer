@@ -52,7 +52,7 @@ tag_state() {
   elif grep -q MANIFEST_UNKNOWN "${work}/errors"; then
     echo absent
   else
-    fail "cannot read ${repository}:${tag}: $(cat "${work}/errors")"
+    fail "cannot read ${repository}:${tag}: $(<"${work}/errors")"
   fi
 }
 

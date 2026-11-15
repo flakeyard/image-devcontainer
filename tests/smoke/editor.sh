@@ -4,6 +4,12 @@
 # (environment): IMAGE and IMAGE_STREAM, the script that streams it; EXPECTED
 # (foreign-libraries); EDITOR_SERVER, an unpacked VS Code Server; WORK.
 
+# As in scripts/smoke.sh, which sources this file: a pipeline fails with any of
+# its commands.
+set -o pipefail
+# The user of the runner.
+runner_uid=$(id -u)
+
 # Podman reads this file after the containers.conf files of the runner and its
 # user, which stay untouched.
 podman_conf=${WORK}/containers.conf
@@ -33,9 +39,10 @@ without() {
 # elf_type FILE: the class and machine of FILE from its ELF header; nothing
 # when FILE is no ELF file, such as the Windows DLLs of some extensions.
 elf_type() {
-  local file=$1
+  local file=$1 magic
   # tr drops the NUL bytes that bash cannot hold; the magic has none.
-  [[ $(head -c 4 -- "${file}" | tr -d '\0') == $'\x7fELF' ]] || return 0
+  magic=$(head -c 4 -- "${file}" | tr -d '\0')
+  [[ ${magic} == $'\x7fELF' ]] || return 0
   readelf -h -- "${file}" | sed -n 's/^ *\(Class\|Machine\): *//p'
 }
 
@@ -93,7 +100,9 @@ needs=$(needed_libraries "${EDITOR_SERVER}")
 needed=$(cut -d' ' -f1 <<<"${needs}" | sort -u)
 mapfile -t directories <"${EXPECTED}/foreign-libraries"
 for library in ${needed}; do
-  served "${library}" || fail "${library} is needed but not served, by: $(binaries_needing "${library}")"
+  served "${library}" && continue
+  binaries=$(binaries_needing "${library}")
+  fail "${library} is needed but not served, by: ${binaries}"
 done
 for directory in "${directories[@]}"; do
   in_use "${directory}" || fail "${directory} is served but no binary needs it"
@@ -139,13 +148,16 @@ devcontainer_up docker "${IMAGE}"
 expect_line "dev"
 expect_line "nix-ok"
 expect_line "written"
-[[ ${host_owner} == "$(id -u)" ]] || fail "the file belongs to ${host_owner} on the host"
+[[ ${host_owner} == "${runner_uid}" ]] || fail "the file belongs to ${host_owner} on the host"
 
 test_case "the Dev Containers tools start the image with rootless Podman"
-wait "${podman_load}" || fail "podman load failed: $(tail -n 5 "${podman_loaded}")"
+if ! wait "${podman_load}"; then
+  load_log=$(tail -n 5 "${podman_loaded}")
+  fail "podman load failed: ${load_log}"
+fi
 podman_image=$(sed -n 's/^Loaded image: //p' "${podman_loaded}")
 CONTAINERS_CONF_OVERRIDE=${podman_conf} devcontainer_up podman "${podman_image}"
 expect_line "dev"
 expect_line "nix-ok"
 expect_line "written"
-[[ ${host_owner} == "$(id -u)" ]] || fail "the file belongs to ${host_owner} on the host"
+[[ ${host_owner} == "${runner_uid}" ]] || fail "the file belongs to ${host_owner} on the host"

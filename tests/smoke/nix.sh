@@ -32,11 +32,14 @@ run -- cat /etc/nix/nix.conf
 
 test_case "the environment is exactly the image's"
 output=$(docker inspect "${IMAGE}" --format '{{range .Config.Env}}{{println .}}{{end}}')
-[[ $(sed '/^$/d' <<<"${output}") == "$(sed '/^$/d' "${EXPECTED}/env")" ]] || fail "Env differs"
+env_lines=$(sed '/^$/d' <<<"${output}")
+expected_env=$(sed '/^$/d' "${EXPECTED}/env")
+[[ ${env_lines} == "${expected_env}" ]] || fail "Env differs"
 
 test_case "the labels and the creation date do not change per commit"
 output=$(docker inspect "${IMAGE}" --format '{{json .Config.Labels}} {{.Created}}')
-[[ $(docker inspect "${IMAGE}" --format '{{index .Config.Labels "devcontainer.metadata"}}') == "$(<"${EXPECTED}/metadata")" ]] \
+metadata=$(docker inspect "${IMAGE}" --format '{{index .Config.Labels "devcontainer.metadata"}}')
+[[ ${metadata} == "$(<"${EXPECTED}/metadata")" ]] \
   || fail "devcontainer.metadata differs"
 expect_no_text "image.version"
 expect_no_text "image.revision"
@@ -47,8 +50,9 @@ nix_version=$(<"${EXPECTED}/nix-version")
 run -- sh -c 'nix --version; nix store info | grep Version; for p in /nix/store/*-nix-2.[0-9]*; do basename "$p"; done'
 expect_line "nix (Nix) ${nix_version}"
 expect_line "Version: ${nix_version}"
-versions=$(grep -oE -- '-nix-2\.[0-9]+\.[0-9]+$' <<<"${output}" | sort -u)
-[[ ${versions} == "-nix-${nix_version}" ]] || fail "Nix versions in the store: $(paste -sd' ' <<<"${versions}")"
+versions=$(grep -oE -- '-nix-2\.[0-9]+\.[0-9]+$' <<<"${output}")
+versions=$(sort -u <<<"${versions}")
+[[ ${versions} == "-nix-${nix_version}" ]] || fail "Nix versions in the store: ${versions//$'\n'/ }"
 runner=$(nix --version)
 runner_version=${runner##* }
 [[ ${runner_version} == "${nix_version%.*}".* ]] || fail "the runner has ${runner_version}, the image ${nix_version}"
@@ -68,7 +72,12 @@ remove "${id}"
 
 test_case "the store holds exactly the closure the SBOM describes"
 run -- sh -c 'for p in /nix/store/*; do echo "$p"; done'
-actual=$(grep '^/nix/store/' <<<"${output}" | sort)
+actual=$(grep '^/nix/store/' <<<"${output}")
+actual=$(sort <<<"${actual}")
 closure=$(sort "${EXPECTED}/closure")
-[[ ${actual} == "${closure}" ]] \
-  || fail "differs: $(diff <(echo "${closure}") <(echo "${actual}") | grep '^[<>]' | head -n 5 | paste -sd' ')"
+if [[ ${actual} != "${closure}" ]]; then
+  # diff exits 1 when the lists differ, which is known here.
+  differences=$(diff <(echo "${closure}") <(echo "${actual}")) || true
+  differences=$(awk '/^[<>]/ && n++ < 5' <<<"${differences}")
+  fail "differs: ${differences//$'\n'/ }"
+fi

@@ -26,7 +26,8 @@ run "annotate-release: adds it once" ok .github/scripts/annotate-release.sh
 : >"${work}/calls"
 run "annotate-release: a rerun changes nothing" ok .github/scripts/annotate-release.sh
 expect no-calls
-if [[ -n ${current} && $(image_lines) != 1 ]]; then report "notes: $(cat "${work}/notes")"; fi
+lines=$(image_lines)
+if [[ -n ${current} && ${lines} != 1 ]]; then report "notes: $(<"${work}/notes")"; fi
 finish
 
 annotate_setup

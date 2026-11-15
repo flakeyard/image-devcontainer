@@ -27,14 +27,11 @@ platform=$(tested_digest "${arch}")
 # shellcheck source=/dev/null # github/api.sh of the library, from the app
 source "${SHELL_LIB}/github/api.sh"
 
-# The commit of the git tag vVERSION, from the API.
-tag_commit() {
-  api_get "repos/${repository}/commits/tags/v${version}" | jq -r .sha
-}
-
 check_git_tag() {
   local commit
-  commit=$(tag_commit) || fail "cannot read the git tag v${version}"
+  # The commit of the git tag vVERSION, from the API.
+  commit=$(api_get "repos/${repository}/commits/tags/v${version}" | jq -r .sha) \
+    || fail "cannot read the git tag v${version}"
   [[ ${commit} == "${revision}" ]] || fail "the git tag v${version} is at ${commit}, not at ${revision}"
 }
 

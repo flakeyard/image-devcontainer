@@ -34,8 +34,10 @@ attestation() {
 
 # attestations TYPE...: the API lists attestations of the predicate TYPEs.
 attestations() {
-  local type
-  listed "$(for type; do attestation "${type}"; done | jq -s '{attestations: .}')"
+  local type list json
+  list=$(for type; do attestation "${type}"; done)
+  json=$(jq -s '{attestations: .}' <<<"${list}")
+  listed "${json}"
 }
 
 attested_setup

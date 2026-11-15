@@ -4,6 +4,8 @@
 # shellcheck disable=SC2154 # work comes from setup
 
 repo=ghcr.io/flakeyard/image-devcontainer
+# The bash of the stubs.
+bash_path=$(command -v bash)
 amd64=$(digest_of a)
 arm64=$(digest_of b)
 
@@ -14,7 +16,7 @@ platform_setup() {
   apply TESTED_AMD64="${amd64}" TESTED_ARM64="${arm64}"
   apply STREAM="${work}/stream" TARBALL_DIGEST="${amd64}" PUBLISH_DIGEST="${code_root}/scripts/publish/digest.sh"
   apply IMAGE_LIB="${code_root}/scripts/lib/image.sh" PUBLISH_LIB="${code_root}/scripts/publish/lib.sh"
-  printf '#!%s\necho archive\n' "$(command -v bash)" >"${work}/stream"
+  printf '#!%s\necho archive\n' "${bash_path}" >"${work}/stream"
   chmod +x "${work}/stream"
 }
 
@@ -33,7 +35,7 @@ finish
 platform_setup
 # A publish-digest that records its flake.
 cat >"${work}/publish-digest" <<STUB
-#!$(command -v bash)
+#!${bash_path}
 echo "publish-digest \$2" >>"\$CALLS"
 echo "\$TARBALL_DIGEST"
 STUB
