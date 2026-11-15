@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/flakeyard/image-devcontainer/compare/v0.2.0...v0.2.1) (2026-11-15)
+
+
+### Bug Fixes
+
+* keep the exit codes of command substitutions and of functions under set -e ([#144](https://github.com/flakeyard/image-devcontainer/issues/144)) ([979d69a](https://github.com/flakeyard/image-devcontainer/commit/979d69a34593b8256cf51e6ea630d31faad50c22))
+
 ## [0.2.0](https://github.com/flakeyard/image-devcontainer/compare/v0.1.10...v0.2.0) (2026-11-13)
 
 
