@@ -11,7 +11,7 @@ shopt -s inherit_errexit
 archive=$1
 flake=${2:-.}
 # shellcheck source=/dev/null # scripts/lib/image.sh, from the app
-source "$IMAGE_LIB"
-stream=$(image_stream "$flake")
-"$stream" >"$archive"
-crane digest --tarball "$archive"
+source "${IMAGE_LIB}"
+stream=$(image_stream "${flake}")
+"${stream}" >"${archive}"
+crane digest --tarball "${archive}"

@@ -16,21 +16,21 @@ shopt -s inherit_errexit
 source "${BASH_SOURCE[0]%/*}/../../../scripts/publish/lib.sh"
 # Calls of the GitHub API, from the shell library that the job pins.
 # shellcheck source=/dev/null # github/api.sh of the library
-source "$SHELL_LIB/github/api.sh"
+source "${SHELL_LIB}/github/api.sh"
 
 readonly provenance=https://slsa.dev/provenance/v1
-predicate=${PREDICATE:-$provenance}
+predicate=${PREDICATE:-${provenance}}
 work=$(mktemp -d)
 trap 'rm -rf -- "$work"' EXIT
 
 set_output() {
   local attested=$1
-  echo "attested=$attested" >>"$GITHUB_OUTPUT"
+  echo "attested=${attested}" >>"${GITHUB_OUTPUT}"
 }
 
 # Keeps the errors of the verification in $work/verify.
 verifies() {
-  verify_attestation "$REPOSITORY" "$IMAGE" "$DIGEST" --predicate-type "$predicate" 2>"$work/verify"
+  verify_attestation "${REPOSITORY}" "${IMAGE}" "${DIGEST}" --predicate-type "${predicate}" 2>"${work}/verify"
 }
 
 # Prints the attestations of the digest as the API lists them; a 404 of the
@@ -38,11 +38,11 @@ verifies() {
 # is not lost in the command substitution of the caller.
 attestation_list() {
   local status=0
-  api_request GET "repos/$REPOSITORY/attestations/$DIGEST" || status=$?
-  case $status in
+  api_request GET "repos/${REPOSITORY}/attestations/${DIGEST}" || status=$?
+  case ${status} in
     0) ;;
-    "$NOT_FOUND") echo '{"attestations": []}' ;;
-    *) fail "cannot list the attestations of $DIGEST" ;;
+    "${NOT_FOUND}") echo '{"attestations": []}' ;;
+    *) fail "cannot list the attestations of ${DIGEST}" ;;
   esac
 }
 
@@ -50,10 +50,10 @@ attestation_list() {
 count_of_predicate() {
   local list
   list=$(attestation_list)
-  jq --arg type "$predicate" '
+  jq --arg type "${predicate}" '
     def statement: .bundle.dsseEnvelope.payload | @base64d | fromjson;
     def inline: if .bundle == null then error("an attestation of the digest has no inline bundle") else . end;
-    [.attestations[] | inline | select(statement.predicateType == $type)] | length' <<<"$list"
+    [.attestations[] | inline | select(statement.predicateType == $type)] | length' <<<"${list}"
 }
 
 if verifies; then
@@ -62,5 +62,5 @@ if verifies; then
 fi
 existing=$(count_of_predicate)
 ((existing == 0)) \
-  || fail "$DIGEST has $existing $predicate attestations, but none verifies: $(cat "$work/verify")"
+  || fail "${DIGEST} has ${existing} ${predicate} attestations, but none verifies: $(cat "${work}/verify")"
 set_output false

@@ -10,13 +10,13 @@
 # Changes and checks go to $CALLS.
 set -euo pipefail
 case "$1 $2" in
-  "release view") cat "$NOTES" ;;
+  "release view") cat "${NOTES}" ;;
   "release edit")
-    cat >"$NOTES"
-    echo "edit" >>"$CALLS"
+    cat >"${NOTES}"
+    echo "edit" >>"${CALLS}"
     ;;
   "attestation verify")
-    echo "verify $*" >>"$CALLS"
+    echo "verify $*" >>"${CALLS}"
     if [[ " $* " == *" --source-digest "* && " $* " != *" --source-digest ${ATTESTED_COMMIT-} "* ]]; then
       echo "stub gh: the attestation is of another commit" >&2
       exit 1
@@ -26,7 +26,7 @@ case "$1 $2" in
       exit 1
     fi
     ;;
-  api\ *) exec "$SHELL_LIB/internal/testing/bin/gh" "$@" ;;
+  api\ *) exec "${SHELL_LIB}/internal/testing/bin/gh" "$@" ;;
   *)
     echo "stub gh: unsupported: $*" >&2
     exit 2

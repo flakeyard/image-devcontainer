@@ -8,9 +8,9 @@
 # registry for the crane and regctl stubs in $registry.
 stubbed_setup() {
   setup
-  registry=$work/registry
-  mkdir -p "$registry/manifests" "$registry/tags"
-  apply PATH="$code_root/tests/bin:$TESTING_BIN:$HOST_PATH" SHELL_LIB="$SHELL_LIB" REGISTRY="$registry"
+  registry=${work}/registry
+  mkdir -p "${registry}/manifests" "${registry}/tags"
+  apply PATH="${code_root}/tests/bin:${TESTING_BIN}:${HOST_PATH}" SHELL_LIB="${SHELL_LIB}" REGISTRY="${registry}"
 }
 
 # with_test_env COMMAND...: run COMMAND with only the variables of the code
@@ -23,7 +23,7 @@ with_test_env() {
 digest_of() {
   local character=$1 hex
   printf -v hex '%64s' ''
-  echo "sha256:${hex// /$character}"
+  echo "sha256:${hex// /${character}}"
 }
 
 # pushed_platforms DIGEST...: image manifests in the registry under the
@@ -31,6 +31,6 @@ digest_of() {
 pushed_platforms() {
   local digest
   for digest; do
-    printf '%s' '{"mediaType":"application/vnd.docker.distribution.manifest.v2+json"}' >"$registry/manifests/$digest"
+    printf '%s' '{"mediaType":"application/vnd.docker.distribution.manifest.v2+json"}' >"${registry}/manifests/${digest}"
   done
 }

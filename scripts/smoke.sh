@@ -9,17 +9,17 @@ set -euo pipefail
 
 tests=$(cd -- "$1" && pwd)
 # shellcheck source=/dev/null # scripts/lib/image.sh, from the app
-source "$IMAGE_LIB"
+source "${IMAGE_LIB}"
 
 IMAGE_STREAM=$(image_stream)
-loaded=$("$IMAGE_STREAM" | docker load)
+loaded=$("${IMAGE_STREAM}" | docker load)
 IMAGE=${loaded##*: }
-echo "Testing $IMAGE"
+echo "Testing ${IMAGE}"
 export IMAGE IMAGE_STREAM
 
 WORK=$(mktemp -d)
 trap 'sudo rm -rf -- "$WORK"' EXIT
 
 # shellcheck disable=SC1091 # the tests come from the argument
-source "$tests/lib.sh"
-suite "$tests"/{core,nix,editor,hardening}.sh
+source "${tests}/lib.sh"
+suite "${tests}"/{core,nix,editor,hardening}.sh

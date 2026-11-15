@@ -17,30 +17,30 @@ attested_setup() {
 # listed BODY: the API lists the attestations of the digest with BODY.
 listed() {
   local body=$1
-  fixture repos/flakeyard/image-devcontainer/attestations/sha256:abc "$body"
+  fixture repos/flakeyard/image-devcontainer/attestations/sha256:abc "${body}"
 }
 
 # attestation TYPE: an attestation of the predicate TYPE as the API lists it;
 # "-" is one without an inline bundle.
 attestation() {
   local type=$1 payload
-  if [[ $type == - ]]; then
+  if [[ ${type} == - ]]; then
     echo '{"bundle": null, "bundle_url": "https://example.invalid/bundle"}'
   else
-    payload=$(printf '{"predicateType":"%s"}' "$type" | base64 -w0)
-    printf '{"bundle": {"dsseEnvelope": {"payload": "%s"}}}\n' "$payload"
+    payload=$(printf '{"predicateType":"%s"}' "${type}" | base64 -w0)
+    printf '{"bundle": {"dsseEnvelope": {"payload": "%s"}}}\n' "${payload}"
   fi
 }
 
 # attestations TYPE...: the API lists attestations of the predicate TYPEs.
 attestations() {
   local type
-  listed "$(for type; do attestation "$type"; done | jq -s '{attestations: .}')"
+  listed "$(for type; do attestation "${type}"; done | jq -s '{attestations: .}')"
 }
 
 attested_setup
 apply ATTESTED=1
-run "attested: true when an attestation verifies" ok "$attested_script"
+run "attested: true when an attestation verifies" ok "${attested_script}"
 expect output attested true
 expect call "--signer-workflow flakeyard/image-devcontainer/.github/workflows/release.yaml"
 expect no-call "--source-digest"
@@ -49,58 +49,58 @@ finish
 
 attested_setup
 apply ATTESTED=1
-attestations "$provenance" "$bom"
-run "attested: an unchanged image reuses the previous release's attestation" ok "$attested_script"
+attestations "${provenance}" "${bom}"
+run "attested: an unchanged image reuses the previous release's attestation" ok "${attested_script}"
 expect output attested true
 finish
 
 attested_setup
-run "attested: false when the digest has no attestation" ok "$attested_script"
+run "attested: false when the digest has no attestation" ok "${attested_script}"
 expect output attested false
 # The body of the 404 is not read as a list of attestations.
 expect no-message "error"
 finish
 
 attested_setup
-attestations "$bom"
+attestations "${bom}"
 transient_failures repos/flakeyard/image-devcontainer/attestations/sha256:abc 1
-run "attested: a transient API error is retried" ok "$attested_script"
+run "attested: a transient API error is retried" ok "${attested_script}"
 expect output attested false
 expect sleeps "5"
 finish
 
 attested_setup
-apply PREDICATE="$bom"
-attestations "$provenance"
-run "attested: an SBOM is missing although provenance exists" ok "$attested_script"
+apply PREDICATE="${bom}"
+attestations "${provenance}"
+run "attested: an SBOM is missing although provenance exists" ok "${attested_script}"
 expect output attested false
-expect call "--predicate-type $bom"
+expect call "--predicate-type ${bom}"
 finish
 
 attested_setup
-attestations "$provenance" "$bom"
-run "attested: an attestation that does not verify fails" fail "$attested_script"
+attestations "${provenance}" "${bom}"
+run "attested: an attestation that does not verify fails" fail "${attested_script}"
 expect message "none verifies"
 expect output attested ""
 finish
 
 attested_setup
 listed "HTTP 500"
-run "attested: an API error fails, whatever the verification reported" fail "$attested_script"
+run "attested: an API error fails, whatever the verification reported" fail "${attested_script}"
 expect message "cannot list the attestations"
 expect message "HTTP 500"
 expect output attested ""
 finish
 
 attested_setup
-attestations - "$provenance"
-run "attested: an attestation without an inline bundle fails" fail "$attested_script"
+attestations - "${provenance}"
+run "attested: an attestation without an inline bundle fails" fail "${attested_script}"
 expect message "no inline bundle"
 expect output attested ""
 finish
 
 attested_setup
-attestations "$bom"
-run "attested: an attestation of another type does not count" ok "$attested_script"
+attestations "${bom}"
+run "attested: an attestation of another type does not count" ok "${attested_script}"
 expect output attested false
 finish

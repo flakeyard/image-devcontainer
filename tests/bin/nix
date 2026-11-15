@@ -11,32 +11,32 @@
 #                                fails with $RUN_ERROR when it is set
 set -euo pipefail
 case $1 in
-  eval) printf '%s' "$SYSTEM" ;;
-  path-info) echo "$DERIVATION" ;;
+  eval) printf '%s' "${SYSTEM}" ;;
+  path-info) echo "${DERIVATION}" ;;
   derivation)
     shift 2
     jq --args '.derivations |= with_entries(select(.key | IN($ARGS.positional[])))' \
-      "${@#/nix/store/}" <"$DERIVATIONS"
+      "${@#/nix/store/}" <"${DERIVATIONS}"
     ;;
   run)
-    echo "run $*" >>"$CALLS"
+    echo "run $*" >>"${CALLS}"
     if [[ -n ${RUN_ERROR-} ]]; then
-      echo "$RUN_ERROR" >&2
+      echo "${RUN_ERROR}" >&2
       exit 1
     fi
-    echo "$TARBALL_DIGEST"
+    echo "${TARBALL_DIGEST}"
     ;;
   build)
     if [[ " $* " == *" --print-out-paths "* ]]; then
-      echo "$STREAM"
+      echo "${STREAM}"
     elif [[ " $* " == *" --rebuild "* ]]; then
-      echo "rebuild ${*:2}" >>"$CALLS"
+      echo "rebuild ${*:2}" >>"${CALLS}"
       if [[ -n ${REBUILD_ERROR-} ]]; then
-        echo "$REBUILD_ERROR" >&2
+        echo "${REBUILD_ERROR}" >&2
         exit 1
       fi
     else
-      echo "build" >>"$CALLS"
+      echo "build" >>"${CALLS}"
     fi
     ;;
   *)

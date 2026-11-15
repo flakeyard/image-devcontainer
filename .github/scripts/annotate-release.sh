@@ -2,12 +2,12 @@
 # Adds the image reference to the notes of the release, once (FY-0024,
 # FY-0032). Inputs (environment): GH_TOKEN, REPOSITORY, TAG, REFERENCE.
 set -euo pipefail
-line="Image: \`$REFERENCE\`"
+line="Image: \`${REFERENCE}\`"
 # Notes edited on the web have CRLF line endings.
-notes=$(gh release view "$TAG" --repo "$REPOSITORY" --json body --jq .body | tr -d '\r')
-if grep -qxF -- "$line" <<<"$notes"; then
-  echo "The notes of $TAG already name $REFERENCE."
+notes=$(gh release view "${TAG}" --repo "${REPOSITORY}" --json body --jq .body | tr -d '\r')
+if grep -qxF -- "${line}" <<<"${notes}"; then
+  echo "The notes of ${TAG} already name ${REFERENCE}."
   exit 0
 fi
-printf '%s\n\n%s\n' "$notes" "$line" | gh release edit "$TAG" --repo "$REPOSITORY" --notes-file - >/dev/null
-echo "Added $REFERENCE to the notes of $TAG."
+printf '%s\n\n%s\n' "${notes}" "${line}" | gh release edit "${TAG}" --repo "${REPOSITORY}" --notes-file - >/dev/null
+echo "Added ${REFERENCE} to the notes of ${TAG}."

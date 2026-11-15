@@ -10,23 +10,23 @@ digest_pattern='^sha256:[0-9a-f]{64}$'
 # fail MESSAGE: exits with the error MESSAGE.
 fail() {
   local message=$1
-  echo "error: $message" >&2
+  echo "error: ${message}" >&2
   exit 1
 }
 
 # require_version VERSION: exits unless VERSION is X.Y.Z.
 require_version() {
   local version=$1
-  [[ $version =~ $version_pattern ]] && return 0
-  echo "error: '$version' is not a version" >&2
+  [[ ${version} =~ ${version_pattern} ]] && return 0
+  echo "error: '${version}' is not a version" >&2
   exit 2
 }
 
 # require_digest DIGEST: exits unless DIGEST is a sha256 digest.
 require_digest() {
   local digest=$1
-  [[ $digest =~ $digest_pattern ]] && return 0
-  echo "error: '$digest' is not a digest" >&2
+  [[ ${digest} =~ ${digest_pattern} ]] && return 0
+  echo "error: '${digest}' is not a digest" >&2
   exit 2
 }
 
@@ -34,25 +34,25 @@ require_digest() {
 # TESTED_ARM64. Exits for another architecture or a malformed digest.
 tested_digest() {
   local arch=$1 digest
-  case $arch in
+  case ${arch} in
     amd64) digest=${TESTED_AMD64-} ;;
     arm64) digest=${TESTED_ARM64-} ;;
-    *) fail "no tested digest for the architecture '$arch'" ;;
+    *) fail "no tested digest for the architecture '${arch}'" ;;
   esac
-  require_digest "$digest"
-  echo "$digest"
+  require_digest "${digest}"
+  echo "${digest}"
 }
 
 # tag_state TAG: the digest TAG points at, or "absent" when the registry
 # says it does not know TAG. Exits on any other error.
 tag_state() {
   local tag=$1 current
-  if current=$(crane digest "$repository:$tag" 2>"$work/errors"); then
-    echo "$current"
-  elif grep -q MANIFEST_UNKNOWN "$work/errors"; then
+  if current=$(crane digest "${repository}:${tag}" 2>"${work}/errors"); then
+    echo "${current}"
+  elif grep -q MANIFEST_UNKNOWN "${work}/errors"; then
     echo absent
   else
-    fail "cannot read $repository:$tag: $(cat "$work/errors")"
+    fail "cannot read ${repository}:${tag}: $(cat "${work}/errors")"
   fi
 }
 
@@ -60,8 +60,8 @@ tag_state() {
 # another digest than DIGEST.
 check_tag_immutable() {
   local tag=$1 state=$2 digest=$3
-  [[ $state == absent || $state == "$digest" ]] && return 0
-  fail "$repository:$tag points at $state, not at $digest; release tags are immutable"
+  [[ ${state} == absent || ${state} == "${digest}" ]] && return 0
+  fail "${repository}:${tag} points at ${state}, not at ${digest}; release tags are immutable"
 }
 
 # verify_attestation REPOSITORY IMAGE DIGEST [ARGS...]: an attestation of the
@@ -70,7 +70,7 @@ check_tag_immutable() {
 verify_attestation() {
   local repository=$1 image=$2 digest=$3
   shift 3
-  gh attestation verify "oci://$image@$digest" --repo "$repository" \
-    --signer-workflow "$repository/.github/workflows/release.yaml" \
+  gh attestation verify "oci://${image}@${digest}" --repo "${repository}" \
+    --signer-workflow "${repository}/.github/workflows/release.yaml" \
     --deny-self-hosted-runners "$@" >/dev/null
 }

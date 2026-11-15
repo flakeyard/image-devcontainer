@@ -2,10 +2,10 @@
 # Stub of sbomnix for the unit tests: records "NIX_PATH=... ARGS" in $CALLS
 # and writes $SBOM to the file after --cdx.
 set -euo pipefail
-echo "NIX_PATH=${NIX_PATH-} $*" >>"$CALLS"
+echo "NIX_PATH=${NIX_PATH-} $*" >>"${CALLS}"
 while (($#)); do
   if [[ $1 == --cdx ]]; then
-    cp -- "$SBOM" "$2"
+    cp -- "${SBOM}" "$2"
     exit 0
   fi
   shift

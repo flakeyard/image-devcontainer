@@ -15,8 +15,8 @@ digest_app=publish-digest
 # cleanup: removes the worktree of the release, which git would keep listing
 # after its directory is gone, and the scratch directory.
 cleanup() {
-  git worktree remove --force "$work/source" >/dev/null 2>&1 || true
-  rm -rf -- "$work"
+  git worktree remove --force "${work}/source" >/dev/null 2>&1 || true
+  rm -rf -- "${work}"
 }
 work=$(mktemp -d)
 trap cleanup EXIT
@@ -27,14 +27,14 @@ newest_release() {
   local tags
   tags=$(git tag -l 'v*.*.*')
   # grep exits with 1 when no tag is a release, with more on errors.
-  { grep -E -- "$release_pattern" <<<"$tags" || (($? == 1)); } | sort -V | tail -n 1
+  { grep -E -- "${release_pattern}" <<<"${tags}" || (($? == 1)); } | sort -V | tail -n 1
 }
 
 # never_published RELEASE: fails with what to do about a release whose image
 # is not in the registry. The runner reads workflow commands on stderr too.
 never_published() {
   local release=$1
-  echo "::error::The release $release was never published: $repository has no tag $release." \
+  echo "::error::The release ${release} was never published: ${repository} has no tag ${release}." \
     "Rerun the failed jobs of its release workflow, or after 30 days make a new patch release (FY-0032)." >&2
   exit 1
 }
@@ -43,35 +43,35 @@ never_published() {
 # for RELEASE.
 published_digest() {
   local release=$1 index digest
-  if ! index=$(crane manifest "$repository:$release" 2>"$work/errors"); then
-    cat -- "$work/errors" >&2
+  if ! index=$(crane manifest "${repository}:${release}" 2>"${work}/errors"); then
+    cat -- "${work}/errors" >&2
     # An unknown tag, or a repository that was never pushed to.
-    if grep -qE 'MANIFEST_UNKNOWN|NAME_UNKNOWN' "$work/errors"; then
-      never_published "$release"
+    if grep -qE 'MANIFEST_UNKNOWN|NAME_UNKNOWN' "${work}/errors"; then
+      never_published "${release}"
     fi
     exit 1
   fi
-  digest=$(jq -r --arg arch "$arch" '.manifests[] | select(.platform.architecture == $arch) | .digest' <<<"$index")
-  if [[ -z $digest ]]; then
-    echo "::error::The manifest list of $release in $repository has no $arch image." >&2
+  digest=$(jq -r --arg arch "${arch}" '.manifests[] | select(.platform.architecture == $arch) | .digest' <<<"${index}")
+  if [[ -z ${digest} ]]; then
+    echo "::error::The manifest list of ${release} in ${repository} has no ${arch} image." >&2
     exit 1
   fi
-  echo "$digest"
+  echo "${digest}"
 }
 
 newest=$(newest_release)
-if [[ -z $newest ]]; then
+if [[ -z ${newest} ]]; then
   echo "::notice::No release yet; nothing to rebuild."
   exit 0
 fi
-published=$(published_digest "$newest")
+published=$(published_digest "${newest}")
 
-git worktree add --detach "$work/source" "$newest" >/dev/null
+git worktree add --detach "${work}/source" "${newest}" >/dev/null
 # The tools of the release, not of HEAD: another crane may compress differently.
-rebuilt=$(nix run --no-update-lock-file "$work/source#$digest_app" -- "$work/image.tar" "$work/source")
+rebuilt=$(nix run --no-update-lock-file "${work}/source#${digest_app}" -- "${work}/image.tar" "${work}/source")
 
-if [[ $rebuilt != "$published" ]]; then
-  echo "::error::$newest rebuilt for $arch has digest $rebuilt, the registry has $published."
+if [[ ${rebuilt} != "${published}" ]]; then
+  echo "::error::${newest} rebuilt for ${arch} has digest ${rebuilt}, the registry has ${published}."
   exit 1
 fi
-echo "$newest rebuilt for $arch has the published digest $published."
+echo "${newest} rebuilt for ${arch} has the published digest ${published}."

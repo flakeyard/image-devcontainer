@@ -12,5 +12,5 @@ current_system() {
 # current directory by default, and prints the script that streams it.
 image_stream() {
   local flake=${1:-.}
-  nix build --no-link --no-update-lock-file --print-out-paths "$flake#image"
+  nix build --no-link --no-update-lock-file --print-out-paths "${flake}#image"
 }

@@ -11,7 +11,7 @@ set -euo pipefail
 shopt -s inherit_errexit
 
 # shellcheck source=/dev/null # scripts/lib/image.sh, from the app
-source "$IMAGE_LIB"
+source "${IMAGE_LIB}"
 installable=.#image
 # The binary cache of the image (ADR-0001): what it lacks is built here.
 cache=https://cache.nixos.org
@@ -29,12 +29,12 @@ uncached_derivations() {
   local frontier=("$1") visited=() shown missing next
   while ((${#frontier[@]} > 0)); do
     shown=$(nix derivation show "${frontier[@]}")
-    missing=$(missing_derivations "$shown")
-    [[ -n $missing ]] || return 0
-    printf '%s\n' "$missing"
+    missing=$(missing_derivations "${shown}")
+    [[ -n ${missing} ]] || return 0
+    printf '%s\n' "${missing}"
     visited+=("${frontier[@]}")
-    next=$(input_derivations "$shown" "$missing" | unvisited "${visited[@]}")
-    lines frontier "$next"
+    next=$(input_derivations "${shown}" "${missing}" | unvisited "${visited[@]}")
+    lines frontier "${next}"
   done
 }
 
@@ -45,24 +45,24 @@ uncached_derivations() {
 missing_derivations() {
   local shown=$1 pairs outputs lacking
   # "DERIVATION OUTPUT" for each output with a path, as store paths.
-  pairs=$(jq -r --arg dir "$store_dir" '.derivations | to_entries[]
-    | "\($dir)/\(.key) \($dir)/\(.value.outputs[].path // empty)"' <<<"$shown")
-  lines outputs "$(cut -d' ' -f2 <<<"$pairs")"
+  pairs=$(jq -r --arg dir "${store_dir}" '.derivations | to_entries[]
+    | "\($dir)/\(.key) \($dir)/\(.value.outputs[].path // empty)"' <<<"${shown}")
+  lines outputs "$(cut -d' ' -f2 <<<"${pairs}")"
   lacking=$(uncached "${outputs[@]}")
   awk 'FILENAME == ARGV[1] { lacking[$1]; next } $2 in lacking && !seen[$1]++ { print $1 }' \
-    <(printf '%s\n' "$lacking") - <<<"$pairs"
+    <(printf '%s\n' "${lacking}") - <<<"${pairs}"
 }
 
 # uncached PATH...: prints the PATHs that the cache does not have.
-uncached() { nix-store --store "$cache" --check-validity --print-invalid "$@"; }
+uncached() { nix-store --store "${cache}" --check-validity --print-invalid "$@"; }
 
 # input_derivations SHOWN DERIVATIONS: prints the input derivations of the
 # DERIVATIONS, one per line, in SHOWN, the output of `nix derivation show`.
 input_derivations() {
   local shown=$1 derivations
   lines derivations "$2"
-  jq -r --arg dir "$store_dir" '.derivations | to_entries[] | select(.key | IN($ARGS.positional[]))
-    | .value.inputs.drvs | keys[] | "\($dir)/\(.)"' --args "${derivations[@]#"$store_dir"/}" <<<"$shown" \
+  jq -r --arg dir "${store_dir}" '.derivations | to_entries[] | select(.key | IN($ARGS.positional[]))
+    | .value.inputs.drvs | keys[] | "\($dir)/\(.)"' --args "${derivations[@]#"${store_dir}"/}" <<<"${shown}" \
     | sort -u
 }
 
@@ -71,10 +71,10 @@ unvisited() {
   awk 'FILENAME == ARGV[1] { visited[$0]; next } !($0 in visited)' <(printf '%s\n' "$@") -
 }
 
-image=$(nix path-info --derivation --no-update-lock-file "$installable")
-needed=$(uncached_derivations "$image")
-lines derivations "$needed"
-echo "The image needs ${#derivations[@]} derivations that $cache does not have."
+image=$(nix path-info --derivation --no-update-lock-file "${installable}")
+needed=$(uncached_derivations "${image}")
+lines derivations "${needed}"
+echo "The image needs ${#derivations[@]} derivations that ${cache} does not have."
 # The customisation layer of the image is never in the cache: none means that
 # this check checks nothing.
 if ((${#derivations[@]} == 0)); then
@@ -90,9 +90,9 @@ nix build --no-link "${derivations[@]/%/^*}"
 nix build --no-link --rebuild --keep-going "${derivations[@]/%/^*}"
 
 stream=$(image_stream)
-first=$("$stream" | sha256sum)
-second=$("$stream" | sha256sum)
-if [[ $first != "$second" ]]; then
+first=$("${stream}" | sha256sum)
+second=$("${stream}" | sha256sum)
+if [[ ${first} != "${second}" ]]; then
   echo "error: two streams of the image differ: ${first%% *} and ${second%% *}" >&2
   exit 1
 fi

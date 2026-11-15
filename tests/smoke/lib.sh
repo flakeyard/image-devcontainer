@@ -30,14 +30,14 @@ suite() {
   local files=("$@") results index pids=()
   results=$(mktemp -d)
   for index in "${!files[@]}"; do
-    run_file "${files[index]}" "$results/$index" >"$results/$index.log" 2>&1 &
+    run_file "${files[index]}" "${results}/${index}" >"${results}/${index}.log" 2>&1 &
     pids+=("$!")
   done
   for index in "${!files[@]}"; do
     wait "${pids[index]}" || true
-    report_file "${files[index]}" "$results/$index"
+    report_file "${files[index]}" "${results}/${index}"
   done
-  rm -rf -- "$results"
+  rm -rf -- "${results}"
   summary
 }
 
@@ -50,10 +50,10 @@ run_file() {
   set +e
   trap 'failed_command "$?" "$BASH_COMMAND"' ERR
   # shellcheck disable=SC1090 # the tests come from the argument
-  source "$file"
+  source "${file}"
   trap - ERR
   finish
-  printf '%s %s\n' "$passed" "$failed" >"$counts"
+  printf '%s %s\n' "${passed}" "${failed}" >"${counts}"
 }
 
 # report_file FILE RESULT: prints the output of the tests of FILE from
@@ -62,8 +62,8 @@ run_file() {
 report_file() {
   local file=$1 result=$2 file_passed file_failed
   printf '== %s\n' "${file##*/}"
-  cat -- "$result.log"
-  if ! read -r file_passed file_failed 2>/dev/null <"$result"; then
+  cat -- "${result}.log"
+  if ! read -r file_passed file_failed 2>/dev/null <"${result}"; then
     printf 'FAIL %s: ended before its last test\n' "${file##*/}"
     file_passed=0 file_failed=1
   fi
@@ -73,7 +73,7 @@ report_file() {
 # failed_command STATUS COMMAND: fails the test with the first line of COMMAND.
 failed_command() {
   local status=$1 command=$2
-  fail "exit $status of: ${command%%$'\n'*}"
+  fail "exit ${status} of: ${command%%$'\n'*}"
 }
 
 # test_case NAME: starts a test.
@@ -83,16 +83,16 @@ test_case() {
 }
 
 fail() {
-  [[ -n $current ]] || return 0
-  printf 'FAIL %s: %s\n' "$current" "$1"
-  [[ -z $output ]] || printf '%s\n' "$output" | sed 's/^/    /' | tail -n 20
+  [[ -n ${current} ]] || return 0
+  printf 'FAIL %s: %s\n' "${current}" "$1"
+  [[ -z ${output} ]] || printf '%s\n' "${output}" | sed 's/^/    /' | tail -n 20
   failed=$((failed + 1))
   current=""
 }
 
 finish() {
-  if [[ -n $current ]]; then
-    printf 'ok   %s\n' "$current"
+  if [[ -n ${current} ]]; then
+    printf 'ok   %s\n' "${current}"
     passed=$((passed + 1))
   fi
   current="" output=""
@@ -109,23 +109,23 @@ run() {
   shift
   # The exit status is not checked: tests check the output, and some expect
   # the container to fail.
-  output=$(timeout 120 docker run --rm "${args[@]}" "$IMAGE" "$@" 2>&1) || true
+  output=$(timeout 120 docker run --rm "${args[@]}" "${IMAGE}" "$@" 2>&1) || true
 }
 
 # expect_line LINE: output has the line.
-expect_line() { grep -qxF -- "$1" <<<"$output" || fail "no line '$1'"; }
+expect_line() { grep -qxF -- "$1" <<<"${output}" || fail "no line '$1'"; }
 # expect_text TEXT: output contains the text.
-expect_text() { grep -qF -- "$1" <<<"$output" || fail "no '$1'"; }
-expect_no_text() { ! grep -qF -- "$1" <<<"$output" || fail "unexpected '$1'"; }
+expect_text() { grep -qF -- "$1" <<<"${output}" || fail "no '$1'"; }
+expect_no_text() { ! grep -qF -- "$1" <<<"${output}" || fail "unexpected '$1'"; }
 # build_fixture DOCKER_ARGS...: builds the fixture uid.nix and reads the
 # result in the same container; output holds the uid that built it.
 build_fixture() {
   # shellcheck disable=SC2016 # the command runs in the container
-  run "$@" -v "$fixtures:/fixture:ro" -- sh -c 'cat "$(nix-build --no-out-link /fixture/uid.nix)"'
+  run "$@" -v "${fixtures}:/fixture:ro" -- sh -c 'cat "$(nix-build --no-out-link /fixture/uid.nix)"'
 }
 
 # expect_build_user: output is the uid of a build user.
-expect_build_user() { grep -qxE -- "$build_uid" <<<"$output" || fail "not built as a build user"; }
+expect_build_user() { grep -qxE -- "${build_uid}" <<<"${output}" || fail "not built as a build user"; }
 
 # poll SECONDS COMMAND...: retries COMMAND every 0.2 s until it succeeds.
 poll() {
@@ -138,21 +138,21 @@ poll() {
 }
 
 # start DOCKER_ARGS...: starts a detached container; prints its id.
-start() { docker run -d "$@" "$IMAGE"; }
+start() { docker run -d "$@" "${IMAGE}"; }
 
 # ready ID: the command of the container runs and its Nix daemon answers;
 # output holds the uid of the command.
 ready() {
   local id=$1
-  command_uid "$id" && docker exec -u dev "$id" nix store info >/dev/null 2>&1
+  command_uid "${id}" && docker exec -u dev "${id}" nix store info >/dev/null 2>&1
 }
 
 # command_uid ID: output is the uid of the command of the container.
 command_uid() {
   local id=$1
-  output=$(docker exec -i "$id" sh -s <"$probes/command-uid.sh" 2>/dev/null)
+  output=$(docker exec -i "${id}" sh -s <"${probes}/command-uid.sh" 2>/dev/null)
   # Processes may end while the loop reads /proc: wait for the uid itself.
-  [[ $output =~ ^[0-9]+$ ]]
+  [[ ${output} =~ ^[0-9]+$ ]]
 }
 
 # start_ready VARIABLE DOCKER_ARGS...: starts a detached container, sets
@@ -161,26 +161,26 @@ command_uid() {
 start_ready() {
   local variable=$1 started
   shift
-  printf -v "$variable" '%s' ""
+  printf -v "${variable}" '%s' ""
   started=$(start "$@") || return
-  printf -v "$variable" '%s' "$started"
-  poll "$daemon_timeout" ready "$started" || fail "the command or the daemon did not start"
+  printf -v "${variable}" '%s' "${started}"
+  poll "${daemon_timeout}" ready "${started}" || fail "the command or the daemon did not start"
 }
 
 # remove ID: removes the container, if one was started.
 remove() {
   local id=$1
-  [[ -z $id ]] || docker rm -f "$id" >/dev/null
+  [[ -z ${id} ]] || docker rm -f "${id}" >/dev/null
 }
 
 # collect_garbage ID: collects the garbage of the store of the container.
 collect_garbage() {
   local id=$1
-  docker exec "$id" nix-collect-garbage >/dev/null 2>&1 || fail "garbage collection failed"
+  docker exec "${id}" nix-collect-garbage >/dev/null 2>&1 || fail "garbage collection failed"
 }
 
 summary() {
   finish
-  echo "passed: $passed, failed: $failed"
+  echo "passed: ${passed}, failed: ${failed}"
   ((failed == 0))
 }

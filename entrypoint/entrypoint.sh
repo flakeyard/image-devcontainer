@@ -24,8 +24,8 @@ ca_file=/etc/ssl/certs/ca-certificates.crt
 # is fixed: not the container's, and never dev's profile, which dev controls.
 # The build sets entrypoint_tools to the tools of the entrypoint
 # (nix/image/parts/entrypoint.nix).
-dev_path=$home/.nix-profile/bin:/bin:/usr/bin
-daemon_path=${entrypoint_tools:+$entrypoint_tools:}/bin:/usr/bin
+dev_path=${home}/.nix-profile/bin:/bin:/usr/bin
+daemon_path=${entrypoint_tools:+${entrypoint_tools}:}/bin:/usr/bin
 # Proxies of the container engine reach the daemon, which downloads.
 proxy_vars=(http_proxy https_proxy all_proxy no_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY)
 # The variables of the container that the entrypoint reads, as variables of
@@ -72,16 +72,16 @@ change_owner() { xargs -0 -r chown -h -- "$1"; }
 # or does not fit a uid.
 decimal() {
   local value=$1
-  [[ $value =~ $decimal_pattern ]] || return 1
-  (($((10#$value)) <= max_id)) || return 1
-  printf '%d\n' "$((10#$value))"
+  [[ ${value} =~ ${decimal_pattern} ]] || return 1
+  (($((10#${value})) <= max_id)) || return 1
+  printf '%d\n' "$((10#${value}))"
 }
 
 # --- the identity of dev ------------------------------------------------------
 
 # current_identity: prints the uid and gid of `dev` in passwd.
 current_identity() {
-  awk -F: -v name="$user" '$1 == name { print $3, $4; exit }' "$passwd_file"
+  awk -F: -v name="${user}" '$1 == name { print $3, $4; exit }' "${passwd_file}"
 }
 
 # wanted_identity: prints the uid and gid `dev` should have: DEV_UID and DEV_GID
@@ -90,11 +90,11 @@ current_identity() {
 wanted_identity() {
   local owner
   if [[ -n ${DEV_UID-} ]]; then
-    checked_identity "$DEV_UID" "${DEV_GID:-$DEV_UID}"
+    checked_identity "${DEV_UID}" "${DEV_GID:-${DEV_UID}}"
     return
   fi
   owner=$(mount_owner)
-  if [[ -n $owner ]]; then
+  if [[ -n ${owner} ]]; then
     checked_identity "${owner%% *}" "${owner##* }"
   else
     current_identity
@@ -105,10 +105,10 @@ wanted_identity() {
 # mount point not owned by root.
 mount_owner() {
   local owner
-  if ! [[ -x $PWD ]] || ! owner=$(owner_of "$PWD"); then
-    log "cannot inspect the working directory $PWD; the container may lack the capability DAC_OVERRIDE"
-  elif is_mount "$PWD" && [[ ${owner%% *} != 0 ]]; then
-    printf '%s\n' "$owner"
+  if ! [[ -x ${PWD} ]] || ! owner=$(owner_of "${PWD}"); then
+    log "cannot inspect the working directory ${PWD}; the container may lack the capability DAC_OVERRIDE"
+  elif is_mount "${PWD}" && [[ ${owner%% *} != 0 ]]; then
+    printf '%s\n' "${owner}"
   fi
 }
 
@@ -116,22 +116,22 @@ mount_owner() {
 # the current identity. A GID of another group keeps the current gid.
 checked_identity() {
   local uid=$1 gid=$2 owner
-  if ! uid=$(decimal "$uid") || ! gid=$(decimal "$gid"); then
-    keep_identity "ignoring '${DEV_UID-}:${DEV_GID-}': expected decimal uid and gid up to $max_id"
+  if ! uid=$(decimal "${uid}") || ! gid=$(decimal "${gid}"); then
+    keep_identity "ignoring '${DEV_UID-}:${DEV_GID-}': expected decimal uid and gid up to ${max_id}"
   elif ((uid == 0 || gid == 0)); then
     keep_identity "ignoring uid or gid 0"
-  elif owner=$(other_owner "$passwd_file" "$uid") && [[ -n $owner ]]; then
-    keep_identity "ignoring uid $uid: it belongs to '$owner'"
+  elif owner=$(other_owner "${passwd_file}" "${uid}") && [[ -n ${owner} ]]; then
+    keep_identity "ignoring uid ${uid}: it belongs to '${owner}'"
   else
-    gid=$(kept_gid "$gid")
-    printf '%s %s\n' "$uid" "$gid"
+    gid=$(kept_gid "${gid}")
+    printf '%s %s\n' "${uid}" "${gid}"
   fi
 }
 
 # keep_identity MESSAGE: logs why `dev` stays as it is, and prints its identity.
 keep_identity() {
   local message=$1
-  log "$message"
+  log "${message}"
   current_identity
 }
 
@@ -139,23 +139,23 @@ keep_identity() {
 # group file, if there is one other than `dev`.
 other_owner() {
   local file=$1 id=$2 owner
-  owner=$(owner_name "$file" "$id")
-  if [[ -n $owner && $owner != "$user" ]]; then printf '%s\n' "$owner"; fi
+  owner=$(owner_name "${file}" "${id}")
+  if [[ -n ${owner} && ${owner} != "${user}" ]]; then printf '%s\n' "${owner}"; fi
 }
 
 # kept_gid GID: prints GID, or the current gid of `dev` when GID belongs to
 # another group.
 kept_gid() {
   local gid=$1 owner identity old_gid
-  owner=$(other_owner "$group_file" "$gid")
-  if [[ -z $owner ]]; then
-    printf '%s\n' "$gid"
+  owner=$(other_owner "${group_file}" "${gid}")
+  if [[ -z ${owner} ]]; then
+    printf '%s\n' "${gid}"
     return
   fi
   identity=$(current_identity)
-  read -r _ old_gid <<<"$identity"
-  log "keeping gid $old_gid: gid $gid belongs to group '$owner'"
-  printf '%s\n' "$old_gid"
+  read -r _ old_gid <<<"${identity}"
+  log "keeping gid ${old_gid}: gid ${gid} belongs to group '${owner}'"
+  printf '%s\n' "${old_gid}"
 }
 
 # --- changing dev -------------------------------------------------------------
@@ -167,27 +167,27 @@ kept_gid() {
 # a start that fails in between is completed by the next.
 set_identity() {
   local uid=$1 gid=$2 identity
-  has_identity "$uid" "$gid" && return 0
+  has_identity "${uid}" "${gid}" && return 0
   identity=$(current_identity)
-  if [[ $identity != "$uid $gid" ]]; then
-    own_home "$identity" "$uid" "$gid" || return 1
+  if [[ ${identity} != "${uid} ${gid}" ]]; then
+    own_home "${identity}" "${uid}" "${gid}" || return 1
   fi
-  update_accounts "$uid" "$gid" || return 1
-  log "user '$user' is now $uid:$gid"
+  update_accounts "${uid}" "${gid}" || return 1
+  log "user '${user}' is now ${uid}:${gid}"
 }
 
 # has_identity UID GID: passwd and group both give `dev` this uid and gid.
 has_identity() {
   local uid=$1 gid=$2 identity
   identity=$(current_identity)
-  [[ $identity == "$uid $gid" && $(field "$group_file" "$user" 3) == "$gid" ]]
+  [[ ${identity} == "${uid} ${gid}" && $(field "${group_file}" "${user}" 3) == "${gid}" ]]
 }
 
 # update_accounts UID GID: gives `dev` this uid and gid in group and passwd.
 update_accounts() {
   local uid=$1 gid=$2
-  if ! rewrite_group "$gid" || ! rewrite_passwd "$uid" "$gid" || ! has_identity "$uid" "$gid"; then
-    log "cannot change '$user' to $uid:$gid in $passwd_file and $group_file"
+  if ! rewrite_group "${gid}" || ! rewrite_passwd "${uid}" "${gid}" || ! has_identity "${uid}" "${gid}"; then
+    log "cannot change '${user}' to ${uid}:${gid} in ${passwd_file} and ${group_file}"
     return 1
   fi
 }
@@ -195,28 +195,28 @@ update_accounts() {
 # rewrite_group GID: gives the group `dev` this gid, unless it has it.
 rewrite_group() {
   local gid=$1
-  [[ $(field "$group_file" "$user" 3) != "$gid" ]] || return 0
-  sed -i -e "s/^$user:\([^:]*\):[0-9]*:/$user:\1:$gid:/" "$group_file"
+  [[ $(field "${group_file}" "${user}" 3) != "${gid}" ]] || return 0
+  sed -i -e "s/^${user}:\([^:]*\):[0-9]*:/${user}:\1:${gid}:/" "${group_file}"
 }
 
 # rewrite_passwd UID GID: gives the user `dev` this uid and gid.
 rewrite_passwd() {
   local uid=$1 gid=$2
-  sed -i -e "s/^$user:\([^:]*\):[0-9]*:[0-9]*:/$user:\1:$uid:$gid:/" "$passwd_file"
+  sed -i -e "s/^${user}:\([^:]*\):[0-9]*:[0-9]*:/${user}:\1:${uid}:${gid}:/" "${passwd_file}"
 }
 
 # own_home "OLD_UID OLD_GID" UID GID: gives the files of `dev` under home to
 # UID:GID, unless home itself is mounted: then all of it belongs to the host.
 own_home() {
   local old=$1 uid=$2 gid=$3 old_uid old_gid
-  if is_mount "$home"; then
-    log "$home is a mount point: its files keep their owner"
+  if is_mount "${home}"; then
+    log "${home} is a mount point: its files keep their owner"
     return 0
   fi
-  read -r old_uid old_gid <<<"$old"
+  read -r old_uid old_gid <<<"${old}"
   # Owner and group apart: a file of root in the group of dev stays root's.
-  if ! own_files -user "$old_uid" "$uid" || ! own_files -group "$old_gid" ":$gid"; then
-    log "cannot give the files of '$user' under $home to $uid:$gid"
+  if ! own_files -user "${old_uid}" "${uid}" || ! own_files -group "${old_gid}" ":${gid}"; then
+    log "cannot give the files of '${user}' under ${home} to ${uid}:${gid}"
     return 1
   fi
 }
@@ -232,8 +232,8 @@ own_home() {
 own_files() {
   local test=$1 old=$2 new=$3
   # Without the mount points, mounted files of the host would change owner.
-  [[ -r $mountinfo ]] || return 1
-  find "$home" -xdev "$test" "$old" -print0 | not_mounted | change_owner "$new"
+  [[ -r ${mountinfo} ]] || return 1
+  find "${home}" -xdev "${test}" "${old}" -print0 | not_mounted | change_owner "${new}"
 }
 
 # not_mounted: of the NUL-separated paths on stdin, prints those that are not
@@ -245,7 +245,7 @@ not_mounted() {
 # mount_points: the mount points of mountinfo under home, NUL-separated.
 # Mountinfo writes a space, tab, newline or backslash as an octal escape.
 mount_points() {
-  awk -v ORS='\0' -v prefix="$home/" '
+  awk -v ORS='\0' -v prefix="${home}/" '
     function decode(path,  decoded) {
       while (match(path, /\\[0-7][0-7][0-7]/)) {
         decoded = decoded substr(path, 1, RSTART - 1) sprintf("%c", octal(substr(path, RSTART + 1, 3)))
@@ -255,7 +255,7 @@ mount_points() {
     }
     function octal(digits) { return substr(digits, 1, 1) * 64 + substr(digits, 2, 1) * 8 + substr(digits, 3, 1) }
     { point = decode($5) }
-    index(point, prefix) == 1 { print point }' "$mountinfo"
+    index(point, prefix) == 1 { print point }' "${mountinfo}"
 }
 
 # give_streams UID GID: gives stdin, stdout and stderr to the user when the
@@ -269,12 +269,12 @@ give_streams() {
   for fd in 0 1 2; do
     # The entrypoint's own descriptors: /proc/self would be those of readlink
     # and chown.
-    stream=/proc/$$/fd/$fd
-    target=$(readlink "$stream" 2>/dev/null) || continue
-    case $target in
-      pipe:* | socket:*) chown "$uid:$gid" "$stream" 2>/dev/null || true ;;
+    stream=/proc/$$/fd/${fd}
+    target=$(readlink "${stream}" 2>/dev/null) || continue
+    case ${target} in
+      pipe:* | socket:*) chown "${uid}:${gid}" "${stream}" 2>/dev/null || true ;;
       /dev/pts/* | /dev/console)
-        if [[ -c $stream ]]; then chown "$uid" "$stream" 2>/dev/null || true; fi
+        if [[ -c ${stream} ]]; then chown "${uid}" "${stream}" 2>/dev/null || true; fi
         ;;
     esac
   done
@@ -287,9 +287,9 @@ give_streams() {
 # environment must not reach root, which Nix trusts (ADR-0001); only the
 # proxies of the engine do.
 as_root() {
-  local vars=(PATH="$daemon_path" HOME=/root NIX_SSL_CERT_FILE="$ca_file") name
+  local vars=(PATH="${daemon_path}" HOME=/root NIX_SSL_CERT_FILE="${ca_file}") name
   for name in "${proxy_vars[@]}"; do
-    if [[ -n ${!name-} ]]; then vars+=("$name=${!name}"); fi
+    if [[ -n ${!name-} ]]; then vars+=("${name}=${!name}"); fi
   done
   env -i "${vars[@]}" "$@"
 }
@@ -303,52 +303,52 @@ supervise() {
   # the signals back, for its builds.
   trap '' TTOU TTIN
   while ((exits < max_quick_exits)); do
-    started=$SECONDS
+    started=${SECONDS}
     {
       trap - TTOU TTIN
       as_root nix-daemon 2>&1
-    } | append_bounded "$daemon_log" || true
+    } | append_bounded "${daemon_log}" || true
     if ((SECONDS - started >= quick_exit_seconds)); then exits=0; fi
     exits=$((exits + 1))
-    log "nix-daemon exited, restarting (see $daemon_log)"
-    sleep "$restart_delay"
+    log "nix-daemon exited, restarting (see ${daemon_log})"
+    sleep "${restart_delay}"
   done
-  log "nix-daemon exited $exits times in a row, giving up"
+  log "nix-daemon exited ${exits} times in a row, giving up"
 }
 
 # append_bounded FILE: appends the lines of stdin to FILE. A regular FILE
 # larger than daemon_log_max_bytes moves to FILE.old first.
 append_bounded() {
   local file=$1 line
-  while IFS= read -r line || [[ -n $line ]]; do
-    if too_large "$file"; then mv -f -- "$file" "$file.old" || true; fi
-    printf '%s\n' "$line" >>"$file"
+  while IFS= read -r line || [[ -n ${line} ]]; do
+    if too_large "${file}"; then mv -f -- "${file}" "${file}.old" || true; fi
+    printf '%s\n' "${line}" >>"${file}"
   done
 }
 
 # too_large FILE: FILE is a regular file larger than daemon_log_max_bytes.
 too_large() {
   local file=$1 size
-  [[ -f $file ]] && size=$(stat -c %s -- "$file") && ((size > daemon_log_max_bytes))
+  [[ -f ${file} ]] && size=$(stat -c %s -- "${file}") && ((size > daemon_log_max_bytes))
 }
 
 # writable DIR: DIR exists and a file can be created in it; on a read-only
 # file system, root passes `-w` but cannot write.
 writable() {
   local dir=$1 probe
-  mkdir -p -- "$dir" 2>/dev/null \
-    && probe=$(mktemp -p "$dir" .entrypoint.XXXXXX 2>/dev/null) \
-    && rm -f -- "$probe"
+  mkdir -p -- "${dir}" 2>/dev/null \
+    && probe=$(mktemp -p "${dir}" .entrypoint.XXXXXX 2>/dev/null) \
+    && rm -f -- "${probe}"
 }
 
 # start_daemon: starts the supervised daemon and waits until it answers.
 start_daemon() {
-  if ! writable "$(dirname -- "$socket")" || ! rm -f -- "$socket" 2>/dev/null; then
+  if ! writable "$(dirname -- "${socket}")" || ! rm -f -- "${socket}" 2>/dev/null; then
     log "/nix is not writable: the Nix daemon is not started"
     return 0
   fi
-  if ! : >>"$daemon_log" 2>/dev/null; then
-    log "cannot write $daemon_log; the Nix daemon logs to the container log"
+  if ! : >>"${daemon_log}" 2>/dev/null; then
+    log "cannot write ${daemon_log}; the Nix daemon logs to the container log"
     daemon_log=/proc/$$/fd/2
   fi
   # In a process group of its own: tini forwards signals to the group of the
@@ -368,16 +368,16 @@ wait_for_daemon() {
   local deadline=$((SECONDS + daemon_timeout))
   until daemon_answers; do
     if ((SECONDS >= deadline)); then
-      log "the Nix daemon did not answer within $daemon_timeout s (see $daemon_log)"
+      log "the Nix daemon did not answer within ${daemon_timeout} s (see ${daemon_log})"
       return 0
     fi
-    sleep "$daemon_poll"
+    sleep "${daemon_poll}"
   done
 }
 
 # daemon_answers: the daemon listens and answers a client of root.
 daemon_answers() {
-  [[ -S $socket ]] && as_root NIX_REMOTE=daemon nix store info >/dev/null 2>&1
+  [[ -S ${socket} ]] && as_root NIX_REMOTE=daemon nix store info >/dev/null 2>&1
 }
 
 # --- running the command ------------------------------------------------------
@@ -385,7 +385,7 @@ daemon_answers() {
 # runnable UID GID: the identity the command may run as: decimal, not root.
 runnable() {
   local uid=$1 gid=$2
-  decimal "$uid" >/dev/null && decimal "$gid" >/dev/null && ((uid != 0 && gid != 0))
+  decimal "${uid}" >/dev/null && decimal "${gid}" >/dev/null && ((uid != 0 && gid != 0))
 }
 
 # main FD COMMAND...: the descriptor that reads the variables of the
@@ -396,18 +396,18 @@ main() {
   if [[ $(id -u) != 0 ]]; then run_unprivileged "$@"; fi
   local identity uid gid
   identity=$(wanted_identity)
-  read -r uid gid <<<"$identity"
-  set_identity "$uid" "$gid" || exit 1
+  read -r uid gid <<<"${identity}"
+  set_identity "${uid}" "${gid}" || exit 1
   start_daemon
   identity=$(current_identity)
-  read -r uid gid <<<"$identity"
+  read -r uid gid <<<"${identity}"
   # Never root: whatever passwd says, the command must run as dev.
-  if ! runnable "$uid" "$gid"; then
-    log "refusing to run the command as '$user' with uid $uid and gid $gid"
+  if ! runnable "${uid}" "${gid}"; then
+    log "refusing to run the command as '${user}' with uid ${uid} and gid ${gid}"
     exit 1
   fi
-  give_streams "$uid" "$gid"
-  exec_as_dev "$uid" "$gid" "$@"
+  give_streams "${uid}" "${gid}"
+  exec_as_dev "${uid}" "${gid}" "$@"
 }
 
 # read_environment FD COMMAND...: keeps the variables that FD reads, each
@@ -415,20 +415,20 @@ main() {
 # FD is not a standard stream.
 read_environment() {
   local fd=${1-} variable
-  if ! fd=$(decimal "$fd") || ((fd <= 2 || $# < 2)) || ! mapfile -d '' -t -u "$fd" container_environment; then
+  if ! fd=$(decimal "${fd}") || ((fd <= 2 || $# < 2)) || ! mapfile -d '' -t -u "${fd}" container_environment; then
     log "expected the descriptor of the variables of the container, and the command; start the image with its entrypoint"
     return 1
   fi
-  environment_fd=$fd
+  environment_fd=${fd}
   for variable in "${container_environment[@]}"; do
-    if is_setting "$variable"; then printf -v "${variable%%=*}" '%s' "${variable#*=}"; fi
+    if is_setting "${variable}"; then printf -v "${variable%%=*}" '%s' "${variable#*=}"; fi
   done
 }
 
 # is_setting NAME=VALUE: NAME is one of the settings.
 is_setting() {
   local variable=$1
-  [[ $variable == *=* ]] && is_one_of "${variable%%=*}" "${settings[@]}"
+  [[ ${variable} == *=* ]] && is_one_of "${variable%%=*}" "${settings[@]}"
 }
 
 # is_one_of WORD LIST...: WORD is in LIST.
@@ -436,7 +436,7 @@ is_one_of() {
   local word=$1 item
   shift
   for item; do
-    if [[ $item == "$word" ]]; then return 0; fi
+    if [[ ${item} == "${word}" ]]; then return 0; fi
   done
   return 1
 }
@@ -446,10 +446,10 @@ is_one_of() {
 run_unprivileged() {
   local env environ
   log "started as uid $(id -u) instead of 0: the Nix daemon is not running."
-  log "start the container as root (the default); it switches to '$user' itself."
+  log "start the container as root (the default); it switches to '${user}' itself."
   env=$(command -v env)
   environ=$(command -v environ)
-  exec "$env" -i "$environ" from-fd "$environment_fd" "$@"
+  exec "${env}" -i "${environ}" from-fd "${environment_fd}" "$@"
 }
 
 # exec_as_dev UID GID COMMAND...: runs the command as `dev` in place of the
@@ -463,8 +463,8 @@ exec_as_dev() {
   env=$(command -v env)
   setpriv=$(command -v setpriv)
   environ=$(command -v environ)
-  exec "$env" -i HOME="$home" USER="$user" LOGNAME="$user" PATH="$dev_path" \
-    "$setpriv" --reuid="$uid" --regid="$gid" --init-groups -- "$environ" from-fd "$environment_fd" "$@"
+  exec "${env}" -i HOME="${home}" USER="${user}" LOGNAME="${user}" PATH="${dev_path}" \
+    "${setpriv}" --reuid="${uid}" --regid="${gid}" --init-groups -- "${environ}" from-fd "${environment_fd}" "$@"
 }
 
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
