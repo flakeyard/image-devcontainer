@@ -9,22 +9,22 @@ set -euo pipefail
 shopt -s inherit_errexit
 
 repository=$1 major=$2
-[[ $major =~ ^[0-9]+$ ]] || {
-  echo "error: '$major' is not a major version" >&2
+[[ ${major} =~ ^[0-9]+$ ]] || {
+  echo "error: '${major}' is not a major version" >&2
   exit 2
 }
 
-tags=$(crane ls "$repository")
-newest=$(grep -E "^v$major\.[0-9]+\.[0-9]+$" <<<"$tags" | sort -V | tail -n 1 || true)
-if [[ -z $newest ]]; then
-  echo "error: no release of major version $major in $repository" >&2
+tags=$(crane ls "${repository}")
+newest=$(grep -E "^v${major}\.[0-9]+\.[0-9]+$" <<<"${tags}" | sort -V | tail -n 1 || true)
+if [[ -z ${newest} ]]; then
+  echo "error: no release of major version ${major} in ${repository}" >&2
   exit 1
 fi
-digest=$(crane digest "$repository:$newest")
-current=$(crane digest "$repository:v$major" 2>/dev/null || true)
-if [[ $current == "$digest" ]]; then
-  echo "v$major already points at $newest."
+digest=$(crane digest "${repository}:${newest}")
+current=$(crane digest "${repository}:v${major}" 2>/dev/null || true)
+if [[ ${current} == "${digest}" ]]; then
+  echo "v${major} already points at ${newest}."
   exit 0
 fi
-crane tag "$repository@$digest" "v$major" >&2
-echo "v$major now points at $newest."
+crane tag "${repository}@${digest}" "v${major}" >&2
+echo "v${major} now points at ${newest}."

@@ -12,26 +12,26 @@ export LC_ALL=C
 
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 # shellcheck disable=SC2034 # read by the checks of the library
-code_root=$root
+code_root=${root}
 testing=${SHELL_LIB:?the tests need SHELL_LIB, the directory of the shell library}/internal/testing
 # shellcheck source=/dev/null
-source "$testing/case.sh"
+source "${testing}/case.sh"
 # shellcheck source=/dev/null
-source "$testing/checks.sh"
+source "${testing}/checks.sh"
 # shellcheck source=/dev/null
-source "$testing/fixtures.sh"
+source "${testing}/fixtures.sh"
 # shellcheck source=/dev/null
-source "$testing/yaml.sh"
+source "${testing}/yaml.sh"
 # shellcheck source=/dev/null
-source "$testing/consumer/action.sh"
+source "${testing}/consumer/action.sh"
 # shellcheck source=lib/checks.sh
-source "$root/tests/lib/checks.sh"
+source "${root}/tests/lib/checks.sh"
 # shellcheck source=lib/stubs.sh
-source "$root/tests/lib/stubs.sh"
+source "${root}/tests/lib/stubs.sh"
 
-for suite in "$root"/tests/unit/{check,publish,release,workflows}/*.sh; do
+for suite in "${root}"/tests/unit/{check,publish,release,workflows}/*.sh; do
   # shellcheck source=/dev/null
-  source "$suite"
+  source "${suite}"
 done
 
 conclude

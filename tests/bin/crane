@@ -12,15 +12,15 @@ unknown() {
 case $1 in
   digest)
     if [[ $2 == --tarball ]]; then
-      echo "$TARBALL_DIGEST"
+      echo "${TARBALL_DIGEST}"
     else
       [[ -z ${CRANE_DENIED-} ]] || {
         echo "Error: DENIED: requested access to the resource is denied" >&2
         exit 1
       }
       tag=${2##*:}
-      [[ -f $REGISTRY/tags/$tag ]] || unknown "$tag"
-      cat "$REGISTRY/tags/$tag"
+      [[ -f ${REGISTRY}/tags/${tag} ]] || unknown "${tag}"
+      cat "${REGISTRY}/tags/${tag}"
     fi
     ;;
   manifest)
@@ -31,21 +31,21 @@ case $1 in
     if [[ $2 == *@* ]]; then
       digest=${2#*@}
     else
-      [[ -f $REGISTRY/tags/${2##*:} ]] || unknown "${2##*:}"
-      digest=$(cat "$REGISTRY/tags/${2##*:}")
+      [[ -f ${REGISTRY}/tags/${2##*:} ]] || unknown "${2##*:}"
+      digest=$(cat "${REGISTRY}/tags/${2##*:}")
     fi
-    [[ -f $REGISTRY/manifests/$digest ]] || unknown "$digest"
-    cat "$REGISTRY/manifests/$digest"
+    [[ -f ${REGISTRY}/manifests/${digest} ]] || unknown "${digest}"
+    cat "${REGISTRY}/manifests/${digest}"
     ;;
   push)
-    echo "push ${3#*@}" >>"$CALLS"
-    printf '%s' '{"mediaType":"application/vnd.docker.distribution.manifest.v2+json"}' >"$REGISTRY/manifests/${3#*@}"
+    echo "push ${3#*@}" >>"${CALLS}"
+    printf '%s' '{"mediaType":"application/vnd.docker.distribution.manifest.v2+json"}' >"${REGISTRY}/manifests/${3#*@}"
     ;;
   tag)
-    echo "tag $3 ${2#*@}" >>"$CALLS"
-    echo "${2#*@}" >"$REGISTRY/tags/$3"
+    echo "tag $3 ${2#*@}" >>"${CALLS}"
+    echo "${2#*@}" >"${REGISTRY}/tags/$3"
     ;;
-  ls) ls "$REGISTRY/tags" ;;
+  ls) ls "${REGISTRY}/tags" ;;
   *)
     echo "stub crane: unsupported: $*" >&2
     exit 2

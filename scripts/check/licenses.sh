@@ -20,7 +20,7 @@ shopt -s inherit_errexit
 
 output=$1
 # shellcheck source=/dev/null # scripts/lib/image.sh, from the app
-source "$IMAGE_LIB"
+source "${IMAGE_LIB}"
 system=$(current_system)
 
 # generate_sbom DIR: writes the SBOM of the image as sbomnix makes it to
@@ -33,43 +33,43 @@ system=$(current_system)
 # license and the check fails with "unlicensed". Revisit on a sbomnix upgrade.
 generate_sbom() {
   local dir=$1
-  (cd -- "$dir" && NIX_PATH="nixpkgs=$NIXPKGS" sbomnix "$CLOSURE_ROOT" --cdx sbom.cdx.json >&2)
+  (cd -- "${dir}" && NIX_PATH="nixpkgs=${NIXPKGS}" sbomnix "${CLOSURE_ROOT}" --cdx sbom.cdx.json >&2)
 }
 
 # complete_licenses SBOM: prints SBOM, its components without a license
 # completed from KNOWN_LICENSES by name without a trailing version.
 complete_licenses() {
   local sbom=$1
-  jq -L "$LICENSES_JQ" --slurpfile known "$KNOWN_LICENSES" --from-file "$LICENSES_JQ/complete.jq" "$sbom"
+  jq -L "${LICENSES_JQ}" --slurpfile known "${KNOWN_LICENSES}" --from-file "${LICENSES_JQ}/complete.jq" "${sbom}"
 }
 
 # sbom_problems SBOM: prints the problems of SBOM, one per line.
 sbom_problems() {
   local sbom=$1
-  jq -r -L "$LICENSES_JQ" --rawfile closure "$CLOSURE" --rawfile deny "$NON_REDISTRIBUTABLE" \
-    --arg root "$CLOSURE_ROOT" --from-file "$LICENSES_JQ/problems.jq" "$sbom"
+  jq -r -L "${LICENSES_JQ}" --rawfile closure "${CLOSURE}" --rawfile deny "${NON_REDISTRIBUTABLE}" \
+    --arg root "${CLOSURE_ROOT}" --from-file "${LICENSES_JQ}/problems.jq" "${sbom}"
 }
 
 # print_summary SBOM: prints the number of components and store paths.
 print_summary() {
   local sbom=$1 count
-  count=$(jq '.components | length' "$sbom")
-  echo "The SBOM of $system has $count components for $(grep -c . "$CLOSURE") store paths."
+  count=$(jq '.components | length' "${sbom}")
+  echo "The SBOM of ${system} has ${count} components for $(grep -c . "${CLOSURE}") store paths."
 }
 
 # fail_on PROBLEMS: fails listing PROBLEMS, one per line, unless empty.
 fail_on() {
   local problems=$1
-  [[ -n $problems ]] || return 0
+  [[ -n ${problems} ]] || return 0
   echo "error: the SBOM does not pass:" >&2
-  printf '  %s\n' "$problems" >&2
+  printf '  %s\n' "${problems}" >&2
   exit 1
 }
 
 work=$(mktemp -d)
 trap 'rm -rf -- "$work"' EXIT
-generate_sbom "$work"
-complete_licenses "$work/sbom.cdx.json" >"$output"
-problems=$(sbom_problems "$output")
-print_summary "$output"
-fail_on "$problems"
+generate_sbom "${work}"
+complete_licenses "${work}/sbom.cdx.json" >"${output}"
+problems=$(sbom_problems "${output}")
+print_summary "${output}"
+fail_on "${problems}"

@@ -11,16 +11,16 @@
 # glibc.
 reproducible_setup() {
   stubbed_setup
-  apply STREAM="$work/stream" IMAGE_LIB="$code_root/scripts/lib/image.sh" \
-    DERIVATION=/nix/store/aaaa-stream.drv DERIVATIONS="$work/derivations.json" \
+  apply STREAM="${work}/stream" IMAGE_LIB="${code_root}/scripts/lib/image.sh" \
+    DERIVATION=/nix/store/aaaa-stream.drv DERIVATIONS="${work}/derivations.json" \
     UNCACHED="/nix/store/aaaa-stream /nix/store/bbbb-layer /nix/store/eeee-bootstrap"
-  cat >"$work/stream" <<STREAM
+  cat >"${work}/stream" <<STREAM
 #!$(command -v bash)
 echo image
-if [[ -e $work/vary ]]; then echo "\$SRANDOM"; fi
+if [[ -e ${work}/vary ]]; then echo "\$SRANDOM"; fi
 STREAM
-  chmod +x "$work/stream"
-  cat >"$work/derivations.json" <<'DERIVATIONS'
+  chmod +x "${work}/stream"
+  cat >"${work}/derivations.json" <<'DERIVATIONS'
 {
   "version": 4,
   "derivations": {
@@ -77,7 +77,7 @@ expect message "bbbb-layer.drv' may not be deterministic"
 finish
 
 reproducible_setup
-touch "$work/vary"
+touch "${work}/vary"
 run "reproducible: different streams fail" fail scripts/check/reproducible.sh
 expect message "two streams of the image differ"
 finish

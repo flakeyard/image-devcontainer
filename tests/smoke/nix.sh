@@ -6,7 +6,7 @@
 # --- the store and trust ---------------------------------------------------------
 
 test_case "the store and the Nix settings belong to root"
-run -i -- sh -s <"$probes/store-owner.sh"
+run -i -- sh -s <"${probes}/store-owner.sh"
 expect_line "root 1775"
 expect_line "checked"
 expect_no_text "written"
@@ -28,47 +28,47 @@ expect_text "https://local.invalid"
 
 test_case "nix.conf is exactly the image's"
 run -- cat /etc/nix/nix.conf
-[[ $output == "$(<"$EXPECTED/nix.conf")" ]] || fail "nix.conf differs"
+[[ ${output} == "$(<"${EXPECTED}/nix.conf")" ]] || fail "nix.conf differs"
 
 test_case "the environment is exactly the image's"
-output=$(docker inspect "$IMAGE" --format '{{range .Config.Env}}{{println .}}{{end}}')
-[[ $(sed '/^$/d' <<<"$output") == "$(sed '/^$/d' "$EXPECTED/env")" ]] || fail "Env differs"
+output=$(docker inspect "${IMAGE}" --format '{{range .Config.Env}}{{println .}}{{end}}')
+[[ $(sed '/^$/d' <<<"${output}") == "$(sed '/^$/d' "${EXPECTED}/env")" ]] || fail "Env differs"
 
 test_case "the labels and the creation date do not change per commit"
-output=$(docker inspect "$IMAGE" --format '{{json .Config.Labels}} {{.Created}}')
-[[ $(docker inspect "$IMAGE" --format '{{index .Config.Labels "devcontainer.metadata"}}') == "$(<"$EXPECTED/metadata")" ]] \
+output=$(docker inspect "${IMAGE}" --format '{{json .Config.Labels}} {{.Created}}')
+[[ $(docker inspect "${IMAGE}" --format '{{index .Config.Labels "devcontainer.metadata"}}') == "$(<"${EXPECTED}/metadata")" ]] \
   || fail "devcontainer.metadata differs"
 expect_no_text "image.version"
 expect_no_text "image.revision"
 expect_text "1970-01-01T00:00:01Z"
 
 test_case "one Nix version, the same in the client, the daemon and on the runner"
-nix_version=$(<"$EXPECTED/nix-version")
+nix_version=$(<"${EXPECTED}/nix-version")
 run -- sh -c 'nix --version; nix store info | grep Version; for p in /nix/store/*-nix-2.[0-9]*; do basename "$p"; done'
-expect_line "nix (Nix) $nix_version"
-expect_line "Version: $nix_version"
-versions=$(grep -oE -- '-nix-2\.[0-9]+\.[0-9]+$' <<<"$output" | sort -u)
-[[ $versions == "-nix-$nix_version" ]] || fail "Nix versions in the store: $(paste -sd' ' <<<"$versions")"
+expect_line "nix (Nix) ${nix_version}"
+expect_line "Version: ${nix_version}"
+versions=$(grep -oE -- '-nix-2\.[0-9]+\.[0-9]+$' <<<"${output}" | sort -u)
+[[ ${versions} == "-nix-${nix_version}" ]] || fail "Nix versions in the store: $(paste -sd' ' <<<"${versions}")"
 runner=$(nix --version)
 runner_version=${runner##* }
-[[ $runner_version == "${nix_version%.*}".* ]] || fail "the runner has $runner_version, the image $nix_version"
+[[ ${runner_version} == "${nix_version%.*}".* ]] || fail "the runner has ${runner_version}, the image ${nix_version}"
 
 # --- garbage collection -----------------------------------------------------------
 
 test_case "garbage collection keeps every store path the image uses"
 start_ready id
-collect_garbage "$id"
-config=$(docker inspect "$IMAGE" --format '{{json .Config}}')
-output=$(docker exec -i -e CONFIG="$config" "$id" sh -s <"$probes/store-paths-in-use.sh" 2>&1)
+collect_garbage "${id}"
+config=$(docker inspect "${IMAGE}" --format '{{json .Config}}')
+output=$(docker exec -i -e CONFIG="${config}" "${id}" sh -s <"${probes}/store-paths-in-use.sh" 2>&1)
 expect_line "checked"
 expect_no_text "missing"
-docker restart "$id" >/dev/null
-poll "$daemon_timeout" ready "$id" || fail "the daemon did not answer after garbage collection and a restart"
-remove "$id"
+docker restart "${id}" >/dev/null
+poll "${daemon_timeout}" ready "${id}" || fail "the daemon did not answer after garbage collection and a restart"
+remove "${id}"
 
 test_case "the store holds exactly the closure the SBOM describes"
 run -- sh -c 'for p in /nix/store/*; do echo "$p"; done'
-actual=$(grep '^/nix/store/' <<<"$output" | sort)
-closure=$(sort "$EXPECTED/closure")
-[[ $actual == "$closure" ]] \
-  || fail "differs: $(diff <(echo "$closure") <(echo "$actual") | grep '^[<>]' | head -n 5 | paste -sd' ')"
+actual=$(grep '^/nix/store/' <<<"${output}" | sort)
+closure=$(sort "${EXPECTED}/closure")
+[[ ${actual} == "${closure}" ]] \
+  || fail "differs: $(diff <(echo "${closure}") <(echo "${actual}") | grep '^[<>]' | head -n 5 | paste -sd' ')"

@@ -11,20 +11,20 @@ set -euo pipefail
 shopt -s inherit_errexit
 
 # shellcheck source=/dev/null # scripts/publish/lib.sh, from the app
-source "$PUBLISH_LIB"
+source "${PUBLISH_LIB}"
 
 repository=$1 version=$2 digest=$3
-tag=v$version
-require_version "$version"
-require_digest "$digest"
+tag=v${version}
+require_version "${version}"
+require_digest "${digest}"
 work=$(mktemp -d)
 trap 'rm -rf -- "$work"' EXIT
 
-state=$(tag_state "$tag")
-check_tag_immutable "$tag" "$state" "$digest"
-if [[ $state == absent ]]; then
-  crane tag "$repository@$digest" "$tag" >&2
-  echo "$tag now points at $digest."
+state=$(tag_state "${tag}")
+check_tag_immutable "${tag}" "${state}" "${digest}"
+if [[ ${state} == absent ]]; then
+  crane tag "${repository}@${digest}" "${tag}" >&2
+  echo "${tag} now points at ${digest}."
 else
-  echo "$tag already points at $digest."
+  echo "${tag} already points at ${digest}."
 fi

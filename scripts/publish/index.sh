@@ -17,23 +17,23 @@ docker_manifest_type=application/vnd.docker.distribution.manifest.v2+json
 oci_manifest_type=application/vnd.oci.image.manifest.v1+json
 
 # shellcheck source=/dev/null # scripts/publish/lib.sh, from the app
-source "$PUBLISH_LIB"
+source "${PUBLISH_LIB}"
 
 # descriptor DIGEST ARCH: the entry of a platform manifest, which must exist
 # in the registry. Keeps the manifest in $work, which the script removes.
 descriptor() {
-  local digest=$1 arch=$2 manifest=$work/$2.json type size
+  local digest=$1 arch=$2 manifest=${work}/$2.json type size
   # The exact bytes: $(...) would drop trailing newlines and change the size.
-  crane manifest "$repository@$digest" >"$manifest"
-  size=$(wc -c <"$manifest")
-  type=$(jq -r .mediaType "$manifest")
-  case $type in
-    "$docker_manifest_type" | "$oci_manifest_type") ;;
+  crane manifest "${repository}@${digest}" >"${manifest}"
+  size=$(wc -c <"${manifest}")
+  type=$(jq -r .mediaType "${manifest}")
+  case ${type} in
+    "${docker_manifest_type}" | "${oci_manifest_type}") ;;
     *)
-      fail "$repository@$digest is not an image manifest: $type"
+      fail "${repository}@${digest} is not an image manifest: ${type}"
       ;;
   esac
-  jq -cn --arg digest "$digest" --arg arch "$arch" --arg type "$type" --argjson size "$size" \
+  jq -cn --arg digest "${digest}" --arg arch "${arch}" --arg type "${type}" --argjson size "${size}" \
     '{mediaType: $type, digest: $digest, size: $size, platform: {architecture: $arch, os: "linux"}}'
 }
 
@@ -42,9 +42,9 @@ descriptor() {
 index_manifest() {
   local amd64_entry=$1 arm64_entry=$2
   jq -cnS \
-    --argjson amd64 "$amd64_entry" \
-    --argjson arm64 "$arm64_entry" \
-    --arg type "$index_type" --arg version "$version" --arg revision "$revision" \
+    --argjson amd64 "${amd64_entry}" \
+    --argjson arm64 "${arm64_entry}" \
+    --arg type "${index_type}" --arg version "${version}" --arg revision "${revision}" \
     '{schemaVersion: 2, mediaType: $type,
       manifests: [$amd64, $arm64],
       annotations: {
@@ -58,28 +58,28 @@ index_manifest() {
 # content_digest CONTENT: the digest of the bytes of CONTENT.
 content_digest() {
   local content=$1 sum
-  sum=$(printf '%s' "$content" | sha256sum)
+  sum=$(printf '%s' "${content}" | sha256sum)
   echo "sha256:${sum%% *}"
 }
 
 repository=$1 version=$2 revision=$3 amd64=$4 arm64=$5
-tag=v$version
-require_version "$version"
-require_digest "$amd64"
-require_digest "$arm64"
+tag=v${version}
+require_version "${version}"
+require_digest "${amd64}"
+require_digest "${arm64}"
 work=$(mktemp -d)
 trap 'rm -rf -- "$work"' EXIT
 
 # The list as canonical JSON and its digest. Assigned first: a failure
 # inside an argument would not stop the script.
-amd64_entry=$(descriptor "$amd64" amd64)
-arm64_entry=$(descriptor "$arm64" arm64)
-index=$(index_manifest "$amd64_entry" "$arm64_entry")
-digest=$(content_digest "$index")
+amd64_entry=$(descriptor "${amd64}" amd64)
+arm64_entry=$(descriptor "${arm64}" arm64)
+index=$(index_manifest "${amd64_entry}" "${arm64_entry}")
+digest=$(content_digest "${index}")
 
 # The tag may only be set later when absent or already at the digest.
-state=$(tag_state "$tag")
-check_tag_immutable "$tag" "$state" "$digest"
+state=$(tag_state "${tag}")
+check_tag_immutable "${tag}" "${state}" "${digest}"
 
-printf '%s' "$index" | regctl manifest put --content-type "$index_type" "$repository@$digest" >&2
-echo "$digest"
+printf '%s' "${index}" | regctl manifest put --content-type "${index_type}" "${repository}@${digest}" >&2
+echo "${digest}"

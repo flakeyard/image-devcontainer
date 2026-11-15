@@ -5,17 +5,17 @@
 
 test_case "root never runs programs from dev's profile"
 start_ready id
-docker exec -i -u dev "$id" sh -s <"$probes/plant-profile.sh"
-output=$(docker exec "$id" sh -c 'id -u')
+docker exec -i -u dev "${id}" sh -s <"${probes}/plant-profile.sh"
+output=$(docker exec "${id}" sh -c 'id -u')
 expect_line "0"
 # Only whether the shells ran a program of the profile matters.
-docker exec "$id" bash -ic true >/dev/null 2>&1 || true
-docker exec "$id" bash -lc true >/dev/null 2>&1 || true
-output=$(docker exec "$id" sh -c 'ls /tmp/ran-from-profile 2>&1 || echo clean')
+docker exec "${id}" bash -ic true >/dev/null 2>&1 || true
+docker exec "${id}" bash -lc true >/dev/null 2>&1 || true
+output=$(docker exec "${id}" sh -c 'ls /tmp/ran-from-profile 2>&1 || echo clean')
 expect_line "clean"
-output=$(docker exec -u dev "$id" bash -ic 'command -v direnv')
+output=$(docker exec -u dev "${id}" bash -ic 'command -v direnv')
 expect_text "/home/dev/.nix-profile/bin/direnv"
-remove "$id"
+remove "${id}"
 
 test_case "NIX_CONFIG of the container does not reach the daemon"
 run -e NIX_CONFIG='trusted-users = root dev' -- nix store info
@@ -24,40 +24,40 @@ expect_line "Trusted: 0"
 test_case "rejects a DEV_UID that does not fit a uid, also after a restart"
 start_ready id -e DEV_UID=4294967296
 output=$(
-  docker exec -u dev "$id" id -u 2>&1
-  docker logs "$id" 2>&1
+  docker exec -u dev "${id}" id -u 2>&1
+  docker logs "${id}" 2>&1
 )
 expect_line "1000"
 expect_text "expected decimal uid and gid up to 4294967294"
-docker restart "$id" >/dev/null
-poll "$daemon_timeout" ready "$id" || fail "the command or the daemon did not start after a restart"
+docker restart "${id}" >/dev/null
+poll "${daemon_timeout}" ready "${id}" || fail "the command or the daemon did not start after a restart"
 # The command of the container, sleep, runs as dev after the restart too.
 expect_line "1000"
-remove "$id"
+remove "${id}"
 
 test_case "only the command reads LD_PRELOAD, and it gets the container's variables"
 # A library that does not exist: the loader of glibc reports it in every
 # program that reads LD_PRELOAD, where a library would run.
 run -e LD_PRELOAD=/no-such-library.so -e GCONV_PATH=/tmp -- sh -c 'echo "$LD_PRELOAD $GCONV_PATH"'
 expect_line "/no-such-library.so /tmp"
-[[ $(grep -c "no-such-library.so' from LD_PRELOAD" <<<"$output") == 1 ]] || fail "more programs than the command read it"
+[[ $(grep -c "no-such-library.so' from LD_PRELOAD" <<<"${output}") == 1 ]] || fail "more programs than the command read it"
 
 test_case "no command line has the variables of the container"
 # A value that only the environment of the container has. The probe gets it
 # in its environment: docker exec runs on the runner.
-secret=secret-$RANDOM$RANDOM
-id=$(start -e SECRET_TOKEN="$secret")
-output=$(docker exec -i -e PROBE_VALUE="$secret" "$id" sh -s <"$probes/cmdline-secret.sh" 2>&1)
+secret=secret-${RANDOM}${RANDOM}
+id=$(start -e SECRET_TOKEN="${secret}")
+output=$(docker exec -i -e PROBE_VALUE="${secret}" "${id}" sh -s <"${probes}/cmdline-secret.sh" 2>&1)
 expect_line scanned
 expect_no_text /proc/
-poll "$daemon_timeout" ready "$id" || fail "the command or the daemon did not start"
-output=$(docker exec -i -e PROBE_VALUE="$secret" "$id" sh -s <"$probes/cmdline-secret.sh" 2>&1)
+poll "${daemon_timeout}" ready "${id}" || fail "the command or the daemon did not start"
+output=$(docker exec -i -e PROBE_VALUE="${secret}" "${id}" sh -s <"${probes}/cmdline-secret.sh" 2>&1)
 expect_line scanned
 expect_no_text /proc/
-remove "$id"
+remove "${id}"
 
 test_case "dev cannot change the files that decide trust"
-run -i -- sh -s <"$probes/trust-files.sh"
+run -i -- sh -s <"${probes}/trust-files.sh"
 expect_line "checked"
 expect_line "root:nixbld 1775"
 expect_no_text "wrote"
@@ -67,36 +67,36 @@ build_fixture "${only_documented_caps[@]}"
 expect_build_user
 
 test_case "stdin from a pipe is readable by dev"
-output=$(echo from-stdin | timeout 60 docker run --rm -i "$IMAGE" sh -c 'cat /dev/stdin' 2>&1)
+output=$(echo from-stdin | timeout 60 docker run --rm -i "${IMAGE}" sh -c 'cat /dev/stdin' 2>&1)
 expect_line "from-stdin"
 
 test_case "every link into the store outside the store is kept by GC"
 start_ready id
-collect_garbage "$id"
-output=$(docker exec -i "$id" sh -s <"$probes/dangling-links.sh" 2>&1)
+collect_garbage "${id}"
+output=$(docker exec -i "${id}" sh -s <"${probes}/dangling-links.sh" 2>&1)
 expect_line "checked"
 expect_no_text "dangling"
-remove "$id"
+remove "${id}"
 
 test_case "a mounted home keeps the owner of its files"
-mkdir -p "$WORK/home/old"
-touch "$WORK/home/old/file"
-sudo chown 1004:1004 "$WORK/home"
-sudo chown -R 1000:1000 "$WORK/home/old"
-run -v "$WORK/home:/home/dev" -- id -u
+mkdir -p "${WORK}/home/old"
+touch "${WORK}/home/old/file"
+sudo chown 1004:1004 "${WORK}/home"
+sudo chown -R 1000:1000 "${WORK}/home/old"
+run -v "${WORK}/home:/home/dev" -- id -u
 expect_line "1004"
 expect_text "/home/dev is a mount point: its files keep their owner"
-[[ $(stat -c %u:%g "$WORK/home/old" "$WORK/home/old/file" | sort -u) == 1000:1000 ]] \
-  || fail "files of the old uid changed owner: $(stat -c '%n %u:%g' "$WORK/home/old" "$WORK/home/old/file")"
+[[ $(stat -c %u:%g "${WORK}/home/old" "${WORK}/home/old/file" | sort -u) == 1000:1000 ]] \
+  || fail "files of the old uid changed owner: $(stat -c '%n %u:%g' "${WORK}/home/old" "${WORK}/home/old/file")"
 
 test_case "the daemon gets the proxies but not the settings of the container"
 # Nothing listens at the proxy; the daemon only has to start.
 start_ready id -e https_proxy=http://proxy.invalid:3128 -e NIX_CONFIG='trusted-users = root dev' -e XDG_CONFIG_HOME=/tmp
-output=$(docker exec -i "$id" sh -s <"$probes/daemon-environ.sh" 2>&1)
+output=$(docker exec -i "${id}" sh -s <"${probes}/daemon-environ.sh" 2>&1)
 expect_line "https_proxy=http://proxy.invalid:3128"
 expect_no_text "NIX_CONFIG"
 expect_no_text "XDG_CONFIG_HOME"
-remove "$id"
+remove "${id}"
 
 test_case "dev can reopen the terminal of docker run -t"
 run -t -- sh -c 'echo to-stderr >/dev/stderr && stat -c %U "$(readlink /proc/self/fd/2)"'

@@ -15,15 +15,15 @@ repository=$1
 arch=$2
 flake=${3:-.}
 # shellcheck source=/dev/null # scripts/publish/lib.sh, from the app
-source "$PUBLISH_LIB"
-tested=$(tested_digest "$arch")
+source "${PUBLISH_LIB}"
+tested=$(tested_digest "${arch}")
 
 archive=$(mktemp)
 trap 'rm -f -- "$archive"' EXIT
 # The tested and the pushed digest come from the same code.
-digest=$("$PUBLISH_DIGEST" "$archive" "$flake")
-if [[ $digest != "$tested" ]]; then
-  fail "the image has digest $digest, but $tested was tested"
+digest=$("${PUBLISH_DIGEST}" "${archive}" "${flake}")
+if [[ ${digest} != "${tested}" ]]; then
+  fail "the image has digest ${digest}, but ${tested} was tested"
 fi
-crane push "$archive" "$repository@$digest" >&2
-echo "$digest"
+crane push "${archive}" "${repository}@${digest}" >&2
+echo "${digest}"
