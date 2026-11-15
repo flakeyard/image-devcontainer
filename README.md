@@ -247,8 +247,12 @@ Podman and sudo; tools that the shell does not have come from nixpkgs, such as
 
 - `nix flake check` checks the tools, the users and Nix settings, the entrypoint
   and the scripts with their unit tests (`tests/unit/`), that the image builds,
-  formatting (`nix fmt`), and the workflows and actions with actionlint and
-  zizmor of [atom-workflows][atom-workflows] (`checks.workflows`).
+  and runs the checks of the atoms: [atom-nix][atom-nix] lints the Nix files
+  with statix, deadnix and its relative paths hook (`checks.nix`),
+  [atom-shell][atom-shell] lints the scripts with shellcheck (`checks.shell`),
+  nixfmt and shfmt check their formatting through treefmt (`checks.treefmt`,
+  `nix fmt`), and [atom-workflows][atom-workflows] lints the workflows and
+  actions with actionlint and zizmor (`checks.workflows`).
 - `nix run .#check-reproducible` rebuilds the derivations of the image that
   `cache.nixos.org` does not have with `--rebuild`, whatever the local store has
   built, and compares two streams of the image;
@@ -299,8 +303,8 @@ the development shell has.
 This repository is bootstrapped under [FY-0022][fy-0022]. Until their providers
 are released:
 
-- shellcheck, shfmt, statix, deadnix, Prettier, markdownlint, typos and
-  `reuse lint` run locally before every pull request (provider: the atoms).
+- Prettier, markdownlint, typos and `reuse lint` run locally before every pull
+  request (provider: the atoms).
 
 ## License
 
@@ -319,6 +323,8 @@ are released:
 [fy-0034]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0034-check-every-repository-with-workflow-check.md
 [workflow-check]: https://github.com/flakeyard/workflow-check
+[atom-nix]: https://github.com/flakeyard/atom-nix
+[atom-shell]: https://github.com/flakeyard/atom-shell
 [atom-workflows]: https://github.com/flakeyard/atom-workflows
 [action-flake-lock]: https://github.com/flakeyard/action-flake-lock
 [action-shell-lib]: https://github.com/flakeyard/action-shell-lib

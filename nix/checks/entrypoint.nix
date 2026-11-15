@@ -25,7 +25,6 @@
               gawk
               gnused
               gnugrep
-              shellcheck
             ];
             inherit (parts.users) passwd group;
             inherit (parts) environ;
@@ -43,7 +42,6 @@
           ''
             grep -qx 'user=${parts.users.user}' "$script"
             grep -qx 'home=${parts.users.home}' "$script"
-            shellcheck -x -e SC1091 "$tests/unit/entrypoint.sh" "$tests/unit/environ.sh"
             PASSWD=$passwd GROUP=$group ENTRYPOINT=$script BUILT=$built ENVIRON=$environ SHELL_LIB=${shellLib} \
               bash "$tests/unit/entrypoint.sh"
             ENVIRON=$environ SHELL_LIB=${shellLib} bash "$tests/unit/environ.sh"
