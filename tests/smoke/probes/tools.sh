@@ -5,7 +5,7 @@
 for tool in nix direnv bash ls find diff grep sed awk tar gzip xz bzip2 zstd less ps which mount getent curl git ssh tini; do
   command -v "${tool}" >/dev/null || echo "missing ${tool}"
 done
-command -v sshd >/dev/null && echo "ssh-server $(command -v sshd)"
+if sshd_path=$(command -v sshd); then echo "ssh-server ${sshd_path}"; fi
 for file in /bin/sshd /libexec/sshd-session /libexec/sshd-auth /libexec/sftp-server /etc/ssh/sshd_config; do
   [[ ! -e ${file} ]] || echo "ssh-server ${file}"
 done

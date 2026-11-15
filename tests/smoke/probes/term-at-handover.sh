@@ -5,6 +5,7 @@ child=""
 until [ -n "${child}" ]; do
   child=$(cut -d ' ' -f 1 /proc/1/task/1/children 2>/dev/null)
 done
-while [ "$(cat "/proc/${child}/comm" 2>/dev/null)" = entrypoint ]; do :; done
+comm=entrypoint
+while [ "${comm}" = entrypoint ]; do comm=$(cat "/proc/${child}/comm" 2>/dev/null); done
 cat "/proc/${child}/comm" 2>/dev/null || echo "an ended process"
 kill -TERM 1

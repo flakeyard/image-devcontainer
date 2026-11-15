@@ -178,9 +178,10 @@ set_identity() {
 
 # has_identity UID GID: passwd and group both give `dev` this uid and gid.
 has_identity() {
-  local uid=$1 gid=$2 identity
-  identity=$(current_identity)
-  [[ ${identity} == "${uid} ${gid}" && $(field "${group_file}" "${user}" 3) == "${gid}" ]]
+  local uid=$1 gid=$2 identity group_gid
+  identity=$(current_identity) || return 1
+  group_gid=$(field "${group_file}" "${user}" 3) || return 1
+  [[ ${identity} == "${uid} ${gid}" && ${group_gid} == "${gid}" ]]
 }
 
 # update_accounts UID GID: gives `dev` this uid and gid in group and passwd.
@@ -194,8 +195,9 @@ update_accounts() {
 
 # rewrite_group GID: gives the group `dev` this gid, unless it has it.
 rewrite_group() {
-  local gid=$1
-  [[ $(field "${group_file}" "${user}" 3) != "${gid}" ]] || return 0
+  local gid=$1 group_gid
+  group_gid=$(field "${group_file}" "${user}" 3) || return 1
+  [[ ${group_gid} != "${gid}" ]] || return 0
   sed -i -e "s/^${user}:\([^:]*\):[0-9]*:/${user}:\1:${gid}:/" "${group_file}"
 }
 
@@ -230,22 +232,21 @@ own_home() {
 # path with a link while the container starts could redirect it; chown -R
 # would not, but it would also cross into mounted files of the host.
 own_files() {
-  local test=$1 old=$2 new=$3
+  local test=$1 old=$2 new=$3 -
   # Without the mount points, mounted files of the host would change owner.
   [[ -r ${mountinfo} ]] || return 1
-  find "${home}" -xdev "${test}" "${old}" -print0 | not_mounted | change_owner "${new}"
+  set -o pipefail
+  # find reports a file that it cannot read and goes on, as before: that file
+  # keeps its owner. A failure of not_mounted or change_owner fails.
+  { find "${home}" -xdev "${test}" "${old}" -print0 || true; } | not_mounted | change_owner "${new}"
 }
 
 # not_mounted: of the NUL-separated paths on stdin, prints those that are not
-# mount points, NUL-separated.
+# mount points under home in mountinfo, NUL-separated; fails, printing
+# nothing, when it cannot read mountinfo. Mountinfo writes a space, tab,
+# newline or backslash as an octal escape.
 not_mounted() {
-  awk -v RS='\0' -v ORS='\0' 'FILENAME == ARGV[1] { mounted[$0]; next } !($0 in mounted)' <(mount_points) -
-}
-
-# mount_points: the mount points of mountinfo under home, NUL-separated.
-# Mountinfo writes a space, tab, newline or backslash as an octal escape.
-mount_points() {
-  awk -v ORS='\0' -v prefix="${home}/" '
+  awk -v ORS='\0' -v mountinfo="${mountinfo}" -v prefix="${home}/" '
     function decode(path,  decoded) {
       while (match(path, /\\[0-7][0-7][0-7]/)) {
         decoded = decoded substr(path, 1, RSTART - 1) sprintf("%c", octal(substr(path, RSTART + 1, 3)))
@@ -254,8 +255,17 @@ mount_points() {
       return decoded path
     }
     function octal(digits) { return substr(digits, 1, 1) * 64 + substr(digits, 2, 1) * 8 + substr(digits, 3, 1) }
-    { point = decode($5) }
-    index(point, prefix) == 1 { print point }' "${mountinfo}"
+    BEGIN {
+      while ((status = (getline line < mountinfo)) > 0) {
+        split(line, fields)
+        point = decode(fields[5])
+        if (index(point, prefix) == 1) mounted[point]
+      }
+      if (status < 0) exit 2
+      close(mountinfo)
+      RS = "\0"
+    }
+    !($0 in mounted)'
 }
 
 # give_streams UID GID: gives stdin, stdout and stderr to the user when the
@@ -276,6 +286,8 @@ give_streams() {
       /dev/pts/* | /dev/console)
         if [[ -c ${stream} ]]; then chown "${uid}" "${stream}" 2>/dev/null || true; fi
         ;;
+      # Files, named FIFOs and /dev/null may belong to the host.
+      *) ;;
     esac
   done
 }
@@ -393,8 +405,9 @@ runnable() {
 main() {
   read_environment "$@" || exit 1
   shift
-  if [[ $(id -u) != 0 ]]; then run_unprivileged "$@"; fi
-  local identity uid gid
+  local euid identity uid gid
+  euid=$(id -u)
+  if [[ ${euid} != 0 ]]; then run_unprivileged "$@"; fi
   identity=$(wanted_identity)
   read -r uid gid <<<"${identity}"
   set_identity "${uid}" "${gid}" || exit 1
@@ -444,8 +457,9 @@ is_one_of() {
 # run_unprivileged COMMAND...: runs the command as it is, with the environment
 # of the container, without the daemon.
 run_unprivileged() {
-  local env environ
-  log "started as uid $(id -u) instead of 0: the Nix daemon is not running."
+  local env environ euid
+  euid=$(id -u)
+  log "started as uid ${euid} instead of 0: the Nix daemon is not running."
   log "start the container as root (the default); it switches to '${user}' itself."
   env=$(command -v env)
   environ=$(command -v environ)

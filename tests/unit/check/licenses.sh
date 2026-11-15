@@ -19,16 +19,21 @@ licenses_setup() {
   printf '%s\n%s\n' "${a}" "${b}" >"${work}/closure"
   printf 'BUSL-1.1\nunfree\n' >"${work}/deny"
   echo '{"nix-cmd": ["LGPL-2.1-or-later"]}' >"${work}/known.json"
+  : >"${work}/components"
 }
 
-# component NAME PATH LICENSES_JSON
+# add_component JSON: adds the component JSON to the SBOM of the test.
+add_component() { printf '%s\n' "$1" >>"${work}/components"; }
+
+# component NAME PATH LICENSES_JSON: adds a component with one output path.
 component() {
   jq -cn --arg n "$1" --arg p "$2" --argjson l "$3" \
-    '{name: $n, properties: [{name: "nix:output_path", value: $p}]} + (if $l == null then {} else {licenses: $l} end)'
+    '{name: $n, properties: [{name: "nix:output_path", value: $p}]} + (if $l == null then {} else {licenses: $l} end)' \
+    >>"${work}/components"
 }
 
-# sbom COMPONENT...
-sbom() { jq -cs '{components: .}' <<<"$(printf '%s\n' "$@")" >"${work}/sbom.json"; }
+# sbom: writes the SBOM of the components added since the setup.
+sbom() { jq -cs '{components: .}' "${work}/components" >"${work}/sbom.json"; }
 
 # check_licenses NAME EXPECTED: test NAME runs the check, with the completed
 # SBOM in $work/out.json; EXPECTED is ok or fail.
@@ -40,10 +45,12 @@ check_licenses() {
 curl='[{"license":{"id":"curl"}}]'
 
 licenses_setup
-sbom "$(component curl "${a}" "${curl}")" "$(component nix-cmd "${b}" null)"
+component curl "${a}" "${curl}"
+component nix-cmd "${b}" null
+sbom
 check_licenses "complete and licensed, with a known license" ok
 if [[ -n ${current} ]] && ! jq -e '.components[1].licenses[0].license.id == "LGPL-2.1-or-later"' "${work}/out.json" >/dev/null; then
-  report "nix-cmd was not completed: $(cat "${work}/out.json")"
+  report "nix-cmd was not completed: $(<"${work}/out.json")"
 fi
 expect message "2 components for 2 store paths"
 # The store path, not the flake: sbomnix would clone all of nixpkgs for it.
@@ -51,7 +58,8 @@ expect_calls "NIX_PATH=nixpkgs=${nixpkgs} ${closure_root} --cdx sbom.cdx.json"
 finish
 
 licenses_setup
-sbom "$(component curl "${a}" "${curl}")"
+component curl "${a}" "${curl}"
+sbom
 check_licenses "a store path without a component" fail
 expect message "missing ${b}"
 finish
@@ -63,31 +71,41 @@ expect message "missing ${a}"
 finish
 
 licenses_setup
-sbom "$(component curl "${a}" '[{"expression":"BUSL-1.1"}]')" "$(component nix-cmd "${b}" null)"
+component curl "${a}" '[{"expression":"BUSL-1.1"}]'
+component nix-cmd "${b}" null
+sbom
 check_licenses "a license expression" fail
 expect message "malformed"
 finish
 
 licenses_setup
-sbom "$(component curl "${a}" '[{"license":{"url":"u"}}]')" "$(component nix-cmd "${b}" null)"
+component curl "${a}" '[{"license":{"url":"u"}}]'
+component nix-cmd "${b}" null
+sbom
 check_licenses "a license without id or name" fail
 expect message "malformed"
 finish
 
 licenses_setup
-sbom "$(component curl "${a}" '[{"license":{"id":"MIT"}},{"license":{"id":"BUSL-1.1"}}]')" "$(component nix-cmd "${b}" null)"
+component curl "${a}" '[{"license":{"id":"MIT"}},{"license":{"id":"BUSL-1.1"}}]'
+component nix-cmd "${b}" null
+sbom
 check_licenses "one forbidden license among others" fail
 expect message "forbidden BUSL-1.1 curl"
 finish
 
 licenses_setup
-sbom "$(component curl "${a}" '[{"license":{"name":"unfree"}}]')" "$(component nix-cmd "${b}" null)"
+component curl "${a}" '[{"license":{"name":"unfree"}}]'
+component nix-cmd "${b}" null
+sbom
 check_licenses "a forbidden license by name" fail
 expect message "forbidden unfree curl"
 finish
 
 licenses_setup
-sbom "$(component curl "${a}" null)" "$(component nix-cmd "${b}" null)"
+component curl "${a}" null
+component nix-cmd "${b}" null
+sbom
 check_licenses "a component without a license" fail
 expect message "unlicensed curl"
 finish
@@ -95,7 +113,9 @@ finish
 # Licenses that are not an object with a string id or name.
 for license in '"MIT"' 1 '["MIT"]' '{"id":1}' '{"id":""}' '{"name":["MIT"]}'; do
   licenses_setup
-  sbom "$(component curl "${a}" "[{\"license\":${license}}]")" "$(component nix-cmd "${b}" null)"
+  component curl "${a}" "[{\"license\":${license}}]"
+  component nix-cmd "${b}" null
+  sbom
   check_licenses "a malformed license ${license}" fail
   expect message "malformed"
   finish
@@ -103,37 +123,52 @@ done
 
 for licenses in '"MIT"' '["MIT"]' '{"license":{"id":"MIT"}}'; do
   licenses_setup
-  sbom "$(component curl "${a}" "${licenses}")" "$(component nix-cmd "${b}" null)"
+  component curl "${a}" "${licenses}"
+  component nix-cmd "${b}" null
+  sbom
   check_licenses "malformed licenses ${licenses}" fail
   expect message "malformed"
   finish
 done
 
 licenses_setup
-sbom "$(component curl "${a}" "${curl}")" "$(component nix-cmd "${b}" null)" "$(component zlib "${c}" '[{"license":{"id":"Zlib"}}]')"
+component curl "${a}" "${curl}"
+component nix-cmd "${b}" null
+component zlib "${c}" '[{"license":{"id":"Zlib"}}]'
+sbom
 check_licenses "a component output outside the image" fail
 expect message "extra ${c}"
 finish
 
 licenses_setup
 dev=/nix/store/dddddddddddddddddddddddddddddddd-curl-8.0-dev
-sbom "$(component curl "${a} ${dev}" "${curl}")" "$(component nix-cmd "${b}" null)"
+component curl "${a} ${dev}" "${curl}"
+component nix-cmd "${b}" null
+sbom
 check_licenses "outputs of an image component that the image does not contain" ok
 finish
 
 licenses_setup
-sbom "$(jq -cn --arg a "${a}" --arg dev "${dev}" --argjson l "${curl}" \
-  '{name: "curl", licenses: $l, properties: [{name: "nix:output_path", value: $dev}, {name: "nix:output_path", value: $a}]}')" \
-  "$(component nix-cmd "${b}" null)"
+jq -cn --arg a "${a}" --arg dev "${dev}" --argjson l "${curl}" \
+  '{name: "curl", licenses: $l, properties: [{name: "nix:output_path", value: $dev}, {name: "nix:output_path", value: $a}]}' \
+  >>"${work}/components"
+component nix-cmd "${b}" null
+sbom
 check_licenses "one output path property per output" ok
 finish
 
 licenses_setup
-sbom "$(component curl "${a}" "${curl}")" "$(component nix-cmd "${b}" null)" "$(component image-closure-root "${closure_root}" "${curl}")"
+component curl "${a}" "${curl}"
+component nix-cmd "${b}" null
+component image-closure-root "${closure_root}" "${curl}"
+sbom
 check_licenses "the closure root is not extra" ok
 finish
 
 licenses_setup
-sbom "$(component curl "${a}" "${curl}")" "$(component nix-cmd "${b}" null)" '{"name":"source","licenses":[{"license":{"id":"MIT"}}]}'
+component curl "${a}" "${curl}"
+component nix-cmd "${b}" null
+add_component '{"name":"source","licenses":[{"license":{"id":"MIT"}}]}'
+sbom
 check_licenses "a component without an output path" ok
 finish

@@ -40,7 +40,9 @@ test_case "only the command reads LD_PRELOAD, and it gets the container's variab
 # program that reads LD_PRELOAD, where a library would run.
 run -e LD_PRELOAD=/no-such-library.so -e GCONV_PATH=/tmp -- sh -c 'echo "$LD_PRELOAD $GCONV_PATH"'
 expect_line "/no-such-library.so /tmp"
-[[ $(grep -c "no-such-library.so' from LD_PRELOAD" <<<"${output}") == 1 ]] || fail "more programs than the command read it"
+# grep -c fails when it counts none, which the test reports.
+readers=$(grep -c "no-such-library.so' from LD_PRELOAD" <<<"${output}") || true
+[[ ${readers} == 1 ]] || fail "more programs than the command read it"
 
 test_case "no command line has the variables of the container"
 # A value that only the environment of the container has. The probe gets it
@@ -86,8 +88,13 @@ sudo chown -R 1000:1000 "${WORK}/home/old"
 run -v "${WORK}/home:/home/dev" -- id -u
 expect_line "1004"
 expect_text "/home/dev is a mount point: its files keep their owner"
-[[ $(stat -c %u:%g "${WORK}/home/old" "${WORK}/home/old/file" | sort -u) == 1000:1000 ]] \
-  || fail "files of the old uid changed owner: $(stat -c '%n %u:%g' "${WORK}/home/old" "${WORK}/home/old/file")"
+# A failing stat fails the test, not the suite.
+owners=$(stat -c %u:%g "${WORK}/home/old" "${WORK}/home/old/file" 2>&1) || true
+unique=$(sort -u <<<"${owners}")
+if [[ ${unique} != 1000:1000 ]]; then
+  owners=$(stat -c '%n %u:%g' "${WORK}/home/old" "${WORK}/home/old/file" 2>&1) || true
+  fail "files of the old uid changed owner: ${owners}"
+fi
 
 test_case "the daemon gets the proxies but not the settings of the container"
 # Nothing listens at the proxy; the daemon only has to start.

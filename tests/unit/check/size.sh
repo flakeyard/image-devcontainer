@@ -2,12 +2,15 @@
 # Tests of scripts/check/size.sh, with a stub of nix and a fake image stream.
 # shellcheck disable=SC2154 # work comes from setup
 
+# The bash of the stubs.
+bash_path=$(command -v bash)
+
 # size_setup: a stream of the image of 3 MiB on x86_64-linux.
 size_setup() {
   stubbed_setup
   apply STREAM="${work}/stream" SYSTEM=x86_64-linux IMAGE_LIB="${code_root}/scripts/lib/image.sh"
   cat >"${work}/stream" <<STREAM
-#!$(command -v bash)
+#!${bash_path}
 head -c 3145728 /dev/zero
 STREAM
   chmod +x "${work}/stream"

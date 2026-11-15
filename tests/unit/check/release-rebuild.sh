@@ -37,7 +37,8 @@ expect message "v1.0.0 rebuilt for amd64 has the published digest"
 finish
 
 rebuild_setup
-apply TARBALL_DIGEST="$(digest_of b)"
+digest=$(digest_of b)
+apply TARBALL_DIGEST="${digest}"
 rebuild "another digest fails" fail
 expect message "the registry has sha256:aaaa"
 finish
@@ -95,16 +96,32 @@ finish
 
 # worktrees: the number of worktrees of the repository of the test, besides
 # its own.
-worktrees() { git -C "${work}/repo" worktree list --porcelain | grep -c '^worktree ' | awk '{ print $1 - 1 }'; }
+worktrees() {
+  local listed count
+  listed=$(git -C "${work}/repo" worktree list --porcelain)
+  count=$(grep -c '^worktree ' <<<"${listed}")
+  echo "$((count - 1))"
+}
+
+# expect_no_worktrees: the repository of the test has no worktree besides its
+# own.
+expect_no_worktrees() {
+  local count listed
+  [[ -n ${current} ]] || return 0
+  count=$(worktrees)
+  ((count != 0)) || return 0
+  listed=$(git -C "${work}/repo" worktree list)
+  report "worktrees left: ${listed}"
+}
 
 rebuild_setup
 rebuild "removes the worktree of the release" ok
-if [[ -n ${current} ]] && [[ $(worktrees) != 0 ]]; then report "worktrees left: $(git -C "${work}/repo" worktree list)"; fi
+expect_no_worktrees
 finish
 
 rebuild_setup
 apply RUN_ERROR="error: build failed"
 rebuild "a failing rebuild leaves no worktree" fail
 expect message "build failed"
-if [[ -n ${current} ]] && [[ $(worktrees) != 0 ]]; then report "worktrees left: $(git -C "${work}/repo" worktree list)"; fi
+expect_no_worktrees
 finish

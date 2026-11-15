@@ -44,6 +44,21 @@ entrypoint_setup() {
   }
 }
 
+# expect_field FILE N VALUE: field N of the entry of dev in the passwd or
+# group FILE is VALUE.
+expect_field() {
+  local file=$1 n=$2 value=$3 actual entry
+  [[ -n ${current} ]] || return 0
+  actual=$(field "${file}" dev "${n}")
+  [[ ${actual} != "${value}" ]] || return 0
+  entry=$(grep '^dev:' "${file}")
+  report "${file##*/}: ${entry}, expected field ${n} ${value}"
+}
+
+# The user running the tests, who owns their files.
+test_uid=$(id -u)
+test_gid=$(id -g)
+
 # in_project COMMAND...: runs COMMAND in the working directory of the test.
 in_project() { (cd "${work}/project" && "$@"); }
 
@@ -178,26 +193,27 @@ finish
 
 entrypoint_setup
 # The files of the test belong to the user running it: make that user `dev`.
-sed -i "s/^dev:x:1000:1000:/dev:x:$(id -u):$(id -g):/" "${work}/etc/passwd"
-sed -i "s/^dev:x:1000:/dev:x:$(id -g):/" "${work}/etc/group"
+sed -i "s/^dev:x:1000:1000:/dev:x:${test_uid}:${test_gid}:/" "${work}/etc/passwd"
+sed -i "s/^dev:x:1000:/dev:x:${test_gid}:/" "${work}/etc/group"
 run_lib "changes passwd, group and the files under home" ok "" set_identity 1002 1003
 if [[ -n ${current} ]]; then
-  [[ $(grep -A1 -x 'owner 1002' "${work}/chowned" | tail -n +2) == *"${work}/home"* ]] \
-    || report "files not given to uid 1002: $(paste -sd' ' "${work}/chowned")"
-  grep -qx 'owner :1003' "${work}/chowned" || report "group not changed apart: $(paste -sd' ' "${work}/chowned")"
+  given=$(grep -A1 -x 'owner 1002' "${work}/chowned")
+  [[ ${given} == *"${work}/home"* ]] \
+    || report "files not given to uid 1002: $(<"${work}/chowned")"
+  grep -qx 'owner :1003' "${work}/chowned" || report "group not changed apart: $(<"${work}/chowned")"
   grep -qx "${work}/home/.config/file" "${work}/chowned" \
-    || report "files given away: $(paste -sd' ' "${work}/chowned")"
-  [[ $(field "${work}/etc/passwd" dev 3):$(field "${work}/etc/passwd" dev 4) == 1002:1003 ]] \
-    || report "passwd: $(grep '^dev:' "${work}/etc/passwd")"
-  [[ $(field "${work}/etc/group" dev 3) == 1003 ]] || report "group: $(grep '^dev:' "${work}/etc/group")"
+    || report "files given away: $(<"${work}/chowned")"
 fi
+expect_field "${work}/etc/passwd" 3 1002
+expect_field "${work}/etc/passwd" 4 1003
+expect_field "${work}/etc/group" 3 1003
 expect message "user 'dev' is now 1002:1003"
 finish
 
 entrypoint_setup
 run_lib "does nothing for the same identity" ok "" set_identity 1000 1000
 [[ ! -e ${work}/chowned ]] || report "chown was called"
-[[ -z ${current} || ! -s ${work}/stderr ]] || report "stderr: $(cat -- "${work}/stderr")"
+[[ -z ${current} || ! -s ${work}/stderr ]] || report "stderr: $(<"${work}/stderr")"
 finish
 
 entrypoint_setup
@@ -212,18 +228,18 @@ entrypoint_setup
 change_owner() { return 1; }
 run_lib "a failing chown leaves passwd alone, and the next start completes" fail "" set_identity 1002 1002
 expect message "cannot give the files of 'dev'"
-[[ $(field "${work}/etc/passwd" dev 3) == 1000 ]] || report "passwd changed: $(grep '^dev:' "${work}/etc/passwd")"
+expect_field "${work}/etc/passwd" 3 1000
 change_owner() { cat >/dev/null; }
 run_lib "a failing chown leaves passwd alone, and the next start completes" ok "" set_identity 1002 1002
-[[ $(field "${work}/etc/passwd" dev 3) == 1002 ]] || report "passwd: $(grep '^dev:' "${work}/etc/passwd")"
+expect_field "${work}/etc/passwd" 3 1002
 finish
 
 entrypoint_setup
 MOUNT=1
 run_lib "a mounted home keeps the owner of its files" ok "" set_identity 1002 1003
-[[ ! -e ${work}/chowned ]] || report "files changed owner: $(paste -sd' ' "${work}/chowned")"
-[[ $(field "${work}/etc/passwd" dev 3):$(field "${work}/etc/group" dev 3) == 1002:1003 ]] \
-  || report "passwd or group not changed"
+[[ ! -e ${work}/chowned ]] || report "files changed owner: $(<"${work}/chowned")"
+expect_field "${work}/etc/passwd" 3 1002
+expect_field "${work}/etc/group" 3 1003
 expect message "${work}/home is a mount point: its files keep their owner"
 expect message "user 'dev' is now 1002:1003"
 finish
@@ -232,8 +248,8 @@ entrypoint_setup
 # The state after a start that changed passwd but failed on group.
 sed -i 's/^dev:x:1000:1000:/dev:x:1002:1002:/' "${work}/etc/passwd"
 run_lib "a group left behind by a failed start is completed" ok "" set_identity 1002 1002
-[[ ! -e ${work}/chowned ]] || report "files changed owner again: $(paste -sd' ' "${work}/chowned")"
-[[ $(field "${work}/etc/group" dev 3) == 1002 ]] || report "group: $(grep '^dev:' "${work}/etc/group")"
+[[ ! -e ${work}/chowned ]] || report "files changed owner again: $(<"${work}/chowned")"
+expect_field "${work}/etc/group" 3 1002
 expect message "user 'dev' is now 1002:1002"
 finish
 
@@ -242,7 +258,7 @@ chmod 444 "${work}/etc/group"
 chmod 555 "${work}/etc"
 run_lib "a failing group change leaves passwd alone" fail "" set_identity 1002 1002
 chmod 755 "${work}/etc"
-[[ $(field "${work}/etc/passwd" dev 3) == 1000 ]] || report "passwd changed: $(grep '^dev:' "${work}/etc/passwd")"
+expect_field "${work}/etc/passwd" 3 1000
 expect message "cannot change 'dev' to 1002:1002"
 finish
 
@@ -264,17 +280,17 @@ finish
 
 # Files of the image layers on overlayfs may have another device than home.
 entrypoint_setup
-sed -i "s/^dev:x:1000:1000:/dev:x:$(id -u):$(id -g):/" "${work}/etc/passwd"
-sed -i "s/^dev:x:1000:/dev:x:$(id -g):/" "${work}/etc/group"
+sed -i "s/^dev:x:1000:1000:/dev:x:${test_uid}:${test_gid}:/" "${work}/etc/passwd"
+sed -i "s/^dev:x:1000:/dev:x:${test_gid}:/" "${work}/etc/group"
 mkdir "${work}/home/project"
 touch "${work}/home/.gitconfig"
 mounted "${work}/home/project" >"${mountinfo}"
 mounted "${work}/home/.gitconfig" >>"${mountinfo}"
 run_lib "gives the files under home to dev, but not mount points" ok "" set_identity 1002 1003
 if [[ -n ${current} ]]; then
-  grep -qx "${work}/home/.config/file" "${work}/chowned" || report "files not given: $(paste -sd' ' "${work}/chowned")"
+  grep -qx "${work}/home/.config/file" "${work}/chowned" || report "files not given: $(<"${work}/chowned")"
   ! grep -qx -e "${work}/home/project" -e "${work}/home/.gitconfig" "${work}/chowned" \
-    || report "mount points given away: $(paste -sd' ' "${work}/chowned")"
+    || report "mount points given away: $(<"${work}/chowned")"
 fi
 finish
 
@@ -282,7 +298,28 @@ entrypoint_setup
 mountinfo=${work}/missing
 run_lib "keeps the files when the mount points are unknown" fail "" set_identity 1002 1002
 expect message "cannot give the files of 'dev'"
-[[ ! -s ${work}/chowned ]] || report "files changed owner: $(paste -sd' ' "${work}/chowned")"
+[[ ! -s ${work}/chowned ]] || report "files changed owner: $(<"${work}/chowned")"
+finish
+
+# A failing read of mountinfo used to leave every path in, mount points too.
+entrypoint_setup
+current="not_mounted fails when it cannot read mountinfo"
+mountinfo=${work}/missing
+out=$(printf '%s\0' "${home}/a" | not_mounted 2>/dev/null)
+status=$?
+[[ ${status} != 0 && -z ${out} ]] || report "status ${status}, paths: ${out}"
+finish
+
+entrypoint_setup
+not_mounted() {
+  cat >/dev/null
+  return 2
+}
+run_lib "keeps the files when the mount points cannot be read" fail "" set_identity 1002 1002
+expect message "cannot give the files of 'dev'"
+expect_field "${work}/etc/passwd" 3 1000
+# The double of change_owner records the owner before it reads any path.
+! grep -qv '^owner ' "${work}/chowned" 2>/dev/null || report "files changed owner: $(<"${work}/chowned")"
 finish
 
 for identity in "0 1000" "1000 0" "4294967296 1000" "x 1000" "1000 1000"; do
@@ -340,7 +377,8 @@ finish
 
 entrypoint_setup
 current="root's Nix processes get proxies but not the container's settings"
-daemon_path=$(dirname -- "$(command -v env)")
+env_path=$(command -v env)
+daemon_path=$(dirname -- "${env_path}")
 out=$(NIX_CONFIG='trusted-users = dev' NIX_USER_CONF_FILES=/tmp/nix.conf XDG_CONFIG_HOME=/tmp \
   https_proxy=http://proxy:3128 NO_PROXY=localhost no_proxy="" as_root NIX_REMOTE=daemon env)
 expected="PATH=${daemon_path}
@@ -349,7 +387,7 @@ NIX_SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 https_proxy=http://proxy:3128
 NO_PROXY=localhost
 NIX_REMOTE=daemon"
-[[ ${out} == "${expected}" ]] || report "environment: $(paste -sd' ' <<<"${out}")"
+[[ ${out} == "${expected}" ]] || report "environment: ${out//$'\n'/ }"
 finish
 
 entrypoint_setup
@@ -366,13 +404,15 @@ finish
 
 entrypoint_setup
 mkdir "${work}/bin"
-printf '#!%s\necho started >>"%s/starts"; exit 1\n' "$(command -v bash)" "${work}" >"${work}/bin/nix-daemon"
+bash_path=$(command -v bash)
+printf '#!%s\necho started >>"%s/starts"; exit 1\n' "${bash_path}" "${work}" >"${work}/bin/nix-daemon"
 chmod +x "${work}/bin/nix-daemon"
 daemon_path=${work}/bin daemon_log=${work}/daemon.log
 sleep() { :; }
 run_lib "gives up after five quick exits of the daemon" ok "" supervise
 unset -f sleep
-[[ $(wc -l <"${work}/starts") == 5 ]] || report "started $(wc -l <"${work}/starts") times"
+starts=$(wc -l <"${work}/starts")
+[[ ${starts} == 5 ]] || report "started ${starts} times"
 expect message "nix-daemon exited 5 times in a row, giving up"
 finish
 
@@ -410,16 +450,16 @@ missing_library=/no-such-library.so
 # The environment of the container must not change root's bash: bash would
 # source BASH_ENV, import the exported function id, which tells the
 # entrypoint it is root, and trace with SHELLOPTS.
-if (($(id -u) != 0)); then
+if ((test_uid != 0)); then
   entrypoint_setup
   printf 'touch %q\n' "${work}/sourced" >"${work}/bash-env"
   run "the container's environment does not reach root's bash" ok bin/environ \
     BASH_ENV="${work}/bash-env" 'BASH_FUNC_id%%=() { echo 0; }' SHELLOPTS=xtrace \
     -- to-fd "${BUILT}/bin/entrypoint" printf '%s\n' ran
   expect stdout ran
-  expect message "started as uid $(id -u) instead of 0"
+  expect message "started as uid ${test_uid} instead of 0"
   [[ ! -e ${work}/sourced ]] || report "bash sourced BASH_ENV"
-  ! grep -q '^+' "${work}/stderr" || report "bash traced: $(cat -- "${work}/stderr")"
+  ! grep -q '^+' "${work}/stderr" || report "bash traced: $(<"${work}/stderr")"
   finish
 
   entrypoint_setup
@@ -427,8 +467,9 @@ if (($(id -u) != 0)); then
     LD_PRELOAD="${missing_library}" GCONV_PATH=/tmp -- to-fd "${BUILT}/bin/entrypoint" env
   expect_line "${work}/stdout" "LD_PRELOAD=${missing_library}"
   expect_line "${work}/stdout" GCONV_PATH=/tmp
-  [[ $(grep -c "${missing_library}" "${work}/stderr") == 1 ]] \
-    || report "programs that read LD_PRELOAD: $(cat -- "${work}/stderr")"
+  readers=$(grep -c "${missing_library}" "${work}/stderr")
+  [[ ${readers} == 1 ]] \
+    || report "programs that read LD_PRELOAD: $(<"${work}/stderr")"
   finish
 fi
 

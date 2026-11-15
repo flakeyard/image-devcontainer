@@ -56,11 +56,12 @@ count_of_predicate() {
     [.attestations[] | inline | select(statement.predicateType == $type)] | length' <<<"${list}"
 }
 
+# shellcheck disable=SC2310 # verifies is one command, whose failure is the answer.
 if verifies; then
   set_output true
   exit 0
 fi
 existing=$(count_of_predicate)
 ((existing == 0)) \
-  || fail "${DIGEST} has ${existing} ${predicate} attestations, but none verifies: $(cat "${work}/verify")"
+  || fail "${DIGEST} has ${existing} ${predicate} attestations, but none verifies: $(<"${work}/verify")"
 set_output false

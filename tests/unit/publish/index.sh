@@ -30,7 +30,7 @@ if [[ -n ${current} ]]; then
   jq -e '.manifests[0].platform.architecture == "amd64" and .manifests[1].platform.architecture == "arm64"
     and .annotations["org.opencontainers.image.version"] == "1.2.3"
     and .annotations["org.opencontainers.image.revision"] == "abc123"' \
-    "${registry}/manifests/${digest}" >/dev/null || report "index: $(cat "${registry}/manifests/${digest}")"
+    "${registry}/manifests/${digest}" >/dev/null || report "index: $(<"${registry}/manifests/${digest}")"
 fi
 finish
 
@@ -39,8 +39,9 @@ finish
 index_setup
 publish "the exact bytes of the list" ok
 pinned=sha256:2268211f761ccdcc84ce34b5d106de9887490dffe29561f97410bdb00fd75fbb
-if [[ -n ${current} && $(<"${work}/stdout") != "${pinned}" ]]; then
-  report "digest $(<"${work}/stdout"), not ${pinned}: $(cat "${registry}/manifests/$(<"${work}/stdout")")"
+digest=$(<"${work}/stdout")
+if [[ -n ${current} && ${digest} != "${pinned}" ]]; then
+  report "digest ${digest}, not ${pinned}: $(<"${registry}/manifests/${digest}")"
 fi
 finish
 

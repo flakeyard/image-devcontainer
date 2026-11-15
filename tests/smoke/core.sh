@@ -11,8 +11,10 @@ stop_timeout=5
 # number and the command line of PID 1.
 no_zombies() {
   local id=$1
+  local count
   output=$(docker exec -i "${id}" sh -s <"${probes}/zombies.sh" 2>&1)
-  [[ $(head -n 1 <<<"${output}") == 0 ]]
+  count=$(head -n 1 <<<"${output}")
+  [[ ${count} == 0 ]]
 }
 
 # --- the user and its shell ---------------------------------------------------
@@ -29,7 +31,9 @@ expect_no_text "ssh-server"
 
 test_case "/usr/bin/bash is the file of /bin/bash and /bin/sh"
 run -- readlink -f /bin/bash /usr/bin/bash /bin/sh
-[[ $(wc -l <<<"${output}") == 3 && $(sort -u <<<"${output}" | wc -l) == 1 && ${output} == /nix/store/*/bin/bash* ]] \
+lines=$(wc -l <<<"${output}")
+unique=$(sort -u <<<"${output}")
+[[ ${lines} == 3 && ${unique} != *$'\n'* && ${output} == /nix/store/*/bin/bash* ]] \
   || fail "not one bash"
 
 test_case "dev runs /usr/bin/bash with uid 1000 and other uids"
@@ -123,7 +127,9 @@ test_case "the Nix daemon is not in the process group of the command"
 start_ready id
 # The groups of the child of tini, the command, and of the daemon.
 output=$(docker exec "${id}" sh -c 'ps -o pgid= -p "$(cut -d " " -f 1 /proc/1/task/1/children)"; ps -o pgid= -C nix-daemon')
-[[ $(sort -u <<<"${output}" | wc -l) == 2 ]] || fail "the same group, or none"
+unique=$(sort -u <<<"${output}")
+mapfile -t groups <<<"${unique}"
+((${#groups[@]} == 2)) || fail "the same group, or none"
 remove "${id}"
 
 test_case "starts again"
@@ -184,8 +190,13 @@ touch "${WORK}/host/file" "${WORK}/gitconfig"
 sudo chown -R 1000:1000 "${WORK}/host" "${WORK}/gitconfig"
 run -e DEV_UID=1003 -v "${WORK}/host:/home/dev/host" -v "${WORK}/gitconfig:/home/dev/.gitconfig" -- id -u
 expect_line "1003"
-[[ $(stat -c %u:%g "${WORK}/host" "${WORK}/host/file" "${WORK}/gitconfig" | sort -u) == 1000:1000 ]] \
-  || fail "host files changed owner: $(stat -c '%n %u:%g' "${WORK}/host" "${WORK}/host/file" "${WORK}/gitconfig")"
+# A failing stat fails the test, not the suite.
+owners=$(stat -c %u:%g "${WORK}/host" "${WORK}/host/file" "${WORK}/gitconfig" 2>&1) || true
+unique=$(sort -u <<<"${owners}")
+if [[ ${unique} != 1000:1000 ]]; then
+  owners=$(stat -c '%n %u:%g' "${WORK}/host" "${WORK}/host/file" "${WORK}/gitconfig" 2>&1) || true
+  fail "host files changed owner: ${owners}"
+fi
 
 test_case "does not adopt a working directory that is not a mount point"
 run -w /tmp -- id -u
@@ -228,25 +239,26 @@ expect_line "root"
 # The volume targets that the README supports, restated as its oracle.
 volume_targets=(.cache .local/share .vscode-server)
 
-# new_volumes TARGET...: docker arguments that mount a new volume at each
-# TARGET under /home/dev. Anonymous volumes start like new named ones, and
-# run --rm removes them.
+# new_volumes TARGET...: sets volumes to docker arguments that mount a new
+# volume at each TARGET under /home/dev. Anonymous volumes start like new
+# named ones, and run --rm removes them.
 new_volumes() {
   local target
+  volumes=()
   for target; do
-    printf '%s\n' --mount "type=volume,target=/home/dev/${target}"
+    volumes+=(--mount "type=volume,target=/home/dev/${target}")
   done
 }
 
 test_case "dev can write to new volumes at the supported targets"
-mapfile -t volumes < <(new_volumes "${volume_targets[@]}")
+new_volumes "${volume_targets[@]}"
 run "${volumes[@]}" -- sh -c 'for target; do touch "$HOME/$target/file" && echo "written $target"; done' sh "${volume_targets[@]}"
 for target in "${volume_targets[@]}"; do
   expect_line "written ${target}"
 done
 
 test_case "a new volume keeps uid 1000 when dev gets another uid"
-mapfile -t volumes < <(new_volumes .cache)
+new_volumes .cache
 run -e DEV_UID=1001 "${volumes[@]}" -- stat -c %u /home/dev/.cache
 expect_line "1000"
 

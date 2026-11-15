@@ -52,9 +52,10 @@ sbom_problems() {
 
 # print_summary SBOM: prints the number of components and store paths.
 print_summary() {
-  local sbom=$1 count
+  local sbom=$1 count paths
   count=$(jq '.components | length' "${sbom}")
-  echo "The SBOM of ${system} has ${count} components for $(grep -c . "${CLOSURE}") store paths."
+  paths=$(grep -c . "${CLOSURE}")
+  echo "The SBOM of ${system} has ${count} components for ${paths} store paths."
 }
 
 # fail_on PROBLEMS: fails listing PROBLEMS, one per line, unless empty.
