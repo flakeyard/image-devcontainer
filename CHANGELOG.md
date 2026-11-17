@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/flakeyard/image-devcontainer/compare/v0.2.1...v0.2.2) (2026-11-17)
+
+
+### Bug Fixes
+
+* **deps:** update flake input nixpkgs to f1e5c35 ([#152](https://github.com/flakeyard/image-devcontainer/issues/152)) ([ea6ab60](https://github.com/flakeyard/image-devcontainer/commit/ea6ab60a0784a78d7550e95de4b850f89f755b3a))
+
 ## [0.2.1](https://github.com/flakeyard/image-devcontainer/compare/v0.2.0...v0.2.1) (2026-11-15)
 
 
