@@ -41,10 +41,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: flakeyard/action-setup-nix@fb341511810edd7130323f11a393d31d11216b89 # v0.1.7
+      - uses: flakeyard/action-setup-nix@b285505bb60774b9b04c26289f24f0087c69b644 # v0.1.8
       # Before any evaluation of the flake (FY-0017).
       - name: Check flake.lock
-        uses: flakeyard/action-flake-lock@e7dddc54fd1efc7a64eb3cb3b998e8f11a3e8314 # v0.3.0
+        uses: flakeyard/action-flake-lock@0d088001ca9dd95b3fe97eae18762b79d6f85b07 # v0.4.0
       - name: Check reproducibility
         shell: bash
         run: nix run --no-update-lock-file .#check-reproducible
@@ -75,7 +75,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: flakeyard/action-setup-nix@fb341511810edd7130323f11a393d31d11216b89 # v0.1.7
+      - uses: flakeyard/action-setup-nix@b285505bb60774b9b04c26289f24f0087c69b644 # v0.1.8
       - name: Generate the SBOM and check the licenses
         shell: bash
         run: nix run --no-update-lock-file .#check-licenses -- "$RUNNER_TEMP/sbom.cdx.json"
@@ -103,7 +103,7 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: false
-      - uses: flakeyard/action-setup-nix@fb341511810edd7130323f11a393d31d11216b89 # v0.1.7
+      - uses: flakeyard/action-setup-nix@b285505bb60774b9b04c26289f24f0087c69b644 # v0.1.8
       - name: Rebuild the newest release
         shell: bash
         env:
@@ -115,7 +115,7 @@ jobs:
     needs: [image, licenses, rebuild]
     # Dispatched runs post their final status on every outcome.
     if: ${{ !cancelled() || github.event_name == 'workflow_dispatch' }}
-    uses: flakeyard/workflow-check/.github/workflows/check.yaml@aa514199d5eb5231dfc42e70a99288fd79832311 # v0.4.0
+    uses: flakeyard/workflow-check/.github/workflows/check.yaml@1343fcb9ba9f013a0b633ffc1c8f81e0d082d309 # v0.6.0
     permissions:
       actions: read # own job name and the jobs of the run
       contents: read # repository files through the contents API
