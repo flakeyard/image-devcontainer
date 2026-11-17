@@ -242,7 +242,7 @@ you do not trust, since entering the directory runs that branch's shell hook.
 Commit inside the container, whose Nix store has the tools of the hooks. The
 commands below run in it as in CI, except `nix run .#smoke`, which needs Docker,
 Podman and sudo; tools that the shell does not have come from nixpkgs, such as
-`nix run nixpkgs#typos`. Nix on the host works as well: `direnv allow` or
+`nix run nixpkgs#reuse`. Nix on the host works as well: `direnv allow` or
 `nix develop` gives the same shell.
 
 - `nix flake check` checks the tools, the users and Nix settings, the entrypoint
@@ -250,9 +250,20 @@ Podman and sudo; tools that the shell does not have come from nixpkgs, such as
   and runs the checks of the atoms: [atom-nix][atom-nix] lints the Nix files
   with statix, deadnix and its relative paths hook (`checks.nix`),
   [atom-shell][atom-shell] lints the scripts with shellcheck (`checks.shell`),
-  nixfmt and shfmt check their formatting through treefmt (`checks.treefmt`,
+  [atom-markdown][atom-markdown] lints the Markdown files with markdownlint and
+  checks their links inside the repository with lychee (`checks.markdown`),
+  [atom-text][atom-text] checks the spelling of every file with typos and its
+  line endings, final newline and trailing whitespace with editorconfig-checker
+  (`checks.text`), [atom-data-formats][atom-data-formats] lints the YAML, JSON
+  and TOML files with yamllint, biome and taplo and the metadata of the actions
+  and of Renovate with check-jsonschema (`checks.data-formats`), nixfmt, shfmt,
+  prettier and taplo check the formatting through treefmt (`checks.treefmt`,
   `nix fmt`), and [atom-workflows][atom-workflows] lints the workflows and
-  actions with actionlint and zizmor (`checks.workflows`).
+  actions with actionlint and zizmor (`checks.workflows`). The apps
+  `markdown-links` and `workflows-online` check every link of the Markdown files
+  and run the audits of zizmor that need the network; CI does not run them,
+  since workflow-check runs apps only with its flake, which this repository
+  leaves empty.
 - `nix run .#check-reproducible` rebuilds the derivations of the image that
   `cache.nixos.org` does not have with `--rebuild`, whatever the local store has
   built, and compares two streams of the image;
@@ -303,8 +314,8 @@ the development shell has.
 This repository is bootstrapped under [FY-0022][fy-0022]. Until their providers
 are released:
 
-- Prettier, markdownlint, typos and `reuse lint` run locally before every pull
-  request (provider: the atoms).
+- `reuse lint` runs locally before every pull request (provider: an atom that is
+  not released yet).
 
 ## License
 
@@ -323,8 +334,11 @@ are released:
 [fy-0034]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0034-check-every-repository-with-workflow-check.md
 [workflow-check]: https://github.com/flakeyard/workflow-check
+[atom-data-formats]: https://github.com/flakeyard/atom-data-formats
+[atom-markdown]: https://github.com/flakeyard/atom-markdown
 [atom-nix]: https://github.com/flakeyard/atom-nix
 [atom-shell]: https://github.com/flakeyard/atom-shell
+[atom-text]: https://github.com/flakeyard/atom-text
 [atom-workflows]: https://github.com/flakeyard/atom-workflows
 [action-flake-lock]: https://github.com/flakeyard/action-flake-lock
 [lib-actions]: https://github.com/flakeyard/lib-actions
