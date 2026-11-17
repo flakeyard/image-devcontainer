@@ -2,7 +2,7 @@
   description = "Dev container image built with Nix: multi-user Nix, direnv and nix-direnv.";
 
   inputs = {
-    nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?ref=nixos-26.05&rev=c56a87d8e41ce69bd2af57eb35dcc117a9dfca33&shallow=1";
+    nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?ref=nixos-26.05&rev=f1e5c356f35d07e7b71a6b5e6c9338e0b029e0c0&shallow=1";
     flake-parts = {
       url = "git+https://github.com/hercules-ci/flake-parts?ref=main&rev=ea2630b7470978622c7689a1ff75d2b389175399&shallow=1";
       inputs.nixpkgs-lib.follows = "nixpkgs";
