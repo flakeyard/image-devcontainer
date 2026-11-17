@@ -28,8 +28,8 @@ if require_yq .github/workflows/test.yaml; then
     "${TEST_DEFINITIONS}"'(.on.schedule | length > 0) and ([.jobs[] | select(scheduled and runs("check-release-rebuild"))
     | .strategy.matrix.include[].runner] | sort == ["ubuntu-24.04", "ubuntu-24.04-arm"])'
   # The tests and the app publish-verify fetch the library at the commit that
-  # the job that runs the tests pins (ADR-0001 of action-shell-lib).
+  # the job that runs the tests pins (ADR-0001 of lib-actions).
   yaml_check "${test_workflow}" "test workflow: the job image pins the shell library" \
-    "${TEST_DEFINITIONS}"'any(.jobs.image.steps[].uses // ""; startswith("flakeyard/action-shell-lib@"))'
+    "${TEST_DEFINITIONS}"'any(.jobs.image.steps[].uses // ""; startswith("flakeyard/lib-actions@"))'
   check_library_pins
 fi

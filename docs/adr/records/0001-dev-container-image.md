@@ -73,8 +73,7 @@ Prototypes with real tools established:
   instead.
 - GitHub-hosted runners have bash at `/usr/bin/bash` as well as `/bin/bash`.
   Scripts written for them call it there, such as the steps and tests of
-  [action-shell-lib][action-shell-lib], and fail in an image that has only
-  `/bin/bash`.
+  [lib-actions][lib-actions], and fail in an image that has only `/bin/bash`.
 
 ## Decision
 
@@ -281,7 +280,7 @@ permissions of their outputs.
   needs a new image for every lock update.
 
 [decisions]: https://github.com/flakeyard/decisions
-[action-shell-lib]: https://github.com/flakeyard/action-shell-lib
+[lib-actions]: https://github.com/flakeyard/lib-actions
 [fy-0005]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0005-dev-container-image.md
 [fy-0024]:

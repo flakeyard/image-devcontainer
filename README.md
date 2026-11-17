@@ -290,8 +290,8 @@ are in `tests/unit/release/`, and the static tests of `test.yaml` in
 `tests/unit/workflows/`. [`tests/run.sh`](tests/run.sh) runs them, and
 `tests/unit/entrypoint.sh` and `tests/unit/environ.sh` those of the entrypoint
 and `environ`, with the harness and the stubs of `gh`, `date` and `sleep` of
-[action-shell-lib][action-shell-lib] and the other stubs in `tests/bin/`. The
-action `attest-once` and the app `publish-verify` call the GitHub API through
+[lib-actions][lib-actions] and the other stubs in `tests/bin/`. The action
+`attest-once` and the app `publish-verify` call the GitHub API through
 `github/api.sh` of the library. The jobs of `release.yaml` that attest pin the
 library for the action; the job `image` of `test.yaml` pins the same commit, at
 which `nix flake check` and the app fetch it. Alone, `tests/run.sh` needs
@@ -327,7 +327,7 @@ are released:
 [atom-shell]: https://github.com/flakeyard/atom-shell
 [atom-workflows]: https://github.com/flakeyard/atom-workflows
 [action-flake-lock]: https://github.com/flakeyard/action-flake-lock
-[action-shell-lib]: https://github.com/flakeyard/action-shell-lib
+[lib-actions]: https://github.com/flakeyard/lib-actions
 [atom-workspace]: https://github.com/flakeyard/atom-workspace
 [fy-0012]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0012-develop-in-container.md
