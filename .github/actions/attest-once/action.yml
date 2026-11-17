@@ -19,7 +19,7 @@ inputs:
   shell-lib:
     description: >-
       Directory of the shell library, the output path of
-      flakeyard/action-shell-lib.
+      flakeyard/lib-actions.
     required: true
 runs:
   using: composite
