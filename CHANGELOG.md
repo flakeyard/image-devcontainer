@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.0](https://github.com/flakeyard/image-devcontainer/compare/v0.2.2...v0.3.0) (2026-11-23)
+
+
+### Features
+
+* add devcontainer-setup, the setup command of the workspace ([#189](https://github.com/flakeyard/image-devcontainer/issues/189)) ([fd01dca](https://github.com/flakeyard/image-devcontainer/commit/fd01dcadcc7234c197b3131a215067dfed7cdaef))
+
+
+### Bug Fixes
+
+* **deps:** update flake input nixpkgs to 0dc498b ([#186](https://github.com/flakeyard/image-devcontainer/issues/186)) ([bfad774](https://github.com/flakeyard/image-devcontainer/commit/bfad7740983a27a61e0ae94676b91594b0391814))
+* **deps:** update flake input treefmt-nix to a0a97e3 ([#187](https://github.com/flakeyard/image-devcontainer/issues/187)) ([7452a53](https://github.com/flakeyard/image-devcontainer/commit/7452a53efd903fc554126a4b35fde9a4c0c91ffc))
+
 ## [0.2.2](https://github.com/flakeyard/image-devcontainer/compare/v0.2.1...v0.2.2) (2026-11-17)
 
 
