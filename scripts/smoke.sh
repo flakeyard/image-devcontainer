@@ -22,4 +22,4 @@ trap 'sudo rm -rf -- "$WORK"' EXIT
 
 # shellcheck disable=SC1091 # the tests come from the argument
 source "${tests}/lib.sh"
-suite "${tests}"/{core,nix,editor,hardening}.sh
+suite "${tests}"/{core,nix,editor,hardening,setup}.sh
