@@ -48,6 +48,12 @@ Probes with direnv 2.37 and nix-direnv in the image established:
 - The git hooks name tools by `/nix/store` paths of the store they were
   installed from. A hook installed in another container, or on the host, names
   paths this store may not have.
+- `git worktree add` writes absolute paths into the `.git` file of the worktree
+  and into the `gitdir` file of its administrative directory. The workspace has
+  another path in the container than on the host, so a worktree made on one side
+  is broken on the other. With `worktree.useRelativePaths = true` (git 2.48 or
+  newer; the image has 2.54), git writes relative paths, which hold on both
+  sides.
 - `git rev-parse --git-path hooks` is `core.hooksPath` when it is set, and
   `.git/hooks` of the common directory otherwise.
 
@@ -74,32 +80,37 @@ failed:
    the mount that holds the workspace. Otherwise it refuses with
    `create worktrees inside the workspace, e.g. git worktree add .worktrees/<name>`.
    Worktrees inside the workspace share its mount and pass.
-2. **Trust.** `direnv allow`.
-3. **Shell.** It loads the shell strictly: `direnv export json` without the
+2. **Relative worktrees.** In a git repository, it runs
+   `git config --local worktree.useRelativePaths true`, so that worktrees made
+   afterwards, in the container or on the host, work on both sides.
+3. **Trust.** `direnv allow`.
+4. **Shell.** It loads the shell strictly: `direnv export json` without the
    variables of a loaded environment, with a configuration directory of its own
    (`DIRENV_CONFIG`) whose `direnv.toml` sets `strict_env = true` and whose
    `direnvrc` sources the `direnvrc` of the user and calls
    `nix_direnv_disallow_fallback`. A non-zero exit status, and a loaded
    environment with `NIX_DIRENV_DID_FALLBACK`, fail. The log of direnv and Nix
    goes to stderr. This load runs the shellHook, which installs the hooks.
-4. **Hooks.** Outside a git repository, or when it has no `core.hooksPath`, no
+5. **Hooks.** Outside a git repository, or when it has no `core.hooksPath`, no
    `.pre-commit-config.yaml` in the top of the checkout and no pre-commit hook,
    it says that it skips the hooks. Otherwise the executable `pre-commit` hook
    must exist in `git rev-parse --git-path hooks`, and every `/nix/store` path
    that it or `.pre-commit-config.yaml` names must exist.
-5. **Summary.** One line on stdout that names the workspace and what was
+6. **Summary.** One line on stdout that names the workspace and what was
    checked, then exit 0.
 
-The settings of step 3 apply only to this load: the user's direnv loads the
+The settings of step 4 apply only to this load: the user's direnv loads the
 shell as before, from the cache the strict load built.
 
 ### Tests
 
 The smoke tests of the image ([ADR-0001](0001-dev-container-image.md)) run the
 command in the container: a working project passes, also in a worktree inside
-the workspace; a broken shell fails; a worktree whose `gitdir` is outside the
-mount fails with the message; a hook whose tool is missing from the store fails;
-a project without hooks passes with the notice.
+the workspace, and has `worktree.useRelativePaths` set, and a worktree made
+under `.worktrees/` afterwards has a relative `gitdir`; a broken shell fails; a
+worktree whose `gitdir` is outside the mount fails with the message; a hook
+whose tool is missing from the store fails; a project without hooks passes with
+the notice.
 
 ## Constraints
 
@@ -115,6 +126,8 @@ a project without hooks passes with the notice.
 - It MUST load the shell so that a failing command of `.envrc` and a failed
   evaluation or build of the shell fail, and MUST NOT accept a fallback to a
   previous environment. `direnv exec . true` MUST NOT be the check.
+- In a git repository, it MUST set `worktree.useRelativePaths` to `true` in the
+  local configuration of the repository.
 - It MUST check the `pre-commit` hook at `git rev-parse --git-path hooks` and
   every store path that the hook and `.pre-commit-config.yaml` name, unless the
   checkout has no hooks configuration, which it MUST then say.
@@ -122,8 +135,9 @@ a project without hooks passes with the notice.
 - Its name, its arguments, its exit statuses and the conditions under which it
   fails are public API; the texts of its messages, apart from the worktree
   message above, are not.
-- The smoke tests MUST cover a working project, a broken shell and a worktree
-  outside the mount.
+- The smoke tests MUST cover a working project, a broken shell, a worktree
+  outside the mount, and the relative `gitdir` of a worktree made after the
+  setup.
 
 ## Consequences
 
@@ -155,4 +169,5 @@ a project without hooks passes with the notice.
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0012-develop-in-container.md
 [fy-0035]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0035-extract-logic-that-has-two-users.md
-[fy-0042]: https://github.com/flakeyard/decisions/tree/main/docs/adr/records
+[fy-0042]:
+  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0042-set-up-the-dev-container-with-one-command-and-keep-worktrees-inside-it.md
