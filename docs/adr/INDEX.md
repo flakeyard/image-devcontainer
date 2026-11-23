@@ -6,10 +6,12 @@
 
 _None._
 
-## Accepted (1)
+## Accepted (2)
 
 - [ADR-0001](records/0001-dev-container-image.md) Dev container image
   (2026-11-05)
+- [ADR-0002](records/0002-set-up-the-workspace-with-devcontainer-setup.md) Set
+  up the workspace with devcontainer-setup (2026-11-23)
 
 ## Rejected (0)
 
