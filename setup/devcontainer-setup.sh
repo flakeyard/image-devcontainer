@@ -3,7 +3,8 @@
 #
 # Sets up the workspace in its working directory, as the postCreateCommand of
 # a devcontainer.json (ADR-0002): refuses a worktree whose git directory is
-# outside the mount of the workspace, runs direnv allow, loads the shell
+# outside the mount of the workspace, makes git write relative paths for new
+# worktrees, runs direnv allow, loads the shell
 # strictly, checks the pre-commit hook and the store paths it names, and
 # prints one summary line. Exits 1 at the first step that fails, and 2 when
 # given arguments. writeShellApplication (nix/image/parts/devcontainer-setup.nix)
@@ -38,6 +39,14 @@ check_worktree() {
     [[ ${mount} == / || ${gitdir} == "${mount}"/* ]] && return 0
   fi
   fail "the git directory ${gitdir} of this worktree is outside ${mount} or does not exist; create worktrees inside the workspace, e.g. git worktree add .worktrees/<name>"
+}
+
+# relative_worktrees: in a git repository, git worktree add writes relative
+# paths from now on, which hold both in the container and on the host, where
+# the workspace has another path (git 2.48 or newer).
+relative_worktrees() {
+  git rev-parse --git-dir >/dev/null 2>&1 || return 0
+  git config --local worktree.useRelativePaths true || fail "cannot set worktree.useRelativePaths"
 }
 
 # load_shell: loads the shell of .envrc as a new one, with errexit, nounset
@@ -107,6 +116,7 @@ fi
 
 workspace=$(pwd -P)
 check_worktree "${workspace}"
+relative_worktrees
 direnv allow . || fail "direnv allow failed"
 load_shell
 checked=""

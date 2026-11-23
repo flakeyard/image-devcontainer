@@ -19,10 +19,12 @@ run -- sh -c 'devcontainer-setup now; echo "exit $?"'
 expect_line "exit 2"
 expect_text "usage: devcontainer-setup"
 
-test_case "a working project passes, also in a worktree inside the workspace"
+test_case "a working project passes, also in a worktree inside the workspace, which has a relative gitdir"
 dir=$(workspace working project)
 run -i -v "${dir}:/home/dev/project" -w /home/dev/project -- bash -s <"${probes}/setup-git.sh"
 expect_line "workspace exit 0"
+expect_line "useRelativePaths=true"
+expect_line "worktree gitdir: ../../.git/worktrees/inner"
 expect_line "inner exit 0"
 expect_line "devcontainer-setup: /home/dev/project: shell loaded, pre-commit hook checked with 1 store paths"
 expect_line "devcontainer-setup: /home/dev/project/.worktrees/inner: shell loaded, pre-commit hook checked with 1 store paths"

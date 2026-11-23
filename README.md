@@ -85,18 +85,22 @@ It takes no arguments and does, in order:
    exist or is outside the mount of the workspace, which is the case for a
    worktree of the host opened as the workspace. Create worktrees inside the
    workspace instead, such as with `git worktree add .worktrees/<name>`.
-2. It runs `direnv allow`.
-3. It loads the shell of `.envrc` strictly: with `set -euo pipefail` in `.envrc`
+2. In a git repository, it runs
+   `git config --local worktree.useRelativePaths true`, so that worktrees made
+   afterwards, in the container or on the host, use relative paths and work on
+   both sides.
+3. It runs `direnv allow`.
+4. It loads the shell of `.envrc` strictly: with `set -euo pipefail` in `.envrc`
    (`strict_env`) and without the fallback of nix-direnv to a previous
    environment, so that a failing command of `.envrc` and a failed evaluation or
    build of the shell fail. The shellHook of the shell runs, which installs the
    git hooks of flakeyard shells.
-4. It checks that the executable `pre-commit` hook is at
+5. It checks that the executable `pre-commit` hook is at
    `git rev-parse --git-path hooks`, which is `core.hooksPath` when set, and
    that every `/nix/store` path that it and `.pre-commit-config.yaml` name
    exists. Outside a git repository, or without `core.hooksPath`,
    `.pre-commit-config.yaml` and a pre-commit hook, it says that it skips this.
-5. It prints one summary line.
+6. It prints one summary line.
 
 It exits 0 when every step passed, 1 at the first one that failed, with a
 message on stderr, and 2 when given arguments. It may run again by hand, such as
