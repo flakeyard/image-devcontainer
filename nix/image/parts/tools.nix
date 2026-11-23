@@ -1,11 +1,13 @@
 # The tools of the image by name, part of its public API (ADR-0001): Nix,
-# direnv and nix-direnv, bash, and what a shell needs before a project shell
-# exists. No toolchains, editors, other shells or servers.
+# direnv and nix-direnv, bash, what a shell needs before a project shell
+# exists, and devcontainer-setup (ADR-0002). No toolchains, editors, other
+# shells or servers.
 {
   perSystem =
     { config, pkgs, ... }:
     let
       inherit (config.image.parts)
+        devcontainer-setup
         nix
         nix-direnv
         openssh-client
@@ -14,6 +16,7 @@
     in
     {
       image.parts.tools = [
+        devcontainer-setup
         nix
         nix-direnv
         openssh-client

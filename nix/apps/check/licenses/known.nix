@@ -26,8 +26,10 @@ let
 in
 lib.genAttrs nixComponents (_: ids nixLibrary)
 // {
-  # Our own derivations: the entrypoint and the links that keep paths alive.
+  # Our own derivations: the entrypoint, devcontainer-setup and the links
+  # that keep paths alive.
   entrypoint = [ lib.licenses.mit.spdxId ];
+  devcontainer-setup = [ lib.licenses.mit.spdxId ];
   # Built with musl, and named after its platform.
   ${parts.environ.name} = [ lib.licenses.mit.spdxId ];
   image-roots = [ lib.licenses.mit.spdxId ];

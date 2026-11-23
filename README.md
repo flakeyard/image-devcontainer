@@ -20,12 +20,13 @@ Pin the image by the digest that the [release notes][releases] name:
 The image carries what Dev Containers tools need in its `devcontainer.metadata`
 label: `remoteUser: dev`, `overrideCommand: false`, `init: true` and
 `updateRemoteUserUID: true`. A project may add
-`"postCreateCommand": "direnv allow"` and named volumes for state under
-`/home/dev` that should survive recreating the container. The supported targets
-are `/home/dev/.cache`, `/home/dev/.local/share` and `/home/dev/.vscode-server`:
-the image has these directories, owned by `dev`, and Docker and Podman give a
-new volume the owner of the directory it is mounted at. A new volume anywhere
-else belongs to root, and `dev` cannot write to it.
+`"postCreateCommand": "devcontainer-setup"` (see
+[Setting up the workspace](#setting-up-the-workspace)) and named volumes for
+state under `/home/dev` that should survive recreating the container. The
+supported targets are `/home/dev/.cache`, `/home/dev/.local/share` and
+`/home/dev/.vscode-server`: the image has these directories, owned by `dev`, and
+Docker and Podman give a new volume the owner of the directory it is mounted at.
+A new volume anywhere else belongs to root, and `dev` cannot write to it.
 
 A volume keeps the uid it was created with. The entrypoint never changes the
 owner of a mount point, so when `dev` gets another uid than 1000, from `DEV_UID`
@@ -72,6 +73,35 @@ userns = "keep-id:uid=1000,gid=1000"
 
 A shared `devcontainer.json` cannot carry this setting, because Docker rejects
 it.
+
+## Setting up the workspace
+
+`devcontainer-setup` sets up the workspace in its working directory, as the
+`postCreateCommand` of Dev Containers tools runs it
+([ADR-0002](docs/adr/records/0002-set-up-the-workspace-with-devcontainer-setup.md)).
+It takes no arguments and does, in order:
+
+1. When `.git` is a file, it refuses a worktree whose git directory does not
+   exist or is outside the mount of the workspace, which is the case for a
+   worktree of the host opened as the workspace. Create worktrees inside the
+   workspace instead, such as with `git worktree add .worktrees/<name>`.
+2. It runs `direnv allow`.
+3. It loads the shell of `.envrc` strictly: with `set -euo pipefail` in `.envrc`
+   (`strict_env`) and without the fallback of nix-direnv to a previous
+   environment, so that a failing command of `.envrc` and a failed evaluation or
+   build of the shell fail. The shellHook of the shell runs, which installs the
+   git hooks of flakeyard shells.
+4. It checks that the executable `pre-commit` hook is at
+   `git rev-parse --git-path hooks`, which is `core.hooksPath` when set, and
+   that every `/nix/store` path that it and `.pre-commit-config.yaml` name
+   exists. Outside a git repository, or without `core.hooksPath`,
+   `.pre-commit-config.yaml` and a pre-commit hook, it says that it skips this.
+5. It prints one summary line.
+
+It exits 0 when every step passed, 1 at the first one that failed, with a
+message on stderr, and 2 when given arguments. It may run again by hand, such as
+after a change of the shell. The strict load reads the `direnvrc` of the user,
+but not its `direnv.toml` or the files of `lib/` next to it.
 
 ## Behaviour
 
@@ -153,10 +183,11 @@ it.
 - **Tools.** `nix`, `direnv`, `nix-direnv`, `bash`, coreutils, findutils,
   diffutils, `grep`, `sed`, `awk`, `tar`, `gzip`, `xz`, `bzip2`, `zstd`, `less`,
   procps, `which`, util-linux, `getent`, `curl`, `git`, the OpenSSH client
-  without its server, CA certificates, time zones and service names. bash is
-  `/bin/bash`, `/bin/sh` and `/usr/bin/bash`, where GitHub-hosted runners have
-  it, so that scripts written for them run here; `env` is `/usr/bin/env`.
-  Interactive and login shells load the direnv hook.
+  without its server, CA certificates, time zones and service names, and
+  `devcontainer-setup`. bash is `/bin/bash`, `/bin/sh` and `/usr/bin/bash`,
+  where GitHub-hosted runners have it, so that scripts written for them run
+  here; `env` is `/usr/bin/env`. Interactive and login shells load the direnv
+  hook.
 - **Foreign binaries.** Editor servers built for other distributions run through
   nix-ld at the standard loader path, with `libstdc++` and `libgcc_s` besides
   glibc, as VS Code Server needs.
@@ -173,6 +204,8 @@ An incompatible change of any of these is a major release
 - the defaults in the `devcontainer.metadata` label;
 - the tools above, by name, and the paths `/bin/sh`, `/bin/bash`,
   `/usr/bin/bash` and `/usr/bin/env`;
+- the arguments, steps and exit statuses of `devcontainer-setup`, and its
+  message about worktrees;
 - the Nix implementation and its minor version;
 - the platforms `linux/amd64` and `linux/arm64`, the engines Docker, Dev
   Containers tools and rootless Podman, and the capabilities above.
@@ -269,9 +302,9 @@ Podman and sudo; tools that the shell does not have come from nixpkgs, such as
   built, and compares two streams of the image;
   `nix run .#check-size -- size-budget` compares its size with the budget.
 - `nix run .#smoke -- tests/smoke` loads the image into Docker and runs the
-  smoke tests, including VS Code Server and the Dev Containers tools with Docker
-  and rootless Podman. They need Docker, Podman and passwordless sudo, as on
-  GitHub-hosted runners.
+  smoke tests, including VS Code Server, the Dev Containers tools with Docker
+  and rootless Podman, and `devcontainer-setup`. They need Docker, Podman and
+  passwordless sudo, as on GitHub-hosted runners.
 - `nix run .#check-licenses -- sbom.cdx.json` generates the SBOM and checks the
   licenses.
 
