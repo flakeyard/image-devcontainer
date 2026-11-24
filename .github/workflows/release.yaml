@@ -17,7 +17,7 @@ env:
 
 jobs:
   release:
-    uses: flakeyard/workflow-release/.github/workflows/release.yaml@fe2ea19dbb35c14179cbcb2a5d6e33a91d2b1f10 # v0.2.9
+    uses: flakeyard/workflow-release/.github/workflows/release.yaml@739ffd1bde68c07a6cb3aeace74cc5cfcbb29a84 # v0.2.10
     # Required by the called workflow for every path; with the App, its token
     # does the writes.
     permissions:
