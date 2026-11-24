@@ -273,14 +273,18 @@ runs the previous release of the image. `direnv` loads the development shell of
 [`flake.nix`](flake.nix) through [`.envrc`](.envrc) ([FY-0012][fy-0012]):
 [atom-workspace][atom-workspace] joins the tools of the atoms and `jq` and
 mikefarah `yq` for `tests/run.sh`, and installs the git hooks each time the
-shell starts. The container runs `direnv allow` when it is created; run it once
-in every other worktree, and run `direnv block` before you check out a branch
-you do not trust, since entering the directory runs that branch's shell hook.
-Commit inside the container, whose Nix store has the tools of the hooks. The
-commands below run in it as in CI, except `nix run .#smoke`, which needs Docker,
-Podman and sudo; tools that the shell does not have come from nixpkgs, such as
-`nix run nixpkgs#reuse`. Nix on the host works as well: `direnv allow` or
-`nix develop` gives the same shell.
+shell starts. The container runs `devcontainer-setup` when it is created
+([FY-0042][fy-0042]): it allows the shell, fails when the shell or its git hooks
+are broken, and makes git record worktrees by relative paths. Create worktrees
+inside the workspace with `git worktree add .worktrees/<name>` and work in them
+from the same container; git on the host must be 2.48 or newer to use them. Run
+`direnv allow` once in every worktree, and run `direnv block` before you check
+out a branch you do not trust, since entering the directory runs that branch's
+shell hook. Commit inside the container, whose Nix store has the tools of the
+hooks. The commands below run in it as in CI, except `nix run .#smoke`, which
+needs Docker, Podman and sudo; tools that the shell does not have come from
+nixpkgs, such as `nix run nixpkgs#reuse`. Nix on the host works as well:
+`direnv allow` or `nix develop` gives the same shell.
 
 - `nix flake check` checks the tools, the users and Nix settings, the entrypoint
   and the scripts with their unit tests (`tests/unit/`), that the image builds,
@@ -382,3 +386,5 @@ are released:
 [atom-workspace]: https://github.com/flakeyard/atom-workspace
 [fy-0012]:
   https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0012-develop-in-container.md
+[fy-0042]:
+  https://github.com/flakeyard/decisions/blob/main/docs/adr/records/0042-set-up-the-dev-container-with-one-command-and-keep-worktrees-inside-it.md
